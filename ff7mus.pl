@@ -118,7 +118,7 @@ use Data::Dumper;
 %optext = (0xA0 => 'Halt', 0xA1 => 'Program Change', 
 		0xA2 => 'Utility Duration', 0xA3 => 'Set Track Vol', 
 	   0xA5 => 'Set Octave', 0xA6 => 'Inc Octave', 0xA7 => 'Dec Octave',
-	   0xA8 => 'Set Velocity', 0xA9 => 'Velocity Fade',
+	   0xA8 => 'Set Expression', 0xA9 => 'Expression Fade',
 	   0xAA => 'Set Pan', 0xAB => 'Pan Fade',
 	   0xAD => 'Set Attack', 0xAE => 'Set Decay',
 	   0xAF => 'Set Sustain Level', 0xB0 => 'Set Decay and SusLvl',
@@ -154,6 +154,10 @@ use Data::Dumper;
 #print OUT "Duration table: ", join(" ", map {sprintf "%02x", $_} @durtbl), "\n";
 @durtbl = (0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06,
 		   0x03, 0x20, 0x10, 0x08, 0x04);
+
+@patchmap = ();
+@transpose = ();
+@percmap = (50) x 12;
 
 #@oplen  = &getpsx("C*", 0x80049948, 0x60);
 @oplen = (0,2,2,2,3,2,1,1,
@@ -222,7 +226,7 @@ foreach $fname (sort @fnames) {
   $oname =~ s/ \././g;
   $mname = $oname;
   $mname =~ s/txt$/mid/g;
-  print STDERR "$oname\n$mname\n";
+  printf STDERR "%s\n", $textmode ? $oname : $mname;
 
   open IN, "< $fname" or warn, next;
   if ($textmode) {
@@ -286,11 +290,14 @@ VOICE:
     
     my $tempo = 255;
     my $balance = 0x80;
-    my $velocity = 64;
+    my $velocity = 100;
+	my $expression = 0;
     my $octave = 4;
     my $durmult = 0;
     my $perckey = 0;   # key to use for percussion
 	my $util_dur = 0;
+	my $channel = $vchan;
+	my $t = 0;
 
     my $rptidx = 0;
     my (@rptcnt, @rptpos, @rptcur);
@@ -323,7 +330,6 @@ VOICE:
 			if ($notenum < 12) {
 				printf OUT "Note %s (%02d) ", $notes[$notenum], $notenum;
 				my $mnote = 12 * ($octave + $t) + $notenum;
-				my $channel = $vchan;
 				if ($perckey) {
 					# substitute percussion key on chan 10
 					$channel = 9;  # 10 zero-based
@@ -362,9 +368,17 @@ VOICE:
 			if ($cmd == 0xA0) {
 				# halt
 				next;
+			} elsif ($cmd == 0xA1 || $cmd == 0xF2) {
+				# program change
+				my $inst = $patchmap[$op[0]];
+				push @$e, ['patch_change', $totaltime, $channel, $inst];
+				$t = $transpose[$op[0]];
 			} elsif ($cmd == 0xA2) {
 				#util dur
 				$util_dur = $op[0];
+			} elsif ($cmd == 0xA3) {
+				# track vol
+				&set_controller($e, $totaltime, $channel, 7, $op[0]);
 			} elsif ($cmd == 0xA5) {
 				# set octave
 				$octave = $op[0];
@@ -375,11 +389,22 @@ VOICE:
 				# dec octave
 				$octave--;
 			} elsif ($cmd == 0xA8) {
-				# set velocity
-				$velocity = $op[0];
+				# set expression
+				$expression = $op[0];
+				&set_controller($e, $totaltime, $channel, 11, $expression);
+			} elsif ($cmd == 0xA9) {
+				# expression fade
+				my $new_expr = $op[1];
+				&fade($e, $totaltime, $expression, $new_expr,
+					  $op[0], 'control_change', $channel, 11);
 			} elsif ($cmd == 0xAA) {
 				# set pan
 				$balance = $op[0];
+				&set_controller($e, $totaltime, $channel, 10, $balance);
+			} elsif ($cmd == 0xAB) {
+				my $new_bal = $op[1];
+				&fade($e, $totaltime, $balance, $new_bal,
+					   $op[0], 'control_change', $channel, 10);
 			} elsif ($cmd == 0xC8) {
 				# begin repeat
 				$rptcur[++$rpt] = 0;
@@ -405,10 +430,20 @@ VOICE:
 			} elsif ($cmd == 0xE9) {
 				# tempo fade
 				my $new_tempo = ($op[2] << 8) + $op[1];
+				printf OUT " to ~%d bpm", $new_tempo / 218;
 				&fade($cevents, $totaltime,
 						int($tempo_factor / $tempo),
 						int($tempo_factor / $new_tempo), $op1, 'set_tempo');
 				$tempo = $new_tempo;
+			} elsif ($cmd == 0xEC) {
+				# percussion mode on
+				# TODO: identify args for perc mode
+				$perckey = $percmap[$op[1]];
+				$channel = 9;
+			} elsif ($cmd == 0xED) {
+				# percussion mode off
+				$perckey = 0;
+				$channel = $vchan;
 			} elsif ($cmd == 0xEE) {
 				# goto
 				#$p = &offset($p, ($op[1] << 8) + $op[0])
@@ -424,6 +459,12 @@ VOICE:
 			} elsif ($cmd == 0xFD) {
 				# time sig
 				printf OUT " (%d/%d)", $op[1], 0xC0/$op[0];
+				# midi wants log base 2 of denominator
+				# lazy mode: only care about a few values, make a map
+				my (%denom) = (2 => 1, 4 => 2, 8 => 3, 16 => 4, 32 => 5);
+				# numerator, denominator, metronome clicks, 32nds/qtr
+				push @$cevents, ['time_signature', $totaltime,
+					$op[1], $denom{0xC0/$op[0]}, 24, 8];
 			} elsif ($cmd == 0xFE) {
 				# measure number
 				printf OUT "%d", ($op[1] << 8) + $op[0];
@@ -449,6 +490,11 @@ sub getpsx {
 
   return unpack $format,
          substr($buf, $start, $len);
+}
+
+sub set_controller {
+	my ($events, $etime, $channel, $controller, $value) = @_;
+	push @$events, ['control_change', $etime, $channel, $controller, $value];
 }
 
 sub fade {
