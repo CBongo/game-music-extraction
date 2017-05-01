@@ -1,0 +1,64 @@
+SIGFIND - Finds psyq signatures in Playstation Executables
+  by someone42 (someone42_000@hotmail.com) 2003
+
+Signature file loaded
+z:\psx\ff9\slus_012.51 : Text Start = 0x80010000, Text Length = 0x001DE000
+
+EnterCriticalSection (3.7) found at 0x80012D08 length = 0x00000010
+ExitCriticalSection (3.7) found at 0x80012D18 length = 0x00000010
+ResetCallback (3.7) found at 0x80015EA8 length = 0x00000030
+InterruptCallback (3.7) found at 0x80015ED8 length = 0x00000030
+DMACallback (3.7) found at 0x80015F08 length = 0x00000030
+VSyncCallback (3.7) found at 0x80015F38 length = 0x00000034
+SpuInit (3.7) found at 0x80016D40 length = 0x00000020
+_SpuInit (4.2) found at 0x80016D60 length = 0x000000E8
+SpuStart (4.2) found at 0x80016E48 length = 0x00000070
+OpenEvent (3.7) found at 0x80016EC0 length = 0x0000000C
+EnableEvent (3.7) found at 0x80016ED0 length = 0x0000000C
+_spu_init (4.2) found at 0x80016EE0 length = 0x00000280
+unknown0 (4.2) found at 0x80017160 length = 0x000001C0
+_spu_FiDMA (4.2) found at 0x80017320 length = 0x000000BC
+_spu_Fr_ (4.2) found at 0x800173DC length = 0x000000A8
+_spu_t (4.2) found at 0x80017484 length = 0x00000280
+_spu_Fw (4.2) found at 0x80017704 length = 0x00000084
+_spu_Fr (4.2) found at 0x80017788 length = 0x00000064
+_spu_FsetRXX (4.2) found at 0x800177EC length = 0x00000044
+_spu_FsetRXXa (4.2) found at 0x80017830 length = 0x000000A4
+_spu_FgetRXXa (3.7) found at 0x800178D4 length = 0x0000003C
+_spu_FsetPCR (4.2) found at 0x80017910 length = 0x00000058
+unknown2 (4.2) found at 0x80017968 length = 0x00000028
+unknown1 (4.2) found at 0x80017990 length = 0x00000028
+_spu_Fw1ts (4.2) found at 0x800179B8 length = 0x0000005C
+DeliverEvent (3.7) found at 0x80017A20 length = 0x0000000C
+_SpuDataCallback (3.7) found at 0x80017A30 length = 0x00000024
+SpuSetReverbModeParam (4.2) found at 0x80017A60 length = 0x000004D4
+_SpuIsInAllocateArea (3.7) found at 0x80017F40 length = 0x00000080
+_SpuIsInAllocateArea_ (3.7) found at 0x80017FC0 length = 0x0000008C
+_spu_setReverbAttr (3.7) found at 0x80018050 length = 0x000004D0
+SpuSetReverbDepth (3.7) found at 0x80018520 length = 0x00000078
+SpuClearReverbWorkArea (4.2) found at 0x800185A0 length = 0x00000194
+WaitEvent (3.7) found at 0x80018740 length = 0x0000000C
+SsSetNoiseOff (3.7) found at 0x80021340 length = 0x00000020
+SsSetNoiseOff (3.7) found at 0x80021360 length = 0x00000020
+SsSetNoiseOff (3.7) found at 0x80021620 length = 0x00000020
+SetRCnt (3.7) found at 0x8004BC90 length = 0x0000009C
+ResetRCnt (4.2) found at 0x8004BDC8 length = 0x00000034
+SpuSetTransferStartAddr (4.2) found at 0x8005652C length = 0x0000005C
+CloseEvent (3.7) found at 0x80056CAC length = 0x0000000C
+DisableEvent (3.7) found at 0x80056CBC length = 0x0000000C
+SpuQuit (4.2) found at 0x80056CDC length = 0x00000074
+SpuInitMalloc (3.7) found at 0x80056D5C length = 0x00000054
+SpuSetReverb (4.2) found at 0x80056DBC length = 0x000000CC
+SpuSetIRQ (4.2) found at 0x80056E8C length = 0x0000013C
+SpuSetIRQCallback (4.2) found at 0x80056FCC length = 0x0000003C
+_SpuCallback (3.7) found at 0x8005700C length = 0x00000024
+SpuRead (4.2) found at 0x8005703C length = 0x0000005C
+SpuRead (4.2) found at 0x8005709C length = 0x0000005C
+SpuSetTransferMode (4.2) found at 0x800570FC length = 0x00000030
+SpuSetTransferCallback (3.7) found at 0x8005712C length = 0x00000024
+SpuSetNoiseClock (4.2) found at 0x800592CC length = 0x00000048
+SpuGetVoiceEnvelope (3.7) found at 0x8005931C length = 0x0000001C
+SpuSetReverbModeDepth (4.2) found at 0x8005933C length = 0x00000028
+SpuSetReverbModeType (4.2) found at 0x8005CC14 length = 0x000001CC
+SpuSetIRQAddr (3.7) found at 0x80062304 length = 0x00000040
+TestEvent (3.7) found at 0x80065208 length = 0x0000000C

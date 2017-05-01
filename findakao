@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+
+# find akao blocks in ff9.img
+# cab 14 Apr 2003
+
+open IN, "< FF9.IMG" or die; 
+while (!eof(IN)) {
+  read IN, $buf, 0x10000;
+  $loc = -1;
+  while (($loc = index($buf, 'AKAO', $loc+1)) >= 0) {
+    printf "%08x\n", $loc + $base;
+  }
+  $base += 0x10000;
+}
+close IN;
