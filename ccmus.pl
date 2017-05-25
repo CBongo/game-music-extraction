@@ -41,14 +41,15 @@ use Data::Dumper;
 
 %feoptext = (0x00 => 'Set Tempo', 0x01 => 'Tempo Fade',
 	     0x02 => 'Set Reverb Vol', 0x03 => 'Reverb Vol Fade',
-	     0x04 => 'Perc Mode On',
+	     0x04 => 'Perc Mode On', 0x05 => 'Perc Mode Off',
 	     0x06 => 'Goto Relative', 0x07 => 'Branch if vblk+6c >= op1',
 	     0x08 => 'Goto if arg == rptcount',
 	     0x09 => 'Goto if arg == rptcount w/pop',
 	     0x0e => 'Call Sub', 0x0f => 'Return From Sub',
 	     0x10 => 'Set NextAvailPV', 0x11 => 'Clear NextAvailPV',
 		 0x12 => 'Track Vol Fade',
-	     0x14 => 'Program Change');
+	     0x14 => 'Program Change', 0x15 => 'Time Signature',
+		 0x16 => 'Measure #');
 
 #@durtbl = &getpsx("v*", 0x8006b5bc, 0xb * 2);
 #print OUT "Duration table: ", join(" ", map {sprintf "%02x", $_} @durtbl), "\n";
@@ -278,17 +279,34 @@ VOICE:
 				#die sprintf "unhandled opcode FE %02X", $op1;
 				$unhandledFE{$op1} = 1;
 			}
-			print OUT "\n";  
+ 
 			if ($op1 == 0x00) {
 			  # tempo
 			  $tempo = ($op[1] << 8) + $op[0];
+			  printf OUT " ~%d bpm", $tempo / 218;
 			  push @{$cevents},
 				  ['set_tempo', $totaltime, int($tempo_factor / $tempo)];	  
 			} elsif ($op1 == 0x06) {
-			  # goto
-			  $p = 0;
-			  next;
+				# goto
+				$p = 0;
+				print OUT "\n"; 
+				next;
+			} elsif ($op1 == 0x15) {
+				# time sig
+				# work around bogus 0/0 time sigs
+				my $d = $op[0] != 0 ? 0xC0/$op[0] : 0;
+				printf OUT " (%d/%d)", $op[1], $d;
+				# midi wants log base 2 of denominator
+				# lazy mode: only care about a few values, make a map
+				my (%denom) = (2 => 1, 4 => 2, 8 => 3, 16 => 4, 32 => 5);
+				# numerator, denominator, metronome clicks, 32nds/qtr
+				push @$cevents, ['time_signature', $totaltime,
+					$op[1], $denom{$d}, 24, 8] if $d;
+			} elsif ($op1 == 0x16) {
+				# measure number
+				printf OUT "%d", ($op[1] << 8) + $op[0];
 			}
+			print OUT "\n"; 
 		} else {
 			my @op;
 			my $oplen = $oplen[$cmd - 0xA0];
