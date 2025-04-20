@@ -1,0 +1,81 @@
+; song mapping tbl
+a01c 80    ; title		Y=1a...23
+a01d 10    ; continue		Y=12...19,15
+a01e 01    ; overworld		Y=09...0f,0a
+a01f 40	   ; dungeon		Y=10...11,10
+a020 08    ; got item		Y=4->8dc7
+a021 04	   ; dungeon cleared	Y=3->8dce
+a022 02	   ; uh oh		Y=2->8e15
+a023 20    ; final dungeon	Y=6->8e0d
+
+8d5f -> Y
+8d60 -> 05f4 (durtbl offset)
+8d61 -> 66
+8d62 -> 67
+8d63 -> 060c
+8d64 -> 060b
+8d65 -> 060d,05f5
+8d66 -> 0619
+8d67 -> 05f1
+#$01 -> 0611,0613,0616,0617
+#$00 -> 060a
+
+0066  vcmd ptr
+006a  low byte of sq1 freq
+006b  low byte of sq2 freq
+05f0  low byte of tri freq
+05f4  durtbl offset to use
+0600  new song requested to play
+0607  tie flag?
+0609  current song playing
+060a  vcmd offset?
+0610  current duration
+0611  duration counter
+
+ 66 8e70
+ 6b ef
+5f1 80
+5f4 10
+5f5 8e
+600 01
+609 01
+60a 01
+60b 5d
+60c 32
+60d 8e
+610 30
+611 30
+612 20
+613 01
+616 01
+617 01
+619 01
+61a 00
+61b 00
+
+vcmds
+00 halt
+80-87 set duration? (prefix)
+
+; freqtbl
+9f00 00 23  00 6a  03 27  00 97   00 00  02 f9  02 cf  02 a6
+9f10 02 80  02 5c  02 3a  02 1a   01 fc  01 df  01 c4  01 ab
+9f20 01 93  01 7c  01 67  01 53   01 40  01 2e  01 1d  01 0d
+9f30 00 fe  00 ef  00 e2  00 d5   00 c9  00 be  00 b3  00 a9
+9f40 00 a0  00 8e  00 86  00 77   00 7e  00 71  00 54  00 64
+9f50 00 5f  00 59  00 50  00 47   00 43  00 3f  00 38  00 32
+9f60 00 21  05 4d  05 01  04 b9   04 35  03 f8  03 bf  03 89
+9f70 03 57
+; durtbls
+9fd1 03 0a 01 14  05 28 3c 70
+9fd9 07 1b 35 14  0d 28 3c 50
+9fe1 06 0c 08 18  24 30 48 10
+9fe9 07 0d 09 1b  24 36 48 10
+9ff1 3c 50 0a 05  14 0d 28 0e
+
+9c2b set sq2 freq from 9f00 table
+if not zero then
+ 9f72 A=#$20, X=#$82, Y=#$7f
+A -> 0612
+9c21  X -> 4004, Y -> 4005
+0 -> 061b

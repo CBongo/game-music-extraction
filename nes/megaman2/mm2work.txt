@@ -1,0 +1,86 @@
+For song 0e (intro part 1):
+song addr (8A50,X) = B1B4
+
+copy songaddr+1 to 0500-1
+
+X: 0F
+e0: 0f - currently playing sfx flag (hi) and song flag (lo)
+e2: B1BB
+e4: 00  - "sei" simulator; 01 = disable play; 00 = enable play
+e5: 04
+e7: 00
+e8: 00
+ea: 01		; inc'ed every frame
+eb: 00		; voice reg offset (00,04,08,0c)
+ec: 0500	; vstatus block ptr (1f)
+ee: 04		; voice loop counter (4..1)
+
+0500: b1bf 0000 0000 0000  0000 0000 0000 0000
+0510: 0000 0000 0000 0000  0100 0000 0001 00
+
+051f: b23d 0000 0000 0000  0000 0000 0000 0000
+052f: 0000 0000 0000 0000  0000 0000 0000 00
+
+053e: b2b9 0000 0000 0000  0000 0000 0000 0000
+054e: 0000 0000 0000 0000  0000 0000 0000 00
+
+055d: b31d 0000 0000 0000  0000 0000 0000 0000
+056d: 0000 0000 0000 0000  0000 0000 0000 00
+
+057c: b353
+
+vstatus 00/01: vptr
+vstatus 02/03: duration counter (steps of 4?) = vs+4 * (8975 tbl)
+vstatus 05: bits 0-6 = repeat counter
+vstatus 07/08: ptr to pitch table for note (with octave factor)
+vstatus 0A/0B: current note pitch value
+vstatus 1A/1B: added to (vs+f4/f5) to get freq
+vstatus 1C: reg 3 shadow?
+
+8097:
+81b2: zero $0f bytes at $0500+$ec+#$10
+8207: ROR w/o carry E1; EC += #$1F
+8219: e1 >> 4
+
+86b4 do 86c3 (e7) times
+86c3 
+ 82ec 
+       f5 = 0c
+  838f
+
+
+; duration table from 872e
+8975 00 00 02 04  08 10 20 40
+; dot dur table from 8884 (vcmd 06)
+897d 00 00 03 06  0c 18 30 60
+
+
+b1bf 00 08  ; set vstatus+4
+b1c1 05 20  ; set vstatus+7/8 to 89c5 (octave = 4)
+b1c3 02 80  ; set vstatus+C bits 6/7 to 80
+b1c5 03 3e  ; set vstatus+C bits 0-5 to 3e
+b1c7 07 df 40 ; set vs+D to df, +E to 0, +F to 4f
+b1ca 08 00  ; set vs+6 bits 0-4 to 00; vs+14-17 = (57c/d+0*4)
+b1cc 21     ; do next stuff first; then set vs+6 bits 5-7 to $1 ($20)
+b1cd ae     ; Bb4 (0e) dur 10
+b1ce 06 ce  ; Bb4 (0e) dur 30
+b1d0 21     ; tie next two notes
+b1d1 cf     ; B4 (0f) dur 20
+b1d2 8f     ; B4 (0f) dur 08
+b1d3 06 b1  ; Db5(11) dur 18
+b1d5 04 01 c1 b1 ; repeat to b1c1 2 times
+b1d9 ae     ; Bb4 (0e) dur 10
+b1da b1     ; Db5 (11) dur 10
+b1db b8     ; Ab5 (18) dur 10
+b1dc 95     ; F5  (15) dur 08
+b1dd 96     ; Gb5 (16) dur 08
+b1de a0     ; Rest (0) dur 10
+b1df 80     ; Rest (0) dur 08
+b1e0 96 95 93  91 93 80 8e  8c 8a 80 8a  89 8a 21 b1
+b1ef 06 d1 06 b3  06 b1 af 06  b5 06 b3 b1  06 b5 06 b3
+b1ff b2 06 b6 06  b5 b3 00 07  d6 02 c0 80  8d 8f 91 21
+b20f b2 b2 92 b1  92 22 af 8f  af 8f 8c 8f  b4 b2 b1 af
+b21f 00 06 b0 80  90 90 af 90  ad 80 8d 8d  af 90 f2 05
+b22f 38 01 01 02  00 03 3f 07  af 10 21 f9  f9 09
+
+b353 02 22 80 00

@@ -1,0 +1,113 @@
+song & 7e > index to vtrack_ptr_tbl (c)
+-2 -> (8)
+-2 -> (4)
+-2 -> (0)
+
+86 -> 06 noise  f1e0
+84 -> 04 tri    f1a3
+82 -> 02 sq2    f0e0
+80 -> 00 sq1    f07b
+
+Other songs of note:
+ae -> 2e,2c,2a,28
+b6 -> 36,34,32,30
+e6 -> 66,64,62,60
+de -> 56,54,52,50
+ce -> 46,44,42,40
+be -> 36,34,32,30
+
+bank0:ec6f vtrack ptrs
+
+   vtrack_ptr_tbl[0]+1                            XREF[1,1]:   FUN_PRG0__ecef:ed08(R), 
+   vtrack_ptr_tbl                                              FUN_PRG0__ecef:ed0d(R)  
+      PRG0::ec6f        addr[
+86
+         PRG0::ec6f 7b f0           addr      DAT_PRG0__f07b          [0x0]         = 45h    E                  PRG0::ec71 e0 f0           addr      DAT_PRG0__f0e0          [0x1]         = 43h    C
+         PRG0::ec73 a3 f1           addr      DAT_PRG0__f1a3          [0x2]         = 81h
+         PRG0::ec75 e0 f1           addr      DAT_PRG0__f1e0          [0x3]         = 81h
+8e
+         PRG0::ec77 e8 f1           addr      DAT_PRG0__f1e8          [0x4]         = 44h    D
+         PRG0::ec79 0d f2           addr      DAT_PRG0__f20d          [0x5]         = 44h    D
+         PRG0::ec7b 32 f2           addr      DAT_PRG0__f232          [0x6]         = 42h    B
+         PRG0::ec7d 93 f2           addr      DAT_PRG0__f293          [0x7]         = 42h    B
+96
+         PRG0::ec7f b3 f2           addr      DAT_PRG0__f2b3          [0x8]         = 85h
+         PRG0::ec81 ef f2           addr      DAT_PRG0__f2ef          [0x9]         = 85h
+         PRG0::ec83 27 f3           addr      DAT_PRG0__f327          [0xa]         = 42h    B
+         PRG0::ec85 e0 f1           addr      DAT_PRG0__f1e0          [0xb]         = 81h
+9e
+         PRG0::ec87 45 f3           addr      DAT_PRG0__f345          [0xc]         = 84h
+         PRG0::ec89 eb f3           addr      DAT_PRG0__f3eb          [0xd]         = 04h
+         PRG0::ec8b 92 f4           addr      DAT_PRG0__f492          [0xe]         = 42h    B
+         PRG0::ec8d e0 f1           addr      DAT_PRG0__f1e0          [0xf]         = 81h
+a6
+         PRG0::ec8f 39 f5           addr      DAT_PRG0__f539          [0x10]        = 82h
+         PRG0::ec91 4f f5           addr      DAT_PRG0__f54f          [0x11]        = 42h    B
+         PRG0::ec93 64 f5           addr      DAT_PRG0__f564          [0x12]        = 42h    B
+         PRG0::ec95 78 f5           addr      DAT_PRG0__f578          [0x13]        = 40h    @
+ae
+         PRG0::ec97 82 f5           addr      DAT_PRG0__f582          [0x14]        = 83h
+         PRG0::ec99 b1 f5           addr      DAT_PRG0__f5b1          [0x15]        = 83h
+         PRG0::ec9b f2 f5           addr      DAT_PRG0__f5f2          [0x16]        = 42h    B
+         PRG0::ec9d 41 f6           addr      DAT_PRG0__f641          [0x17]        = C1h
+b6
+         PRG0::ec9f 68 f6           addr      DAT_PRG0__f668          [0x18]        = 85h
+         PRG0::eca1 8a f6           addr      DAT_PRG0__f68a          [0x19]        = 85h
+         PRG0::eca3 e0 f1           addr      DAT_PRG0__f1e0          [0x1a]        = 81h
+         PRG0::eca5 e0 f1           addr      DAT_PRG0__f1e0          [0x1b]        = 81h
+be
+         PRG0::eca7 94 f6           addr      DAT_PRG0__f694          [0x1c]        = 83h
+         PRG0::eca9 cb f6           addr      DAT_PRG0__f6cb          [0x1d]        = BFh
+         PRG0::ecab 2d f7           addr      DAT_PRG0__f72d          [0x1e]        = 43h    C
+         PRG0::ecad 64 f7           addr      DAT_PRG0__f764          [0x1f]        = 40h    @
+c6
+         PRG0::ecaf 7b f7           addr      DAT_PRG0__f77b          [0x20]        = 43h    C
+         PRG0::ecb1 d8 f7           addr      DAT_PRG0__f7d8          [0x21]        = 83h
+         PRG0::ecb3 54 f8           addr      DAT_PRG0__f854          [0x22]        = 43h    C
+         PRG0::ecb5 e0 f1           addr      DAT_PRG0__f1e0          [0x23]        = 81h
+ce
+         PRG0::ecb7 a4 f8           addr      DAT_PRG0__f8a4          [0x24]        = 82h
+         PRG0::ecb9 b3 f8           addr      DAT_PRG0__f8b3          [0x25]        = C2h
+         PRG0::ecbb e0 f1           addr      DAT_PRG0__f1e0          [0x26]        = 81h
+         PRG0::ecbd e0 f1           addr      DAT_PRG0__f1e0          [0x27]        = 81h
+d6
+         PRG0::ecbf e0 f1           addr      DAT_PRG0__f1e0          [0x28]        = 81h
+         PRG0::ecc1 e0 f1           addr      DAT_PRG0__f1e0          [0x29]        = 81h
+         PRG0::ecc3 e0 f1           addr      DAT_PRG0__f1e0          [0x2a]        = 81h
+         PRG0::ecc5 e0 f1           addr      DAT_PRG0__f1e0          [0x2b]        = 81h
+de
+         PRG0::ecc7 c2 f8           addr      DAT_PRG0__f8c2          [0x2c]        = 43h    C
+         PRG0::ecc9 ca f8           addr      DAT_PRG0__f8ca          [0x2d]        = BDh
+         PRG0::eccb d2 f8           addr      DAT_PRG0__f8d2          [0x2e]        = 81h
+         PRG0::eccd e0 f1           addr      DAT_PRG0__f1e0          [0x2f]        = 81h
+e6
+         PRG0::eccf da f8           addr      DAT_PRG0__f8da          [0x30]        = E1h
+         PRG0::ecd1 f3 f8           addr      DAT_PRG0__f8f3          [0x31]        = E1h
+         PRG0::ecd3 32 f9           addr      DAT_PRG0__f932          [0x32]        = 46h    F
+         PRG0::ecd5 e0 f1           addr      DAT_PRG0__f1e0          [0x33]        = 81h
+ee
+         PRG0::ecd7 59 f9           addr      DAT_PRG0__f959          [0x34]        = 51h    Q
+         PRG0::ecd9 d9 f9           addr      DAT_PRG0__f9d9          [0x35]        = 5Ch    \
+         PRG0::ecdb 45 fa           addr      DAT_PRG0__fa45          [0x36]        = 17h
+         PRG0::ecdd e0 f1           addr      DAT_PRG0__f1e0          [0x37]        = 81h
+f6
+         PRG0::ecdf 55 fa           addr      DAT_PRG0__fa55          [0x38]        = 58h    X
+         PRG0::ece1 9b fa           addr      DAT_PRG0__fa9b          [0x39]        = 58h    X
+         PRG0::ece3 c4 fa           addr      DAT_PRG0__fac4          [0x3a]        = 17h
+         PRG0::ece5 e0 f1           addr      DAT_PRG0__f1e0          [0x3b]        = 81h
+fe
+         PRG0::ece7 0b fb           addr      DAT_PRG0__fb0b          [0x3c]        = C6h
+         PRG0::ece9 72 fb           addr      DAT_PRG0__fb72          [0x3d]        = 53h    S
+         PRG0::eceb c3 fb           addr      DAT_PRG0__fbc3          [0x3e]        = B0h
+         PRG0::eced e0 f1           addr      DAT_PRG0__f1e0          [0x3f]        = 81h
+vbyte:  < $10 = vcmd
+else
+first byte top 4 bits >> 4 -> volume bits of chan shadow and vol reg
+next byte bottom 3 bits compare to hi shadow, if different, set shadow from bits and reg
+next byte, set shadow and lo from from byte
+
+vbyte > 80: (vbyte 80: rest)
+a & 7f -> apu_period_tbl -> lo, hi (freq only) regs
+if 7e0,X < 0 then set dur counter from next vbyte, else use 7e0 value
+
+
