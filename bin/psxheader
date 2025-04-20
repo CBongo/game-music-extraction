@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+# report PSX EXE header data
+# cab 11 Apr 2003
+
+$fname = shift; 
+open IN, "< $fname" or die;
+read IN, $buf, 0x800;  # read entire header; we only use a bit
+close IN;
+
+die "Not a PSX EXE\n"
+  unless $buf =~ /^PS-X EXE/;
+
+($pc, $tstart, $tlen) = unpack "x16Vx4V2", $buf;
+$sp = unpack "V", substr($buf, 0x30);
+$copyright = unpack "A*", substr($buf, 0x4c);
+
+printf "Text start:  %08x\n", $tstart;
+printf "Text end:    %08x\n", $tstart + $tlen - 1;
+printf "Text len:    %08x\n", $tlen;
+printf "Initial PC:  %08x\n", $pc;
+printf "Initial SP:  %08x\n", $sp;
+print "Copyright notice:\n$copyright\n";

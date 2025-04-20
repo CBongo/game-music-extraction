@@ -1,0 +1,387 @@
+#!/usr/bin/perl
+#
+
+# perl disassembler for sony spc700 cpu (SNES sound CPU)
+# chris bongaarts - 21 mar 2001
+# op table from minus with minor corrections by cab
+
+open STDIN, $ARGV[0] if @ARGV;  # use filename on command line or std input    
+
+&load_op_table;
+
+MAIN:
+while (!eof(STDIN)) {
+  read STDIN, $buf, 4;
+  ($len, $startaddr) = unpack "v2", $buf;
+  if ($len == 0) {
+    printf STDERR "Execution address at %04X\n", $startaddr;
+    last MAIN;
+  }
+  printf STDERR "Disassembling block at %04X, length %04X\n",
+         $startaddr, $len;
+
+  for ($pc = $startaddr; $pc < $startaddr + $len; $pc = $newpc) {
+    last MAIN if eof STDIN;
+
+    read STDIN, $buf, 1;
+    my ($opbyte) = unpack "C", $buf;
+    my (@args);
+    my $op = $optbl[$opbyte];
+
+    if (defined($op) && $pc + $op->{nbytes} > $startaddr + $len) {
+      # fake an undefined op if we're about to overrun the end
+      undef $op;
+    }
+
+    unless (defined $op) {
+      $op->{instr} = '???';
+      $op->{nbytes} = 1;
+      $op->{rule} = 'NOP';
+    }
+
+    $newpc = $pc + $op->{nbytes};
+    if ($op->{nbytes} > 1) {
+      read STDIN, $buf, $op->{nbytes} - 1;
+      @args = unpack "C*", $buf;
+    }
+
+    my $argstr = $op->{args};
+
+    if ($op->{rule} eq 'NOP') {
+      if ($op->{nbytes} == 2) {
+        $argstr =~ s/\*/sprintf("\$%02X",$args[0])/e;
+      } elsif ($op->{nbytes} == 3) {
+        my $laddr = 0x100 * $args[1] + $args[0];
+        if ($op->{'shift'} || $op->{'or'}) {
+          # bit ops
+          my $bit = ($laddr & $op->{'or'}) >> $op->{'shift'};
+          $laddr &= ~$op->{'or'};
+          $argstr =~ s/(.*)\*/$1$bit/;
+        }
+        $argstr =~ s/\!\*/sprintf("\$%04X",$laddr)/e;
+      }
+    } elsif ($op->{rule} eq 'CSWAP') {
+      $argstr =~
+         s/(.*)\*(.*)\*(.*)/sprintf("$1\$%02X$2\$%02X$3", reverse @args)/e;
+    } elsif ($op->{rule} eq 'R1' || $op->{rule} eq 'CREL') {
+      if ($op->{rule} eq 'CREL') {
+        $argstr =~ s/\*/sprintf("\$%02X", $args[0])/e;
+      }
+      my ($distance) = unpack("c", pack("C", $args[$#args])); # cvt to signed
+      $argstr =~ s/\*/sprintf("\$%04X", $newpc + $distance)/e; 
+    } else {
+      printf STDERR "Unhandled oprule $op->{rule} at addr %04X\n", $pc;
+    }
+    my $hexfmt = " %02X" x $op->{nbytes} . "   " x (3-$op->{nbytes});
+    printf "%04X$hexfmt   %s%s%s\n",
+      $pc, $opbyte, @args, $op->{instr},
+      $argstr ? (" " x (8-length $op->{instr})) : "", $argstr;
+  } # for
+} # while
+
+# the end.
+
+sub load_op_table {
+  @optbl = ();
+  while (<DATA>) {
+    chomp;
+    next unless $_;
+    my (%op, $opcode);
+    ($op{instr}, $op{args}, $opcode, $op{nbytes}, $op{rule},
+     $op{class}, $op{'shift'}, $op{'or'}) = split;
+
+    $op{args} =~ s/\"(.*)\"/$1/;  # dequote
+    $op{'shift'} = hex $op{'shift'};
+    $op{'or'}    = hex $op{'or'};
+    $opcode      = hex $opcode;
+
+    # expand instructions with multiple opcodes
+    if ($op{rule} eq 'T1') {
+      # TCALL
+      $op{rule} = 'NOP';
+      for (my $i = 0; $i < 1 << (8-$op{'shift'}); $i++) {
+        my (%subop) = %op;
+        $subop{args} =~ s/\*/sprintf("\$%01X", $i)/e;
+        $subop{'shift'} = undef;
+        $subop{'or'} = undef;
+        $optbl[$i << $op{'shift'} & $op{'or'} | $opcode] = \%subop;
+      }
+    } elsif ($op{rule} eq 'TAR') {
+      # SET1/CLR1
+      $op{rule} = 'NOP';
+      for (my $i = 0; $i < 1 << (8-$op{'shift'}); $i++) {
+        my (%subop) = %op;
+        $subop{args} =~ s/(.*)\*/$1\#$i/;
+        $subop{'shift'} = undef;
+        $subop{'shift'} = undef;
+        $optbl[$i << $op{'shift'} & $op{'or'} | $opcode] = \%subop;
+      }
+    } else {
+      $optbl[$opcode] = \%op;
+    }
+  }
+}
+
+#"TASM SPC700 Assembler.  "
+#/*                                                 */
+#/* Sony SPC700 table for use with Table Assembler. */
+#/* email: minus@smartt.com                         */
+#/* Last updated: 12/23/96                          */
+#/*                                                 */
+#/*INSTR ARGS OPCODE BYTES MOD CLASS SHIFT OR */
+#/*-------------------------------------------*/
+__DATA__
+MOV     A,X     7D      1       NOP     1
+MOV     A,Y     DD      1       NOP     1
+MOV     X,A     5D      1       NOP     1
+MOV     Y,A     FD      1       NOP     1
+MOV     X,SP    9D      1       NOP     1
+MOV     SP,X    BD      1       NOP     1
+
+MOV     A,#*    E8      2       NOP     1
+MOV     A,(X)+  BF      1       NOP     1
+MOV     A,(X)   E6      1       NOP     1
+MOV     A,!*+X  F5      3       NOP     1
+MOV     A,!*+Y  F6      3       NOP     1
+MOV     A,!*    E5      3       NOP     1
+MOV     A,[*+X] E7      2       NOP     1
+MOV     A,[*]+Y F7      2       NOP     1
+MOV     A,*+X   F4      2       NOP     1
+MOV     A,*     E4      2       NOP     1
+MOV     X,#*    CD      2       NOP     1
+MOV     X,!*    E9      3       NOP     1
+MOV     X,*+Y   F9      2       NOP     1
+MOV     X,*     F8      2       NOP     1
+MOV     Y,#*    8D      2       NOP     1
+MOV     Y,!*    EC      3       NOP     1
+MOV     Y,*+X   FB      2       NOP     1
+MOV     Y,*     EB      2       NOP     1
+
+MOV     (X),A   C6      1       NOP     1
+MOV     (X)+,A  AF      1       NOP     1
+MOV     !*+X,A  D5      3       NOP     1
+MOV     !*+Y,A  D6      3       NOP     1
+MOV     !*,A    C5      3       NOP     1
+MOV     !*,X    C9      3       NOP     1
+MOV     !*,Y    CC      3       NOP     1
+MOV     [*+X],A C7      2       NOP     1
+MOV     [*]+Y,A D7      2       NOP     1
+MOV     *+X,A   D4      2       NOP     1
+MOV     *+Y,X   D9      2       NOP     1
+MOV     *+X,Y   DB      2       NOP     1
+MOV     *,Y     CB      2       NOP     1
+MOV     *,X     D8      2       NOP     1
+MOV     *,A     C4      2       NOP     1
+
+MOV     *,#*    8F      3       CSWAP   1
+MOV     *,*     FA      3       CSWAP   1
+
+ADC     A,#*    88      2       NOP     1
+ADC     A,(X)   86      1       NOP     1
+ADC     A,!*+X  95      3       NOP     1
+ADC     A,!*+Y  96      3       NOP     1
+ADC     A,!*    85      3       NOP     1
+ADC     A,[*+X] 87      2       NOP     1
+ADC     A,[*]+Y 97      2       NOP     1
+ADC     (X),(Y) 99      1       NOP     1
+ADC     A,*+X   94      2       NOP     1
+ADC     A,*     84      2       NOP     1
+ADC     *,#*    98      3       CSWAP   1
+ADC     *,*     89      3       CSWAP   1
+
+SBC     A,#*    A8      2       NOP     1
+SBC     A,(X)   A6      1       NOP     1
+SBC     A,!*+X  B5      3       NOP     1
+SBC     A,!*+Y  B6      3       NOP     1
+SBC     A,!*    A5      3       NOP     1
+SBC     A,[*+X] A7      2       NOP     1
+SBC     A,[*]+Y B7      2       NOP     1
+SBC     (X),(Y) B9      1       NOP     1
+SBC     A,*+X   B4      2       NOP     1
+SBC     A,*     A4      2       NOP     1
+SBC     *,#*    B8      3       CSWAP   1
+SBC     *,*     A9      3       CSWAP   1
+
+CMP     A,#*    68      2       NOP     1
+CMP     A,(X)   66      1       NOP     1
+CMP     A,!*+X  75      3       NOP     1
+CMP     A,!*+Y  76      3       NOP     1
+CMP     A,!*    65      3       NOP     1
+CMP     A,[*+X] 67      2       NOP     1
+CMP     A,[*]+Y 77      2       NOP     1
+CMP     A,*+X   74      2       NOP     1
+CMP     A,*     64      2       NOP     1
+CMP     (X),(Y) 79      1       NOP     1
+CMP     X,#*    C8      2       NOP     1
+CMP     X,!*    1E      3       NOP     1
+CMP     X,*     3E      2       NOP     1
+CMP     Y,#*    AD      2       NOP     1
+CMP     Y,!*    5E      3       NOP     1
+CMP     Y,*     7E      2       NOP     1
+CMP     *,#*    78      3       CSWAP   1
+CMP     *,*     69      3       CSWAP   1
+
+AND     A,#*    28      2       NOP     1
+AND     A,(X)   26      1       NOP     1
+AND     A,!*+X  35      3       NOP     1
+AND     A,!*+Y  36      3       NOP     1
+AND     A,!*    25      3       NOP     1
+AND     A,[*+X] 27      2       NOP     1
+AND     A,[*]+Y 37      2       NOP     1
+AND     A,*+X   34      2       NOP     1
+AND     A,*     24      2       NOP     1
+AND     (X),(Y) 39      1       NOP     1
+AND     *,#*    38      3       CSWAP   1
+AND     *,*     29      3       CSWAP   1
+
+OR      A,#*    08      2       NOP     1
+OR      A,(X)   06      1       NOP     1
+OR      A,!*+X  15      3       NOP     1
+OR      A,!*+Y  16      3       NOP     1
+OR      A,!*    05      3       NOP     1
+OR      A,[*+X] 07      2       NOP     1
+OR      A,[*]+Y 17      2       NOP     1
+OR      A,*+X   14      2       NOP     1
+OR      A,*     04      2       NOP     1
+OR      (X),(Y) 19      1       NOP     1
+OR      *,#*    18      3       CSWAP   1
+OR      *,*     09      3       CSWAP   1
+
+EOR     A,#*    48      2       NOP     1
+EOR     A,(X)   46      1       NOP     1
+EOR     A,!*+X  55      3       NOP     1
+EOR     A,!*+Y  56      3       NOP     1
+EOR     A,!*    45      3       NOP     1
+EOR     A,[*+X] 47      2       NOP     1
+EOR     A,[*]+Y 57      2       NOP     1
+EOR     A,*+X   54      2       NOP     1
+EOR     A,*     44      2       NOP     1
+EOR     (X),(Y) 59      1       NOP     1
+EOR     *,#*    58      3       CSWAP   1
+EOR     *,*     49      3       CSWAP   1
+
+INC     A       BC      1       NOP     1
+INC     !*      AC      3       NOP     1
+INC     X       3D      1       NOP     1
+INC     Y       FC      1       NOP     1
+INC     *+X     BB      2       NOP     1
+INC     *       AB      2       NOP     1
+
+DEC     A       9C      1       NOP     1
+DEC     !*      8C      3       NOP     1
+DEC     X       1D      1       NOP     1
+DEC     Y       DC      1       NOP     1
+DEC     *+X     9B      2       NOP     1
+DEC     *       8B      2       NOP     1
+
+ASL     A       1C      1       NOP     1
+ASL     !*      0C      3       NOP     1
+ASL     *+X     1B      2       NOP     1
+ASL     *       0B      2       NOP     1
+
+LSR     A       5C      1       NOP     1
+LSR     !*      4C      3       NOP     1
+LSR     *+X     5B      2       NOP     1
+LSR     *       4B      2       NOP     1
+
+ROL     A       3C      1       NOP     1
+ROL     !*      2C      3       NOP     1
+ROL     *+X     3B      2       NOP     1
+ROL     *       2B      2       NOP     1
+
+ROR     A       7C      1       NOP     1
+ROR     !*      6C      3       NOP     1
+ROR     *+X     7B      2       NOP     1
+ROR     *       6B      2       NOP     1
+
+XCN     A       9F      1       NOP     1
+
+MOVW    YA,*    BA      2       NOP     1
+MOVW    *,YA    DA      2       NOP     1
+
+INCW    *       3A      2       NOP     1
+DECW    *       1A      2       NOP     1
+ADDW    YA,*    7A      2       NOP     1
+SUBW    YA,*    9A      2       NOP     1
+CMPW    YA,*    5A      2       NOP     1
+
+MUL     YA      CF      1       NOP     1
+DIV     YA,X    9E      1       NOP     1
+
+DAA     A       DF      1       NOP     1
+DAS     A       BE      1       NOP     1
+
+BRA     *       2F      2       R1      1
+BEQ     *       F0      2       R1      1
+BNE     *       D0      2       R1      1
+BCS     *       B0      2       R1      1
+BCC     *       90      2       R1      1
+BVS     *       70      2       R1      1
+BVC     *       50      2       R1      1
+BMI     *       30      2       R1      1
+BPL     *       10      2       R1      1
+BBS     *,#0,*  03      3       CREL    1
+BBS     *,#1,*  23      3       CREL    1
+BBS     *,#2,*  43      3       CREL    1
+BBS     *,#3,*  63      3       CREL    1
+BBS     *,#4,*  83      3       CREL    1
+BBS     *,#5,*  A3      3       CREL    1
+BBS     *,#6,*  C3      3       CREL    1
+BBS     *,#7,*  E3      3       CREL    1
+BBC     *,#0,*  13      3       CREL    1
+BBC     *,#1,*  33      3       CREL    1
+BBC     *,#2,*  53      3       CREL    1
+BBC     *,#3,*  73      3       CREL    1
+BBC     *,#4,*  93      3       CREL    1
+BBC     *,#5,*  B3      3       CREL    1
+BBC     *,#6,*  D3      3       CREL    1
+BBC     *,#7,*  F3      3       CREL    1
+CBNE    *+X,*   DE      3       CREL    1
+CBNE    *,*     2E      3       CREL    1
+DBNZ    Y,*     FE      2       R1      1
+DBNZ    *,*     6E      3       CREL    1
+JMP     !*      5F      3       NOP     1
+JMP     [!*+X]  1F      3       NOP     1
+
+CALL    !*      3F      3       NOP     1
+PCALL   *       4F      2       NOP     1
+TCALL   *       01      1       T1      1       4       00F0
+BRK     ""      0F      1       NOP     1
+RET     ""      6F      1       NOP     1
+RETI    ""      7F      1       NOP     1
+
+PUSH    A       2D      1       NOP     1
+PUSH    X       4D      1       NOP     1
+PUSH    Y       6D      1       NOP     1
+PUSH    PSW     0D      1       NOP     1
+
+POP     A       AE      1       NOP     1
+POP     X       CE      1       NOP     1
+POP     Y       EE      1       NOP     1
+POP     PSW     8E      1       NOP     1
+
+SET1    *.*     02      2       TAR     1       5       00F0
+CLR1    *.*     12      2       TAR     1       5       00F0
+TSET1   !*      0E      3       NOP     1
+TCLR1   !*      4E      3       NOP     1
+AND1    C,!*.#*  4A     3       NOP     1       D      E000
+AND1    C,/!*.#* 6A     3       NOP     1       D      E000
+OR1     C,!*.#*  0A     3       NOP     1       D      E000
+OR1     C,/!*.#* 2A     3       NOP     1       D      E000
+EOR1    C,!*.#*  8A     3       NOP     1       D      E000
+NOT1    !*.#*    EA     3       NOP     1       D      E000
+MOV1    C,!*.#*  AA     3       NOP     1       D      E000
+MOV1    !*.#*,C  CA     3       NOP     1       D      E000
+
+CLRC    ""      60      1       NOP     1
+SETC    ""      80      1       NOP     1
+NOTC    ""      ED      1       NOP     1
+CLRV    ""      E0      1       NOP     1
+CLRP    ""      20      1       NOP     1
+SETP    ""      40      1       NOP     1
+EI      ""      A0      1       NOP     1
+DI      ""      C0      1       NOP     1
+
+NOP     ""      00      1       NOP     1
+SLEEP   ""      EF      1       NOP     1
+STOP    ""      FF      1       NOP     1

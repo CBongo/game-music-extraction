@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+
+# print ines header info - cab 7-19-2004
+
+$fname = shift or die "usage: $0 <filename>\n";
+
+open ROM, "< $fname" or die "open failed: $!\n";
+read ROM, $buf, 16;
+close ROM;
+
+($sig, $pcount, $ccount, $ct1, $ct2, $x1, $ct3) = unpack "A4CCCCx2C", $buf;
+
+$mirror  = $ct1 & 0x1;
+$sram    = $ct1 & 0x2;
+$trainer = $ct1 & 0x4;
+$vram4   = $ct1 & 0x8;
+
+$mapper  = ($ct2 & 0xf0) | (($ct1 & 0xf0) >> 4);
+
+die "Not iNES image\n" unless $sig eq "NES\x1a";
+
+printf "Mapper: %03d\n", $mapper;
+print "\n";
+printf "PRG-ROM size: %dK (%d 16K pages)\n", $pcount * 16, $pcount;
+printf "CHR-ROM size: %dK (%d 8K pages)\n", $ccount * 8, $ccount;
+print "\n";
+printf "Mirroring: %s\n", $mirror ? 'vertical' : 'horizontal';
+printf "SRAM enabled: %s\n", $sram ? 'yes' : 'no';
+printf "Trainer: %s\n", $trainer ? 'yes' : 'no';
+printf "Four-screen VRAM layout: %s\n", $vram4 ? 'yes' : 'no';
+

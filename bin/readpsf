@@ -1,0 +1,60 @@
+#!/usr/bin/perl
+
+# readpsf - read a PSF format file and print stats
+# cab 14 Apr 2003
+
+use Compress::Zlib;
+
+$fname = shift;
+
+open IN, "< $fname" or die;
+read IN, $buf, 0x10;
+
+($sig, $version, $ressize, $exesize, $crc) = unpack "A3CV3", $buf;
+
+die "Not a PSX file" unless $sig eq 'PSF';
+
+printf "File type:     %s%d\n", $sig, $version;
+printf "Reserved size: %08x\n", $ressize;
+printf "EXE size:      %08x\n", $exesize;
+printf "CRC:           %08x\n", $crc;
+
+read IN, $rbuf, $ressize if $ressize > 0;
+read IN, $ebuf, $exesize if $exesize > 0;
+
+$actualcrc = crc32($ebuf);
+
+printf "Actual CRC:    %08x (%s)\n", $actualcrc,
+              ($actualcrc == $crc ? 'OK' : 'BAD');
+
+# read tags (optional)
+read IN, $buf, 5;
+if ($buf eq '[TAG]') {
+  while (<IN>) {
+    chomp; next unless $_;
+    s/\s*$//;  # remove trailing whitespace
+    my ($tag, $value) = /^\s*([^=]+)\s*=\s*(.*)$/;
+    $tags{$tag} .= $value;
+  }
+  print "Tags:\n";
+  foreach $tag (sort keys %tags) {
+    print "  $tag=$tags{$tag}\n";
+  }
+}
+close IN;
+
+$buf = uncompress($ebuf);
+
+die "Not a PSX EXE\n"
+  unless $buf =~ /^PS-X EXE/;
+
+($pc, $tstart, $tlen) = unpack "x16Vx4V2", $buf;
+$sp = unpack "V", substr($buf, 0x30);
+$copyright = unpack "A*", substr($buf, 0x4c, 0x800-0x4c);
+
+printf "Text start:  %08x\n", $tstart;
+printf "Text end:    %08x\n", $tstart + $tlen - 1;
+printf "Text len:    %08x\n", $tlen;
+printf "Initial PC:  %08x\n", $pc;
+printf "Initial SP:  %08x\n", $sp;
+print "Copyright notice:\n$copyright\n";

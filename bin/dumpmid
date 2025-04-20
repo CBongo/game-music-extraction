@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+
+use MIDI;
+
+if ($ARGV[0] eq '-f') {
+  @flat = ('flat' => 1);
+  shift;
+} else {
+  @flat = ();
+}
+
+foreach (@ARGV) {
+  my $opus = new MIDI::Opus({from_file => $_});
+  $opus->dump({ @flat, dump_tracks => 1});
+}

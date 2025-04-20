@@ -1,0 +1,45 @@
+#!/usr/bin/perl
+#
+# dump NSF file data
+# format from "NES Music Format Spec" by Kevin Horton <khorton@iquest.net>
+# this program by Chris Bongaarts <cab@bongalow.net>
+# 30 March 2002
+#
+
+$fname = shift or die "usage: $0 <filename>\n";
+
+open NSF, "< $fname" or die "couldn't open $fname: $!\n";
+
+read NSF, $buf, 0x7f;
+($format, $version, $totsongs, $startsong, $loadaddr, $initaddr, $playaddr,
+ $songname, $artistname, $copyright, $ntsctempo, $bankinit, $paltempo,
+ $palntscflags, $reserved)
+    = unpack "a5C3v3Z32Z32Z32va8vCa5", $buf;
+
+$filelen = (stat NSF)[7];
+
+printf "Format: %s\n", $format;
+printf "Version: %d\n", $version;
+printf "Total songs: %d\n", $totsongs;
+printf "Starting song: %d\n", $startsong;
+print  "\n";
+printf "Load address: %04X\n", $loadaddr;
+printf "Init address: %04X\n", $initaddr;
+printf "Play address: %04X\n", $playaddr;
+printf "End  address: %04X\n", $loadaddr + $filelen - 0x80;
+print "\n";
+printf "Song name: %s\n", $songname;
+printf "Artist name: %s\n", $artistname;
+printf "Copyright holder: %s\n", $copyright;
+print "\n";
+printf "NTSC tempo: %04X\n", $ntsctempo;
+printf "PAL  tempo: %04X\n", $paltempo;
+$palntscflagdescr = $palntscflags & 2 ? "Dual PAL/NTSC"
+	 	  : $palntscflags & 1 ? "PAL" : "NTSC";
+printf "NTSC/PAL flags: %02X (%s)\n", $palntscflags, $palntscflagdescr;
+print "\n";
+printf "Initial bank settings:" . (" %02X" x 8) . "\n", unpack "C8", $bankinit;
+printf "Reserved:" . (" %02X" x 5) . "\n", unpack "C5", $reserved;
+
+close NSF;
+#the end
