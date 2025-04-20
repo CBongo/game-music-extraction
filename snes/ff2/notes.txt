@@ -1,0 +1,688 @@
+=======================================================================
+SPC: 
+Block 00: start $0800 length $11A9   code
+Block 01: start $FF00 length $0020   data?
+Block 02: start $1E00 length $0020   dir table for $CA70 (default)
+Block 03: start $CA70 length $0590   samples
+Block 04: start $F900 length $0400   samples
+Block 05: start $1D00 length $0040   dir table for $F900
+Block 06: start $B300 length $1770   samples
+Block 07: start $FD00 length $0200   dir table for $B300
+Execution Address: $0800
+$1F00: song sample directory
+$2000: song data
+$3000: sample data
+echo wave table @ F000, normal wave table @ 1E00
+
+0800 set bit 5 of $8A
+     move #$7A -> $01
+13C2 receive a command and dispatch:
+     1,3,4   -> $1432
+     2       -> $15AD
+     $10-$20 -> $1653
+     $80     -> $16D7
+     $85     -> $16E9
+     $86     -> $16F9
+     $87     -> $1709
+     $88     -> $1729
+     $89     -> $175B
+     $8A     -> $1742
+     $8B     -> $1719
+     $90     -> $176B
+     $FF     -> $1782
+1432
+ 1012 set noise enable bits
+ 0F5B
+ 103F
+
+SPC routines: 
+ 10E9  Write A to DSP register Y
+
+=======================================================================
+
+MUSIC: Call 048004 with 1E00=01 and 1E01=tune#
+ #/Tune
+01 Prologue               1D Ring of Bombs
+02 Elder                  1E Lunar Cave
+03 short fanfare-not US?  1F Surprise
+04 Chocobo                20 Dwarf Castle
+05 Mambo de Chocobo       21 Palom and Porom
+06 Underworld             22 Calbrena
+07 Zeromus                23 Run!!
+08 Victory                24 Cid's Theme
+09 Town                   25 Cave
+0A Rydia's Theme          26 Dance
+0B Battle with Fiends     27 Battle
+0C Mountain               28 Damcyan
+0D Overworld Theme        29 Fanfare
+0E Big Whale              2A Sorrow
+0F Sadness                2B Chocobo Forest
+10 Take a Nap             2C Red Wings
+11 Golbez' Theme          2D Suspicion
+12 Edward's Theme         2E Fabul
+13 Rosa's Theme           2F Cecil becomes a Paladin
+14 Baron                  30 Big Chocobo
+15 Prelude                31 Moon
+16 Evil Golbez            32 Toroia Castle
+17 Tower of Babil         33 Mysidia
+18 Airship                34 Castle?
+19 Fiend's Theme          35 Ending
+1A Boss                   36 Epilogue
+1B Giant of Babil         37 Credits
+1C Illusionary World
+
+TEXT:
+ 0DA30 01/D82E-DE4E,FF to E2FF = Menu and misc text (stores etc)
+ 71A00 0E/9800-9EFF            = Monsters
+       0E/F200-F373            = ptr table to battle messages
+ 77574 0E/F374-FF0C,FF to 0F/8008 = Battle messages
+ 78209 0F/8000-8905            = items
+ 78B06 0F/8906-8AAF            = spells
+ 78CB0 0F/8AB0-8DEF,FF to 906F = special attacks
+ 7A910 0F/A710-A859,FF to A8FF = character names, classes, battle commands
+       0F/A710  char names (width 6)
+       0F/A764  class names (width 7)
+       0F/A7C6  battle commands (width 5)
+ 7B02B 0F/AE2B-AF9E,FF to AFFF = item descriptions
+       0F/B000                 = ptr table to more battle msgs
+ 7B276 0F/B076-B33C,FF to B3FF = more battle messages
+       0F/B400-B43F            = ptr table for status effects
+ 7B640 0F/B440-B4BA,FF to B4FF = status effects
+ 80200 10/8000-81FF            = ptr table for game text TEXTAREA 1
+       10/8200-83FF            = ptr table for game text TEXTAREA 1
+ 80600 10/8400-FE20,FF to FFFF = Game text messages (compressed?) (TEXTAREA 1)
+       11/8000-82FF            = more ptr? table
+ 88500 11/8300-FFFA,FF to FFFF = more game text to 90200
+       13/9700-97FE            = two-char compression table*
+       13/A500-A6FF            = offset table for TEXTAREA 2
+ 9A900 13/A700-CD8F,FF to D1FF = more game text (TEXTAREA 2)
+ 9EBC5 13/E9C5-EB03            = prophecy text
+ 9F56D 13/F36D-F7D6,FF to F8FF = credits
+ A981F 15/9620-9AEF            = place names
+       15/9AF0-9C77,FF to 9C7F = compressed place names?
+
+Graphics data:  (3-bit unless otherwise marked)
+ 08/C000: Title screen logo (4-bit) thru 08/E7FF
+ 08/E800: Title screen palette thru 08/E8FF
+ 08/E900: all $FF thru ECAF
+ 08/ECB0: Battle bg's? thru end of bank
+ 09/8000: monsters (all of bank 09)
+ 0A/F000: character font (2-bit) thru end of bank
+ 0B/8000: bosses
+ 0C/8000: bosses
+ 0C/B6C0: spells/effects?
+ 0C/F9C0: misc small sprites - damage digits, mini/toad chars, pointer
+ 0D/8000-0D/803F Overworld Char palette
+ 0D/8040-0D/807F Overworld Vehicle palette
+ 0D/8080-0D/80BF
+ 0D/80D0-0D/823F townspeople palette
+ 0D/8240-0D/86CF all $FF
+ 0D/86D0-0D/87CF palette for char photo sprites
+ 0D/87D0-0D/87EF window color table - set by 15/C226 and 1E/FD1A
+ 0D/87F0-0D/8817
+ 0D/8818: animated monsters/bosses
+ 0E/CB00-0E/CB0F cursor, battle number palette
+ 0F/D200: battle bg palette
+ 13/D200: crosshairs/balls
+ 15/D000: balls (4-bit)
+ 15/DBE0: tiles (4-bit) thru end of bank
+ 1A/8000: character sprites (4-bit) thru 1A/FB20 $0800 bytes per char class
+ 1B/8000: character sprites (3-bit) thru 1B/FFD0
+ 1B/FFD0: world map sprites thru 1C/9CFF; more to 1C/A3FF; more to 1C/A6FF
+ 1C/A800: battle bg's?
+ 1C/C810: floor tiles thru 1C/D8FF
+ 1C/D900: weapons/attacks thru 1C/EDFF
+ 1C/EE00-1C/FC9F enemy palette data
+ 1C/FD00-1C/FEFF battle character palette data
+ 1D/D3C0: character menu photos
+ 1D/ED40: town tiles
+ 1E/8000-1E/801F: town tile ptrs
+
+Other data areas:
+ 01/C563-01/C572 item names on shop screens (X,Y positions)
+ 01/C573-01/C582 item prices on shop screens (X,Y positions)
+ 04/C000-08/BFFF sound code/data
+ 0A/8000-0A/EFFF
+ 0E/8000-0E/97FF enemy combo/hpos data
+ 0E/A000-0E/A1BF enemy gold totals
+ 0E/A1C0-0E/A37F enemy xp totals
+ 0E/A6A0-0E/A85F enemy stats ptrs
+ 0E/A860-0E/B438 enemy stats
+ 0E/C300-0E/C341 enemy attack prob for oworld (00-3F), uworld (40), moon (41)
+ 0E/C542-0E/C7ED enemy sets
+ 0E/FF0C-0E/FFFF all $FF
+ 0F/A450-0F/A54F item prices
+ 0F/A550-        item equipability
+ 0F/A900-0F/AABF chars' initial stats
+ 0F/AB00-0F/AB91 chars' initial equipment
+ 0F/CA00-0F/CDFF enemy size ptr, palette ptr, gfx ptrs
+ 0F/FEBF-0F/FFFF all $FF
+ 12/8000-12/81FF ptr table for 12/8200
+ 12/8200-12/EFFF event data
+ 12/F260-12/F45F triggered event ptrs
+ 12/F460-12/F65F triggered event data
+ 12/F000-12/FFFF
+ 13/8000-13/81FF event placement ptrs
+ 13/8200-13/96FF event placement data (4 bytes *7)
+ 13/9800-13/9BFF event ptrs (2)
+ 13/9C00-13/A2FF lookup table? with alternating value $FF or $FE
+ 13/A300-13/A4FF items in shops - 8 bytes/shop, FF = nothing
+ 13/EB03-13/F04C Code!
+ 13/F04D-13/F8FF data for above code? - includes text credits
+ 13/F900-13/FF0A
+ 13/FF0B-13/FFFF Code!
+ 14/8000-14/85FF world map tile formation data
+ 14/8600-14/88FF world map tile palette ptrs
+ 14/8900-14/8AFF colormaps for world maps
+ 14/8A80-14/8DFF world map tile properties data
+ 14/8E00-14/9DFF town map tile properties data (*5)
+ 14/9E00-14/DDFF town map tile formation data (*4)
+ 14/DE00-14/EDFF town map palette data - set by 15C1F9
+ 14/EB00-14/EB7F
+ 14/EB80-14/ECFF all $FF
+ 14/ED00-14/FCFF
+ 14/FD00-14/FFFF Code
+ 15/8000-15/82FF town trigger ptrs
+ 15/8300-15/961F town trigger data (*2)
+ 15/9C84-15/B004 town properties
+ 15/B000-15/CBFF Code and data
+ 15/CC00-15/CFFF
+ 16/8000-16/81FF overworld map row ptrs
+ 16/8200-16/83FF underworld map row ptrs
+ 16/8400-16/847F moon map row ptrs
+ 16/8480-16/C37F overworld map row data
+ 16/C480-16/E17F underworld map row data
+ 16/E180-16/EB7F moon map row data
+ 16/EB80-16/ED7F
+ 16/ED80-16/FCF7
+ 16/FCF8-        starting position of char sprites on battle screen
+ 17/8000-17/82FF town map ptrs
+ 17/8300-19/FE5F town map data (32x32)
+ 19/FE60-19/FE65 world trigger ptrs
+ 19/FE66-19/FFFF world trigger data (*2)
+ 1E/FE0A-1E/FE13 position of char pics on menu screen (standard form)
+ 1E/FE14-1E/FE1D position of char pics on menu screen (inverted form)
+
+Common routines:
+ 00890C: clear DMA, set dest reg to VRAM and source bank to 0
+ 008918: start DMA channel 1
+ 008B3F: play BGM based on location
+ 008B7B: play sound effect in A
+ 008B92: Fade in effect; "rate" in A
+ 008BB3: Fade out effect; "rate" in A
+ 008BDE: wait for no joypad buttons pressed
+ 008BE7: wait for any joypad button pressed
+ 008F59: clear OBJ table
+ 008F95: copy bank A, offset X into color table at $0CDB-$0DDA
+ 0092D0: Copy Cecil's start stats to $1000, 0-> $3D/E, E65E, 038006
+ 00B21F: decompress text message in ($0772) to buffer at $0774
+ 00E65E: copy initial equipment for Cecil to game state + ($3D)
+ 00E663: copy initial equipment for char in $B3? to game state + ($3D)
+ 00EEDF: set current world map area to A
+ 00FAEA: overworld map loader
+ 00FB78: underworld map loader
+ 00FBC5: moon map loader
+ 00FFBC: Copy Cecil's start stats to $1000, 0-> $3D/E, E65E, 038006
+ 018000: Do field menu (item, magic, equip) saving banks+VRAM w/fadeout (far)
+ 018010: Read joypads
+ 01802C: Do field menu (item, magic, etc) saving banks
+ 018045: Do field menu (item, magic, etc) saving VRAM with fadeout after
+ 01805A: JMP 03/8000
+ 018078: copy $0122/3 bytes from $0121/$011F to VRAM @ $011D
+ 0180B2: send CGRAM colors from $7EA000-A1FF
+ 0180D9: draw window with params from (Y) (offset, X, Y)
+ 018186: inc elapsed game time one jiffy; wait for start of next vblank (far)
+ 01818A: inc elapsed game time one jiffy; wait for start of next vblank
+ 0181BD: calc tile for ten's digit in A and one's in B for value in A
+ 0181D6: convert 16-bit # in A to tile codes in $5A/5B/5D/5E
+ 018245: delay for division
+ 01824C: Send OBJ table at $0300-$051F to OAM via DMA at next vblank
+ 01824F: Send OBJ table at $0300-$051F to OAM via DMA
+ 01827C: Move OBJ 4 to ($45, $46), palette 5, char from $3F
+ 018281: Move OBJ 0 to ($45, $46), palette 5, char from $3F
+ 018286: Move OBJ offset Y to (X.L, X.H), pal 5, char from $3F
+ 0182A5: if dleft or dright button pushed, SEC else CLC, send sndcmd $11
+ 0182B6: joypad read (->14FD03)
+ 0182BB: copy stuff from 14FExx to 1Axx (->14FD00)
+ 0182C0: send sound cmd $11 if any joypad button pressed
+ 0182CD: print string in bank1/Y to screen offset X
+ 0182E4: print string in bank A/Y to screen offset X
+ 0182FB: print string in bank 1/Y to screen with window and offset at (Y)
+ 018301: print string in bank 1/Y to screen offset at (Y)
+ 018336: wait for joypad press; send sndcmd $11 when pressed
+ 01834B: JMP to routine A in table at X in bank $01
+ 018369: store tiles for 10's, 1's of value A at screen offset Y
+ 01837F: store tiles for 1000's-1's of 8-bit value A at screen offset Y
+ 018383: store tiles for 1000's-1's of 16-bit value A at screen offset Y
+ 0183AB: print char in A's name at offset Y
+ 0183E3: send $7E/($29) to VRAM @ ($35), $80 bytes per vbl for $19 vblanks
+ 018417: same as 0183E3, but send starting at end and working back
+ 01846D: BG3: clear D600; $29 <- D600; $35 <- $7000; $C3 <- 3; $34 <- 0 
+ 018470: as above; don't clear
+ 018485: BG4: clear C600; $29 <- C600; $35 <- $7800; $C3 <- 2; $34 <- $20 
+ 018488: as above; don't clear
+ 01849F: BG1: clear B600; $29 <- B600; $35 <- $6000; $C3 <- 1; $34 <- 0 
+ 0184A2: as above; don't clear
+ 0184B7: BG2: clear A600; $29 <- A600; $35 <- $6800; $C3 <- 0; $34 <- $20
+ 0184BA: as above; don't clear
+ 0184D0: slide/stretch window from offset/size at Y to offset/size at X
+ 018608: X = ($64 << 6) + ($63 << 1) + $29
+ 018611: X = ($66 << 6) + ($63 << 1) + $29
+ 01861A: X = ($64 << 6) + ($65 << 1) + $29
+ 01873A: copy VRAM @ $2000-$2FFF to $7EE600 via DMA ('save VRAM')
+ 01873F: copy $7EE600-F5FF to VRAM @ $2000 via DMA  ('restore VRAM')
+ 018749: copy window bg color to A0X2, A0XA; X=014589cd (->14FD09)
+ 01874E: send sound command $11
+ 018758: send sound command $12
+ 01875C: play sound effect in A
+ 018760: play affirmative beep sfx
+ 018779: fill A bytes at Y+$29 with 00 or FF depending on carry (->14FD06)
+ 01877E: add #$40 to X
+ 01878B: add #$40 to Y
+ 018798: print string at bank1/Y to screen at offset X (no multiline expand)
+ 0187B4: 16-bit TAX: STA $43; LDX $43
+ 0187B9: add 8 to Y
+ 0187BD: add 4 to Y
+ 0187C2: print time/gp labels/values on BG3 lower right
+ 0187E6: display field menu (item, magic equip) and fade in
+ 0187FB: run field menu (item, magic, equip...)
+ 018897: print all chars' menu displays and portraits
+ 01889D: print all chars' menu displays
+ 0188FD: set char portrait sprites data in OBJ table
+ 018919: display field menu (Item, Magic, Equip...)
+ 018948: calculate x,y coords for char slot A's portrait (returned in Y)
+ 018992: calculate and set coords for char slot A's portrait sprites
+ 01899B: print character's menu display (char state @ Y, screen offset @ X)
+ 018A2C: print char stat from ($48),Y to tiles at X
+ 018A54: handle "form" menu char selection, returned in $E8 ($FF if none)
+ 018B02: print class/swoon/ailments for state at X on field menu at offs Y
+ 018B95: write elapsed game time on screen at (22,21)
+ 018BEA: divide $73-$75 by 60; quotient -> $73-$75, remainder -> $1D
+ 018C0B: reset screen and display field menu (Item, Magic, Equip...)
+ 018C17: Y = $4B + #$000E
+ 018C23: gray out stats if character is dead
+ 018C49: gray out one line of stats
+ 018C67: clear out old menu positions (1B00-EB) unless memory mode is on
+ 018C7F: setup for menus
+ 018D2F: fill A600/C600 with $2000, B600/D600 with ($41/$42)
+ 018D38: fill BG2 (A600) with $2000
+ 018D3D: fill BG1 (B600) with ($41/42)
+ 018D42: fill BG4 (C600) with $2000
+ 018D47: fill BG3 (D600) with ($41/42)
+ 018D6C: move all sprites off bottom screen, but move first 8 off right
+ 018DA2: copy all char sprites/palettes to VRAM/$FE28
+ 018DD0: copy one char sprite/palette to VRAM/$FE28
+ 018E34: convert two-line chars in table at 1EFE1F to two tiles in A
+ 018E53: blank out 4x4 tile block at Y
+ 018E70: setup OBJ tbl entries for char slot A portrait (position from Y)
+ 018F5B: convert X/A to base 10 tiles (up to 7 digits) in $0163
+ 018F87: divide $73-$75 by 10; quotient in $73-$75, remainder in $1D
+ 018FA8: print up to 7 digit number in A/X to screen at offset Y
+ 018FC8: print class in A on screen at offset Y (table @ 0FA764)
+ 019007: get offset in game state for char A into X
+ 019019: print item name somewhere(?)
+ 01906A: display char sprite: $1D = char #, $1E = pose, $1F/20 = X/Y
+ 019126: move 10 sprites offscreen starting with sprite Y
+ 01919B
+ 0191D4
+ 019224
+ 019264: send all char portrait data/palette data to VRAM/CGRAM
+ 019279: send char portrait data for slot A to VRAM
+ 019301: send 3-bitplane graphics at Y to VRAM (size A)
+ 019334: copy char portrait palette to palette table for char slot in A
+ 019368
+ 019417: send all BG sc's at A600,B600,C600,D600 to VRAM (size from $DE)
+ 019423: fill BG2 (A600) with $2000; send to VRAM at next blank
+ 019426: send BG2 (A600) to VRAM at next vblank (size from $DE)
+ 019429: send BG2 (A600) to VRAM (size from $DE)
+ 019433: send BG1 (B600) to VRAM at next vblank (size from $DE)
+ 019436: send BG1 (B600) to VRAM (size from $DE)
+ 019440: send BG4 (C600) to VRAM at next vblank (size from $DE)
+ 019443: send BG4 (C600) to VRAM (size from $DE)
+ 01944D: send BG3 (D600) to VRAM at next vblank (size from $DE)
+ 019450: send BG3 (D600) to VRAM (size from $DE)
+ 01946A: fade in effect
+ 019484: fade out effect
+ 0194A2: store 0's in shadow regs then copy them (94AA)
+ 0194A7: wait for vblank then copy shadow regs (94AA) 
+ 0194AA: copy shadow regs $8A-A0 to $210F-$2114 (->14FD0C)
+         8A/B->210F 8D/E->2110 90/1->210D 93/4->210E 96/7->2113
+         99/A->2114 9C/D->2111 9F/A0->2112
+ 0194AF: zero shadow regs ($89-A5)
+ 0194CC: copy $A000-$A0FF to $A200 (save palette in buffer 1)
+ 0194DD: copy $A000-$A0FF to $A400 (save palette in buffer 2)
+ 0194EE: copy $A200-$A2FF to $A000 (restore pal from buffer 1)
+ 0194FF: copy $A400-$A4FF to $A000 (restore pal from buffer 2)
+ 019514
+ 019521
+ 019534
+ 01958F: get status byte 3 for char in $E8
+ 019598: display and handle load game menu
+ 0195D2: set E7/1B3E/1B8A to first occupied menupos
+ 0195FE: do load game menu
+ 01965F: savegame menu event loop
+ 0196E4: copy x6AA (window bg) from savegames to A0X2, A0XA; X=048c, and more
+ 01973C: write time in A/X as tiles at Y
+ 019785: load savegame in A or new game if A=0
+ 0197A1: set up new game data
+ 0197D9: display load/save confirmation menu - SEC if yes, CLC if no
+ 0198B9: copy char sprite palette entries from FE28 to A160
+ 0198CF: position char sprites on savegame menu
+ 019914
+ 01991D
+ 01992A
+ 019949: check if menu pointing at OK save slot
+ 019956: check for savegame in slot A - return carry set if present and OK
+ 019988
+ 0199BE: slide savegame bg's into place
+ 019A24: set final save bg scroll settings
+ 019A39: display one savegame menu background
+ 019AD5: store tiles for 1000's-1's of A at Y
+ 019AEF: check for any valid saved games, return carry clear if there is one
+ 019B1D
+ 019B67
+---routines complete to here for bank 1---
+ 019EFF: handle "item" menu selection
+ 01A8E7: return char state byte 0 AND #$3F, char slot from 1B3E
+ 01A8EA: return char state byte 0 AND #$3F, char slot from A, state offs in X
+ 01A8F1: return char state byte 0 AND #$3F, char from A, state offset in X
+ 01A907: handle "status" menu selection
+ 01ABD1: handle "form" menu selection
+ 01ACB6: handle "change" menu selection
+ 01AEAB: show "cannot use" error message; wait for keypress and clear message
+ 01AEBD: handle "magic" menu selection
+ 01B977: get game state offset for char menupos A into X
+ 01BBCC: handle "equip" menu selection
+ 01CB5B: handle "save" menu selection
+ 01CC34: calculate savegame checksum (# in A)
+ 01CCC6: play BGM song in A
+ 01D117: handle "custom" menu selection
+ 01D335: draw R/G/B slider bar at Y
+ 01D356: convert R/G/B in 1BA8/9/A to SNES color value in $45
+ 01D379: convert SNES color value in X (from 16AA) to R/G/B in 1BA8/9/A
+ 0FC600: save song, play "fanfare", delay a bit?, restore old song
+ 15B3AF: set MSB of X coord for OBJ (Y/4)+A
+ 15C276: write $1707/$1706, $1702 as hex chars to BG3 lines 3,4
+ 15C6FA: alter overworld map based on events
+ 15C8E5: init screen registers
+ 15C9B0: init memory
+ 15CA23: convert joypad buttons to 0's in direct page
+ 15CA64: Send color table ($0CDB-$0EDA) to CGRAM via DMA
+ 15CA8B: Send ($45) bytes from ($3C/$3D) main mem to ($47) VRAM via DMA
+ 15CAB7: Send ($45) bytes from $0676 (descending) to ($47) VRAM via DMA
+ 15CAE2: Send OBJ table at $0300-$051F to OAM via DMA
+
+Common memory usage: (no page implies $0600)
+ 00/01: joypad values (0:A X L R 0 0 0 0, 1:B Y Se St DU DD DL DR)
+ 02/03: joypad values
+ 29/2A: base address of current BG (A600, B600, ...)
+ 50-57: joypad buttons (cleared by 15ca23): X/Y/L/R/A/B/select/start
+ 5A/5B: BG1 Hscroll shadow register of $210D
+ 5C/5D: BG1 Vscroll shadow register of $210E
+ 5E/5F: BG2 Hscroll shadow register of $210F
+ 60/61: BG2 Vscroll shadow register of $2110
+ 6A/6B: MODE7 X center shadow register of $211F
+ 6C/6D: MODE7 Y center shadow register of $2120
+ 77: pixelization/mosaic shadow register of $2106 (see also $7B)
+ 7B: bits 2/3 used to calculate mosaic level in $77
+ 80: current screen brightness during autofade (see $CA)
+ C3: current BG (0-3), see 01846D
+ CA: if $02, brightness gets inc'ed on each vblank (resets $CA to 0 at max)
+ DD: text area for game messages
+ E7: first occupied menupos
+ 0104-0107: last reading of joypad
+ 0108-010B: previous reading of joypad
+ 010C-010F: joypad debounce counter
+ 011D-0120: bank 1 scratchpad
+ 0129-0130: base address of current screen
+ 0140-0143: bank 1 scratchpad
+ 0184: INC'ed by Change menu item?
+ 0300-051F: OBJ data table (sent via $15CAE2)
+ 0772: text pointer for game messages
+ 0CDB-0EDA: Color register data (sent via $15CA64)
+ 0EDB-0FDA: current world map tile properties (from 148E00)
+ 0FDB-0FE7: dungeon data? (from 159C84) 
+ 0FE2: location music
+ 1000-17FF: current savegame data
+  1000-103F: char 1 data
+   1000: "actor" - character index, R/L handed (bits 7,6)
+         [00] nobody
+         [01] Cecil, as a dark knight
+         [02] Kain, 1st apearance
+         [03] Rydia, as a kid, 1st apearance
+         [04] Tellah, 1st apearance
+         [05] Edward/Gilbert, only  apearance
+         [06] Rosa, 1st apearance
+         [07] Yang, 1st apearance
+         [08] Palom, only apearance
+         [09] Porom, only apearance
+         [0A] Tellah, 2nd apearance
+         [0B] Cecil, as a Paladin
+         [0C] Tellah, 3rd and last apearance
+         [0D] Yang, 2nd and last apearance
+         [0E] Cid, only apearance
+         [0F] Kain, 2nd apearance
+         [10] Rosa, 2nd and final apearance
+         [11] Rydia, 2nd and final apearance
+         [12] Edge, only apearance
+         [13] FuSoYa, only apearance
+         [14] Kain, 3rd and final apearance
+         [15] Golbez, battle against Zemus
+         [16] Anna, illusion to bard at Kaipo
+   1001: character class (bits 0-4)
+         [00] Cecil, dark knight     [10] Anna, --
+         [01] Kain, Dragoon          [11] Man(buggy Cecil), --
+         [02] Rydia (kid), caller    [12] dancer, --
+         [03] Tella, sage            [13] old lady, --
+         [04] Edward, bard           [14] small girl, --
+         [05] Rosa, wh. wiz.         [15] merchant, --
+         [06] Yang, monk             [16] ???, --
+         [07] Palom, bl. wiz.        [17] mecanic, --
+         [08] Porom, wh. wiz.        [18] monk, --
+         [09] Cecil, Paladin         [19] bomb, --
+         [0A] Cid, engeneer          [1A] Namingway, --
+         [0B] Rydia (older), caller  [1B] king, --
+         [0C] Edge, ninja            [1C] Toroia minister, --
+         [0D] FuSoYa, Lunar          [1D] doll, --
+         [0E] pig, --                [1E] Lugaei
+         [0F] Golbez, --             [1F] bloody arm
+   1002: level
+   1003-6: status (bits)
+         3b7 death  3b6 stone  3b5 frog  3b4 mini      3b3 pig    3b2 mute
+         3b1 blind  3b0 poison 4b6 float 5b7 paralyzed 5b2 absent
+         0x0003:0...7  Poison, Darkness, Mute, Pig, Small, Toad, Stone, Swoon
+         0x0004:0...7  ?, Petrify,Berserk,Charm, Sleep, Paralyze, Float, Curse
+         0x0005:0...7  Count, ?, gone, ?, ?, ?, Stop, paralyze
+         0x0006:0...7  (near death), ?, ?, ?, Barrier, Wall, ?, ?
+   1007-8: HP       100B-C: MP
+   1009-A: max HP   100D-E: max MP
+   100F: strength (base)    1014: strength (adjusted for equipment)
+   1010: agility  (base)    1015: agility  (adjusted)
+   1011: vitality (base)    1016: vitality (adjusted)
+   1012: wisdom   (base)    1017: wisdom   (adjusted)
+   1013: will     (base)    1018: will     (adjusted)
+   101B: attack xN   1022: magic xN   1028: defense xN
+   101C: attack %    1023: magic %    1029: defense %
+   101D: attack      1024: magic      102A: defense
+   1030: equipped helmet
+         [6D] Iron     [6E] Shadow   [6F] Darkness [70] Black
+         [71] Paladin  [72] Silver   [73] Diamond  [74] Samurai
+         [75] Dragoon  [76] Crystal  [77] Cap      [78] Leather
+         [79] Gaea     [7A] Wizard   [7B] Tiara    [7C] Ribbon
+         [7D] Headband [7E] Bandanna [7F] Ninja    [80] Glass
+   1031: equipped armor
+         [81] Iron    [82] Shadow   [83] Darkness [84] Black
+         [85] Paladin [86] Silver   [87] Flame    [88] Ice
+         [89] Diamond [8A] Samurai  [8B] Dragoon  [8C] Crystal
+         [8D] Cloth   [8E] Leather  [8F] Gaea     [90] Wizard
+         [91] Black   [92] Sorcerer [93] White    [94] Power
+         [95] Heroine [96] Prisoner [97] Bard     [98] Karate
+         [99] Bl.belt [9A] Adamant  [9B] Ninja
+   1032: equipped glove/ring
+         [9C] IronGl    [9D] ShadowGl  [9E] DarknessGl [9F] BlackGl
+         [A0] PaladinGl [A1] SilverGl  [A2] DiamondGl  [A3] ZeusGl
+         [A4] SamuraiGl [A5] DragoonGl [A6] CrystalGl  [A7] IronR
+         [A8] RubyR     [A9] SilverR   [AA] StrengthR  [AB] RuneR
+         [AC] CrystalR  [AD] DiamondR  [AE] ProtectR   [AF] CursedR
+   1033: equipped weapon/shield in rhand
+   1034: qty of equipped item in rhand
+   1035: equipped weapon/shield in lhand
+   1036: qty of equipped item in lhand
+          Claws:
+         [01] Fire claw [02] Ice claw [03] Thunder  [04] Charm
+         [05] Poison    [06] Cat claw
+          Rods and staffs:
+         [07] Rod       [08] Ice      [09] Flame    [0A] Thunder
+         [0B] Change    [0C] Charm    [0D] Stardust [0E] Lilith
+         [0F] Staff     [10] Cure     [11] Silver   [12] Power
+         [13] Lunar     [14] Life     [15] Silence
+          Swords:
+         [16] Shadow    [17] Darkness [18] Black    [19] Legend
+         [1A] Light     [1B] Excalbur [1C] Fire     [1D] Icebrand
+         [1E] Defence   [1F] Drain    [20] Ancient  [21] Slumber
+         [22] Medusa    [3F] Crystal  [3D] Silver   [4C] Avenger
+          Spears:
+         [23] Sprear    [24] Wind     [25] Flame    [26] Blizzard
+         [27] Dragoon   [28] White    [29] Blood    [2A] Gungnir
+          Katanas:
+         [2B] Short     [2C] Middle   [2D] Long     [2E] Ninja
+         [2F] Murasame  [30] Masamune
+          Dirks:
+         [31] Assassin  [32] Mute     [3B] Silver   [3C] Dancing
+         [3E] Spoon
+          Whips:
+         [33] Whip      [34] Chain    [35] Blitz    [36] Flame
+         [37] Dragon
+          Axes:
+         [38] Hand axe  [39] Dwarf    [3A] Ogre     [47] Poison
+         [48] Rune axe
+          Stars, boomerangs and luths:
+         [40] Shuriken  [41] Ninja    [42] Boomrang [43] Fullmoon
+         [44] Dreamer   [45] Charm
+          Mallets:
+         [49] Silver    [4A] Earth    [4B] Wooden
+          Bows:
+         [4D] Short bow [4E] Crossbow [4F] Great    [50] Archer
+         [51] Elven bow [52] Samurai  [53] Artemis
+          Arrows:
+         [54] Iron      [55] White    [56] Fire     [57] Ice
+         [58] Lit       [59] Darkness [5A] Poison   [5B] Mute
+         [5C] Charm     [5D] Samurai  [5E] Medusa   [5F] Artemis
+          Shields:
+         [61] Iron      [62] Shadow   [63] Black    [64] Paladin
+         [65] Silver    [66] Flame    [67] Ice      [68] Diamond
+         [69] Aegis     [6A] Samurai  [6B] Dragoon  [6C] Crystal
+   1037-9: experience
+  1040-107F: char 2 data
+  1080-10BF: char 3 data
+  10C0-10FF: char 4 data
+  1100-113F: char 5 data
+  1140-117F: standby char 1 data
+  1180-11BF: standby char 2 data
+  11C0-11FF: standby char 3 data
+  1200-123F: standby char 4 data
+  1240-127F: standby char 5 data
+  1280-133F: events/config?
+  1340-143F: big chocobo item list (byte pairs: item type, qty)
+  1440-14BF: party item list (byte pairs: type, qty)
+  1500-1553: character names
+   1500: Cecil  1506: Kain    150C: Rydia   1512: Tellah  1518: Edward
+   151E: Rosa   1524: Yang    152A: Palom   1530: Porom   1536: Cid
+   153C: Edge   1542: FuSoYa  1548: Golbez  154E: Anna
+  1560-1577: Cecil's  White magic menu
+  1578-158F: Cecil's  (would-be) Black magic menu
+  1590-15A7: Rydia's  White magic menu
+  15A8-15BF: Rydia's  Black magic menu
+  15C0-15D7: Rydia's  Call  magic menu
+  15D8-15EF: Tellah's White magic menu
+  15F0-1607: Tellah's Black magic menu
+  1608-161F: Rosa's   White magic menu
+  1620-1637: Palom's  Black magic menu
+  1638-164F: Porom's  White magic menu
+  1650-1667: FuSoYa's White magic menu
+  1668-167F: FuSoYa's Black magic menu
+  1680-1697: Edge's   Ninja magic menu
+  16A0-16A2: Current GP
+  16A3-16A6: Elapsed game time (3 = jiffies; 4-6 = seconds)
+  16A8: Formation (0=3 front/2 back; 1=2 front/3back)
+  16AA-16AB: Window bg color (SNES RGB format)
+  16AC: Battle speed (0-5)
+  16AD: Battle message (0-5)
+  16AE-F: 0100
+  16B0-1: 0002
+  16B2-3: 0000
+  16B7: menu memory (0=first item, non0=memory)?
+  1700: general world map location 0=overworld,1=underworld,2=moon,3=dungeon
+  1701: cave/town number?
+  1703: character displayed when on world map (0-4)
+  1704: world map vehicle in use:
+        0=none? 1=chocobo 2=chocobo 3=hovercraft?
+        4=airship1 5=airship2 6=big whale
+  1705: bits 0-2: facing direction N=00,E=01,S=10,W=11
+  1706-7: party location (X,Y)
+  1708-9: party location - overworld backup for moon trips (X,Y)
+  170C-D: party location - moon backup for moon trips (X,Y)
+  1712: black chocobo present?
+  1713: black chocobo location (X,Y)
+  1715: black chocobo flag: 0 - stores current X/Y as origin, fly anywhere
+                            1 - goes back to origin on mount
+  1716-7: black chocobo origin (X,Y)
+  1718: hovercraft present?
+  1719-A: hovercraft location (X,Y)
+  171B: hovercraft world (0=oworld,1=uworld,2=moon)
+  171C: yellow airship present?
+  171D-E: yellow airship location (X,Y)
+  171F: yellow airship world (0=oworld,1=uworld,2=moon)
+  1720: red airship present?
+  1721-2: red airship location (X,Y)
+  1723: red airship world (0=oworld,1=uworld,2=moon)
+  1724: Big Whale present?
+  1725-6: Big Whale location (X,Y)
+  1727: Big Whale world (0=oworld,1=uworld,2=moon)
+  1728: Fabul boat present?
+  1729-A: Fabul boat location (X,Y)
+  172B: Fabul boat world? (0,1,2)
+  172F-0: party location - overworld backup for caves (X,Y)
+  17FC-D: checksum
+  17FE-F: magic number (1BE4)
+ 1A02: save enabled here? 0=no 1=yes
+ 1A3C: current savegame (0=new)
+ 1A5F: first time through flag for savegame menu (set to 1BE4 after first)
+ 1B46: state of menu selection pointer; 0=yes, 1=no
+ 1B47: 0=loading 1=saving game
+ 1BA8: red component of window bg during custom menu
+ 1BA9: green component of window bg during custom menu
+ 1BAA: blue component of window bg during custom menu
+ 1E00: SPC interface - command
+ 1E01-1E04: SPC interface - parameters
+ 1E05: current BGM
+ 289C - 289E: amount of GP lost after running from battle
+ 700000: SRAM save slot 1
+ 700800: SRAM save slot 2
+ 701000: SRAM save slot 3
+ 701800: SRAM save slot 4
+ 7F4800-4BFF: dungeon data? (from 149E00)
+ 7F5C71-: world map data
+
+VRAM layout:
+ 0000: BG1/BG2 tile data base
+ 1800: BG1 sc base
+ 2000: BG3 tile data base
+ 2800: BG3 sc base
+ 3200: BG2 sc base
+
+139700: (msgtext 8a-bf,ca-fe)
+                  8A='e ' 8B=' t' 8C='th' 8D='he' 8E='t ' 8F='ou'
+  90=' a' 91='s ' 92='er' 93='in' 94='re' 95='d ' 96='an' 97=' o'
+  98='on' 99='st' 9A=' w' 9B='o ' 9C=' m' 9D='ha' 9E='to' 9F='is'
+  A0='yo' A1=' y' A2=' i' A3='al' A4='ar' A5=' h' A6='r ' A7=' s'
+  A8='at' A9='n ' AA=' c' AB='ng' AC='ve' AD='ll' AE='y ' AF='nd'
+  B0='en' B1='ed' B2='hi' B3='or' B4=', ' B5='I ' B6='u ' B7='me'
+  B8='ta' B9=' b' BA=' I' BB='te' BC='of' BD='ea' BE='ur' BF='l '
+                  CA=' f' CB=' d' CC='ow' CD='se' CE='  ' CF='it'
+  D0='et' D1='le' D2='f ' D3=' g' D4='es' D5='ro' D6='ne' D7='ry'
+  D8=' l' D9='us' DA='no' DB='ut' DC='ca' DD='as' DE='Th' DF='ai'
+  E0='ot' E1='be' E2='el' E3='om' E4="'s" E5='il' E6='de' E7='gh'
+  E8='ay' E9='nt' EA='Wh' EB='Yo' EC='wa' ED='oo' EE='We' EF='g '
+  F0='ge' F1=' n' F2='ee' F3='wi' F4=' M' F5='ke' F6='we' F7=' p'
+  F8='ig' F9='ys' FA=' B' FB='am' FC='ld' FD=' W' FE='la'

@@ -1,0 +1,11 @@
+#!/usr/bin/perl
+
+open IN, "< som1.smc" or die;
+seek IN, 0x030748 + 0x200, 0;
+read IN, $len, 2;
+read IN, $buf, unpack("v", $len);
+close IN;
+printf STDERR  "len=%04x, buf=%04x\n", unpack("v", $len), length $buf;
+open OUT, "> somspc.bin" or die;
+print OUT pack("vv", length($buf), 0x200), $buf, pack("vv", 0, 0x200);
+close OUT;

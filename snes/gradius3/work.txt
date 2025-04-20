@@ -1,0 +1,176 @@
+(X=839f)
+  00 (D=$1a00, $03=$7e3000, jmp 976f)
+  00 (bit 1 set?) -> $16
+  00 70  00 80 06  (VRAM dest, ROM source (size word, data))
+  20 74  A7 DA 07  (VRAM dest, ROM source (size word, data))
+  00 78  6A E0 09  (VRAM dest, ROM source (size word, data))
+  FF FF  (end of blocks)
+(X=8920)
+  02 (D=$1f00, $03=$7e3800, jmp 9944)
+  00 (exit after setting $16 to #$01 if bit 1 set)
+  00 50  C8 A2 0F (SPC dest, ROM source (size word, data))
+  FE FF  80 7F  00 80 0E  00 80 (SPC dest, uncompressed ROM src, size)
+  00 04  00 80 0F (SPC dest, ROM source (size word, data))
+  FF FF
+(X=83b2)
+  01 (D=$1a40, $03=$7e3400, jmp 9873)
+  00 (bit 1 set?) -> $16; inc $12 if set
+  00 00 7F  00 80 0C  (RAM dest, ROM source)
+  00 20 7F  05 96 0C  (RAM dest, ROM source)
+  00 37 7F  3B A0 0C  (RAM dest, ROM source)
+  60 49 7F  9E B0 0C  (RAM dest, ROM source)
+  60 5D 7F  26 BD 0C  (RAM dest, ROM source)
+  20 76 7F  9B CB 0C  (RAM dest, ROM source)
+  20 91 7F  24 DC 0C  (RAM dest, ROM source)
+  20 A5 7F  AF E5 0C  (RAM dest, ROM source)
+  FF FF (end)
+
+9751 get word at 010000,X; INX, AND #$00FF
+     if 0 then 976f (Y=1a00/A=3000)
+     if 1 then 9873 (Y=1a40/A=3400)
+     else      9944 (Y=1f00/A=3800)
+976f
+ Y=1a00 a=3000
+ 9857
+  D=Y; zero $10,$12,$1c; A->03/4, #$7E->$05; $010000,X->A,$16; $18=++X
+ 8697 screen off, disable interrupts; #$04->003e
+ 97f4 zero $10; $010000,X(w)->$22; $18=X+2;
+(22=7000)
+  9bcd #$0400->$1c; zero $0c, $1a; bank 7E;
+       if $10 == 0 then
+         inc $10
+         $010000,X(l)->$00; $18+=3
+(00-2 = $068000)
+         
+  9811 write [$03]+$1a len ($0c-$1a) to VRAM at $22 via DMA
+   (repeat 9bcd/9811 until $10 == 0)
+ 86af set NMI/joy flag from $1e82
+
+9a68 $28=A; send to APU2/3; wait for APU2/3 back or $26==0
+9b1f init spc?
+9b4a send $22 to APU2/3, send #$01 to APU1...
+9b68 wait for APU0 to equal A
+
+NMI handler:
+8223
+      direct page = $0000, bank = $01
+ 864b set scroll regs from shadows
+ 85c1 setup bg setting regs
+ 97dc write from uncomp buffer to VRAM
+ 8554 send 7e3c00 to OAM, 7e($48) to CGRAM
+ 8e00
+ 82c6 if $46 then: (setup hdma to scroll regs)
+ 892b read joypads into 28-2F
+ 878e
+  8976
+ 8ef1
+ 9d7e
+ 9768
+  97aa uncompress blocks to RAM (async?)
+  ->989e ""
+ 9f19
+ 9265
+ 86e1 (something apuish)
+ RTI
+
+
+SPC program data at 0f8000 (ptr at 8b32 (8b20?))
+possible song tbl: 018937 (see 974b)
+
+AB 89 B2 89 B9 89 C0 89 C7 89 CE 89 D5 89 DC 89
+F1 89 F8 89 FF 89 06 8A 0D 8A 14 8A 1B 8A 22 8A
+29 8A 30 8A 37 8A 3E 8A 45 8A 4C 8A 61 8A 68 8A
+E3 89 EA 89 B5 8A BC 8A 8B 8A 92 8A 99 8A A0 8A
+A7 8A AE 8A D1 8A D8 8A DF 8A E6 8A ED 8A F4 8A
+C3 8A CA 8A 17 8B 1E 8B 25 8B 2C 8B 53 8A 5A 8A
+33 8B 3A 8B 6F 8A 76 8A 09 8B 10 8B FB 8A 02 8B
+7D 8A 84 8A
+
+89ab:
+    ?? cm dest_ src_____
+00: 01 80 00 30 8F A3 0D
+01: 01 81 00 3C 8F A3 0D
+02: 01 80 00 30 AD D5 0F
+03: 01 81 00 3C AD D5 0F
+04: 01 80 00 30 B8 DB 0F
+05: 01 81 00 3C B8 DB 0F 
+06: 01 80 00 30 C8 E0 0F
+07: 01 81 00 3C C8 E0 0F
+18: 01 80 00 30 AE E7 0F
+19: 01 81 00 3C AE E7 0F
+08: 01 80 00 30 71 ED 0F
+09: 01 81 00 3C 71 ED 0F
+0a: 01 80 00 30 39 A7 0D
+0b: 01 81 00 3C 39 A7 0D
+0c: 01 80 00 30 31 F3 0F
+0d: 01 81 00 3C 31 F3 0F
+0e: 01 80 00 30 21 F9 0F
+0f: 01 81 00 3C 21 F9 0F
+10: 01 80 00 30 21 F9 0F
+11: 01 81 00 3C 21 F9 0F
+12: 01 80 00 30 1F AB 0D
+13: 01 81 00 3C 1F AB 0D
+14: 01 80 00 30 00 80 0D
+15: 01 81 00 3C 00 80 0D
+2e: 01 80 00 30 AE B1 0D
+2f: 01 81 00 3C AE B1 0D
+16: 01 80 00 30 87 B6 0D
+17: 01 81 00 3C 87 B6 0D
+32: 01 80 00 30 DE BB 0D
+33: 01 81 00 3C DE BB 0D
+38: 01 80 00 30 6E BE 0D
+39: 01 81 00 3C 6E BE 0D
+1c: 01 80 00 30 6D C3 0D
+1d: 01 81 00 3C 6D C3 0D
+1e: 01 80 00 30 B5 C5 0D
+1f: 01 81 00 3C B5 C5 0D
+20: 01 80 00 30 40 86 0D
+21: 01 81 00 3C 40 86 0D
+1a: 01 A0 00 30 BB C6 0D
+1b: 01 A1 00 3C BB C6 0D
+28: 01 80 00 30 02 84 0D
+29: 01 81 00 3C 02 84 0D
+22: 01 80 00 30 F4 89 0D
+23: 01 81 00 3C F4 89 0D
+24: 01 80 00 30 58 8C 0D
+25: 01 81 00 3C 58 8C 0D
+26: 01 A0 00 30 B6 92 0D
+27: 01 A1 00 3C B6 92 0D
+36: 01 A0 00 30 D5 99 0D
+37: 01 A1 00 3C D5 99 0D
+34: 01 80 00 30 40 94 0D
+35: 01 81 00 3C 40 94 0D
+2a: 01 80 00 30 B2 B8 0D
+2b: 01 81 00 3C B2 B8 0D
+2c: 01 80 00 30 D1 BF 0D
+2d: 01 81 00 3C D1 BF 0D
+30: 01 80 00 30 F9 C1 0D
+31: 01 81 00 3C F9 C1 0D
+
+VRAM: BG1=0000 BG2=1000 BG3/4=7800 BG1-4 tileaddr=$4000
+
+A EE
+1a00 00 80 06
+1a03 00 30 7e
+1a06 04 00
+1a08 9c 03
+1a0a 00
+1a0b 02
+1a0c 10 00
+1a0e 15
+1a10 01 00
+1a12 00 00
+1a14 02 
+1a16 00
+1a18 07 00 (+839f)
+1a1a 00 00
+1a1c 00 04
+1a22 00 70
+
+1f03 00 38 7e
+1f10 00 00
+1f16 00
+1f18 04 00 (+8920)
+1f1c 00 00
+1f20 00 00
+1f22 00 50

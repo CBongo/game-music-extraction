@@ -1,0 +1,119 @@
+014d19 a9 40         LDA #$40     
+014d1b 8d 04 01      STA $0104     	; 
+014d1e 8d 00 01      STA $0100     	; 
+014d21 a2 00 42      LDX #$4200     
+014d24 a0 0e 00      LDY #$000e     
+014d27 a9 00         LDA #$00     
+014d29 9d 00 00      STA $0000,X     
+014d2c e8            INX      
+014d2d 88            DEY      
+014d2e d0 f9         BNE $4d29          ; zero 4200-420e
+014d30 a9 ff         LDA #$ff     
+014d32 8d 01 42      STA $4201     	; Programmable I/O Port Output
+014d35 a9 7e         LDA #$7e     
+014d37 a0 00 80      LDY #$8000     
+014d3a eb            XBA      
+014d3b a9 c7         LDA #$c7     
+014d3d a2 00 7c      LDX #$7c00     
+014d40 20 30 4c      JSR $4c30     	; 
+014d43 60            RTS                ; (JMP $7eaf0b,28)
+
+4c3c a=$7ec7
+4c46 a=$7ec7
+4c5b a=$7ec7
+4c5f b=$7f
+4c6f x=7c00
+D = (01)CA
+
+FF PHD
+FE PHP
+FC PHA (7ec7)
+D2-FB = c14c06-2f
+CB-D1 = temp direct page
+CA PHB - from 4c40
+C9 PHA c1
+C7 PHA 4cb3
+
+xC8 PHY - from 4c49 (8000)
+xC6 PHX - from 4c4a (7c00)
+
+00  
+01/02  0003 (02 always 0)
+03/04  001A
+05/06  D6D3
+07     0F
+
+08 014c06 4a            LSR      
+09 014c07 4a            LSR      
+0a 014c08 4a            LSR      
+0b 014c09 4a            LSR      
+0c 014c0a 4a            LSR      
+0d 014c0b 18            CLC      
+0e 014c0c 69 02         ADC #$02     
+10 014c0e 85 01         STA $01            ; $01 = A >> 5 + 2
+12 014c10 c2 20         REP #$20     	; Accum (16 bit)
+14 014c12 98            TYA
+15 014c13 38            SEC
+16 014c14 e5 03         SBC $03     
+18 014c16 da            PHX      
+19 014c17 aa            TAX                ; X = Y - $03
+1a 014c18 a5 01         LDA $01     
+1c 014c1a 54 7e 7e      MVN $7e,$7e     
+1f 014c1d fa            PLX      
+20 014c1e 1a            INC      
+21 014c1f e2 20         SEP #$20     	; Accum (8 bit)
+23 014c21 ab            PLB      
+;
+24 014c22 22 c0 4c c1   JSL $c14cc0     
+   014cc0 bd 00 00      LDA $0000,X     
+   014cc3 e8            INX      
+   014cc4 c4 05         CPY $05     
+   014cc6 b0 19         BCS $4ce1     
+   014cc8 89 80         BIT #$80     
+   014cca f0 14         BEQ $4ce0
+   014ccc 29 7f         AND #$7f
+   014cce 48            PHA
+   014ccf 25 07         AND $07
+   014cd1 eb            XBA      
+   014cd2 bd 00 00      LDA $0000,X     
+   014cd5 e8            INX      
+   014cd6 c2 20         REP #$20     	; Accum (16 bit)
+   014cd8 1a            INC      
+   014cd9 85 03         STA $03     
+   014cdb e2 20         SEP #$20     	; Accum (8 bit)
+   014cdd 68            PLA      
+   014cde c2 02         REP #$02     
+   014ce0 6b            RTL      
+   014ce1 68            PLA      
+   014ce2 68            PLA      
+   014ce3 68            PLA      
+   014ce4 6b            RTL      
+28 014c26 8b            PHB      
+29 014c27 d0 de         BNE $4c07     
+2b 014c29 54 7e c7      MVN $7e,$c7     
+2e 014c2c 1a            INC      
+2f 014c2d eb            XBA      
+30 014c2e 80 f1         BRA $4c21     
+
+90 19 -> 3/4=001a(offs) 1=3 (len)
+c0 1c -> 3/4=001d(offs) 1=6 (len)
+b0 00 -> pha 30 3/4=0001(offs) l=5 (len)
+
+zsnes savestate fmt
+00000-0001a  "ZSNES Save State File V0.6"
+0001b-0003f  CPU registers/settings
+00040-00047  ?
+00048-00c13  PPU registers
+00c14-20c13  RAM
+20c14-30c13  VRAM
+30c14-40c13  APU RAM
+
+7eaf0b 20 75 ad      JSR $ad75     	; 
+7eaf0e a2 88 64      LDX #$6488     
+7eaf11 a9 7e         LDA #$7e     
+7eaf13 20 88 ab      JSR $ab88     	; 
+7eaf16 20 8f a8      JSR $a88f     	; 
+7eaf19 20 28 ae      JSR $ae28     	; 
+7eaf1c 22 00 00 c0   JSL $c00000     
+7eaf20 22 12 00 c0   JSL $c00012     
+7eaf24 5c 09 00 c0   JMP $c00009     

@@ -1,0 +1,62 @@
+009710  IRQ handler (primary hardwired)
+00bf49  NMI handler (primary hardwired)
+01a1fd  wait for next NMI
+01a333  zero 0200-09FF
+01a389  read joystick data (OR controllers) into Y and A
+01a3f2  print string at 0,Y to screen at X (max len A or zero-term)
+01a46d  fade in screen
+01a48b  set default NMI handler/regs
+01a49e  fade out screen, music
+01a77f  do sound test menu
+01a832  send stereo cmd to spc
+08d000  init SPC
+08d003  if 0016 == 0 and 0014 != 0 then waitAPU3/13, send 0014/5 to APU0/1; zero 0014
+08d006  download song?
+08d009  wait for APU3=13; inc 13; send C to APU0/1
+08d00c  set $0014 from C unless $0014 = #F7
+08d00f  start song?: wait for APU3=13; inc 13; send #0001 to APU0/1
+08d012  stop music: waitAPU3/13; send #00f5 to APU0/1; waitAPU3/13; send #f7 to APU0, 0's to APU1/2
+08d015  waitAPU3/13, send #00f2 to APU0/1, waitAPU3, send #0001 to APU0/1
+08d018  waitAPU3/13, send #00f3 to APU0/1
+08d01b  set volume: set $0014 to #$F7, $0015 to A
+08d463  send blocks at Y to SPC using std SPC boot protocol
+7E:
+000a  joypad 1 data
+000c  joypad 1 data EOR previous read
+000e  joypad 2 data
+0010  joypad 2 data EOR previous read
+0013  APU counter (= 00d3 on SPC)
+0014  APU-related
+0015  APU-related
+0018  vector called from NMI handler
+001C  vector called from IRQ handler
+7F:
+ffc8  stero flag: 0 = stereo, 1 = mono
+
+SPC:
+0000  CPU cmd from APU0
+0008  previous CPU cmd from APU0
+000e  DSP shadow 5c* - Key Off
+0030+x  vcmd stream pointers
+0045  DSP shadow 4c - Key On
+0046  DSP shadow 5c* - Key Off
+0048  DSP shadow 6c - FLG: Reset, Mute, Echo, Noise Clock
+0049  DSP shadow 3d - Noise Enable
+004a  DSP shadow 4d - Echo Enable
+004b  DSP shadow 2d - Pitchmod Enable
+004e  DSP shadow 0d - Echo Feedback
+0061  DSP shadow 2c - Echo Volume L
+0063  DSP shadow 3c - Echo Volume R
+00d3  APU3 command handshake counter (= 0013 on SNES)
+00d4  stereo flag: 0 = stereo; 1 = mono
+0390  CPU cmd from APU0
+0391  CPU cmd from APU1
+0392  CPU cmd from APU2
+0393  CPU cmd from APU3
+
+0b85  load Y from [30+X]; inc 30/1+X
+09d6  write A to DSP reg Y
+09dd  load word at $40; INCW $40 twice
+0cd2  copy 0240/1+X to 30/1+X
+0dcc  $10/11 = $0360/1+X
+10ec  emulate standard SPC CPU transfer protocol

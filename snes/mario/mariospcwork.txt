@@ -1,0 +1,127 @@
+; default values (1295) for DSP regs (12A1)
+;  mvol L/R max, echo vol L/R zero, FLG = echo off/noise 400HZ
+;  echo feedback = $60, echo/pitchmod/noise vbits off
+;  source dir = $8000, echo ram = $6000, echo delay = 32ms
+
+start=0E/8000, addr=0500, len=0e3e
+start=0E/8E42, addr=5570, len=0a6b
+start=0E/98B1, addr=1360, len=161d
+start=0E/AED2, addr=0500, len=0000
+start=0E/AED6, addr=1360, len=41fd
+start=0E/F0D7, addr=0500, len=0000
+
+instr data: 5f46 (0e/981c) x 5; 5fa5 (0e/987b) x 6
+  SRCN, ADSR1, ADSR2, GAIN, pitch multiplier, [perc note num]
+00 FE 6A B8 06 - 00
+01 FA 6A B8 03 - 01*
+02 AE 2F B8 04 - 02
+03 FE 6A B8 03 - 03
+04 A9 6A B8 03 - 04
+07 AE 26 B8 07 - 05
+08 FA 6A B8 03 - 06
+09 9E 1F B8 03 - 07
+05 AE 26 B8 1E - 08
+0A EE 6A B8 02 - 09
+0B FE 6A B8 08 - 0a*
+01 F7 6A B8 03 - 0b*
+10 0E 6A 7F 04 - 0c
+0C FE 6A B8 03 - 0d*
+0D AE 26 B8 07 - 0e
+12 8E E0 B8 03 - 0f
+0C FE 70 B8 03 - 10*
+11 FE 6A B8 05 - 11
+01 E9 6A B8 03 - 12*
+
+0F 0F 6A 7F 03 A8 - 00
+06 0E 6A 40 07 A4 - 01*
+06 8C E0 70 07 A1 - 02*
+0E FE 6A B8 07 A4 - 03*
+0E FE 6A B8 08 A4 - 04*
+0B FE 6A B8 02 9C - 05*
+0B 7E 6A 7F 08 A6 - 06*
+0B 7E 6A 30 08 A6 - 07*
+0E 0E 6A 7F 03 A1 - 08*
+
+
+timer0 freq = 2ms
+
+00-03  APU0-3 read values
+04-07  APU0-3 values to write
+08-0B  APU0-3 previously read values for "debouncing"
+0E/F  zero
+1D  vbits: if set, don't set pitch DSP
+2E  zero'ed by setting echo (vcmd EF)
+2F  noise vbits shadow
+30/1+X  vcmd stream ptrs
+43  transpose (global)
+44  fixed tempo counter (#$38 * 2ms = 9.14ms)
+45  fixed tempo counter counter (echo?)
+46  current voice ptr (X)
+47  key on shadow/work reg
+48  current voice vbit for per-voice loops
+49  variable tempo counter ($51 * 2ms)
+50/1  variable tempo
+52  tempo fade steps
+53  tempo fade target value
+54/5 tempo fade delta
+56/7  master vol? (fixed-point)
+58  master vol fade steps?
+59  master vol fade target value?
+5A/B master vol fade delta?
+5C  volume changed flag?
+60 echo vol fade steps
+61/2 echo vol L shadow (fp)
+63/4 echo vol R shadow (fp)
+65/6 echo vol L fade delta
+67/8 echo vol R fade delta
+69 echo vol L fade target value
+6A echo vol R fade target value
+70+X  voice duration/activity counter
+80+X  voice volume base fade counter
+81+X  voice pan fade counter
+90+X  pitch slide counter
+C0+X  repeat counter
+C1+X  current instr number + 1
+
+0100+X    note duration counter (dur * dur%)
+0200+X    duration
+0201+X    % of duration before key off
+0210+X    pitch multiplier
+0211+X    velocity/volume from note
+0241+X    voice base volume?
+0250/1+X  voice base fade delta
+0260+X    voice base fade target
+0280/1+X  voice pan value (00.00-14.00)
+0290/1+X  pan fade delta
+02A1+X    negate voice volume L/R if bits 7/6 set
+02B0/1+X  pitch (notenum fixed-point)
+02C0/1+X  pitch slide delta
+02D0/1+X  pitch slide final value
+0371+X    volume (= (note * base * master)^2)
+0387      (added to tempo)
+0389		echo vbits shadow
+03E0/1+X  repeat - goto if zero (return addr)
+03F0/1+X  repeat - goto if not zero (subr start)
+
+0634 set DSP pitch from $10/11
+068F write A to DSP reg Y if vbit clear in 1D
+0697 write A to DSP reg Y
+0B40 play song in A?
+0BF0 read next word at [$40] into YA
+0D32 key on voices in A
+0D40 dispatch vcmd in A
+0D47 vcmd: set instr to op1
+0D4A set C1+X to A+1; set instr to A in bank $5F46 (width 5)
+0D56 set voice X sample A in bank at $14/15 width Y
+0E14 set tempo
+0EEB set echo vol DSP regs from shadows
+0F5D calculate portamento delta
+0F76 signed 16 bit division (YA = YA / X)
+1075 add fade delta (YA+$10) to value (set final value (YA+$20) at end)
+125C get next vcmd stream byte from voice $46 into A/Y
+125E get next vcmd stream byte into A/Y
+1260 inc vptr, mov a,y
+12BD get pitch from notenum A to YA (incl. octave correction)
+12F2 do standardish SPU transfer
+
+135E/F  song pointers

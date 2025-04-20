@@ -1,0 +1,2510 @@
+0200 20         CLRP               ; dpage = 0
+0201 C0         DI                 ; interrupts off
+0202 CD FF      MOV     X,#$FF
+0204 BD         MOV     SP,X       ; SP = $(01)FF
+0205 E8 00      MOV     A,#$00
+0207 5D         MOV     X,A
+0208 AF         MOV     (X)+,A
+0209 C8 F0      CMP     X,#$F0
+020B D0 FB      BNE     $0208      ; zero $00-$EF
+020D E8 00      MOV     A,#$00
+020F 8D 0C      MOV     Y,#$0C
+0211 3F 1B 06   CALL    $061B   ; zero master vol L
+0214 8D 1C      MOV     Y,#$1C
+0216 3F 1B 06   CALL    $061B   ; zero master vol R
+0219 8D 2C      MOV     Y,#$2C
+021B 3F 1B 06   CALL    $061B   ; zero echo vol L
+021E 8D 3C      MOV     Y,#$3C
+0220 3F 1B 06   CALL    $061B   ; zero echo vol R
+0223 8D 2D      MOV     Y,#$2D
+0225 3F 1B 06   CALL    $061B   ; clear pitchmod bits
+0228 8D 3D      MOV     Y,#$3D
+022A 3F 1B 06   CALL    $061B   ; clear noise enable bits
+022D 8D 4D      MOV     Y,#$4D
+022F 3F 1B 06   CALL    $061B   ; clear echo enable bits
+0232 8D 5D      MOV     Y,#$5D
+0234 E8 19      MOV     A,#$19
+0236 3F 1B 06   CALL    $061B   ; set sample dir to $1900
+0239 8D 07      MOV     Y,#$07
+023B CD A0      MOV     X,#$A0
+023D CB F2      MOV     $F2,Y
+023F D8 F3      MOV     $F3,X   ; set exp decr gain mode
+0241 DD         MOV     A,Y
+0242 60         CLRC
+0243 88 10      ADC     A,#$10
+0245 FD         MOV     Y,A
+0246 10 F5      BPL     $023D   ; ...for all voices
+0248 8F F0 F1   MOV     $F1,#$F0 ; clear ports
+024B 8F 24 FA   MOV     $FA,#$24 ; set timer0 latch to 24 (4.5ms, 222 Hz)
+024E 8F 01 F1   MOV     $F1,#$01 ; start timer0
+0251 8F 02 DF   MOV     $DF,#$02 ; set echo delay to 2
+0254 3F DE 12   CALL    $12DE    ; set echo registers
+0257 3F 2F 13   CALL    $132F    ; wait for echo delays, set echo regs
+025A E8 7F      MOV     A,#$7F
+025C 8D 0C      MOV     Y,#$0C
+025E 3F 1B 06   CALL    $061B
+0261 8D 1C      MOV     Y,#$1C
+0263 3F 1B 06   CALL    $061B    ; set master vol L/R to 100% (#$7F)
+0266 8F FF B0   MOV     $B0,#$FF ; set key off shadow to #$FF
+0269 8F 07 DD   MOV     $DD,#$07 ; set $DD to #$07
+026C E2 90      SET1    $90.#7
+026E E2 9C      SET1    $9C.#7
+0270 8D 08      MOV     Y,#$08
+0272 E8 FF      MOV     A,#$FF
+0274 D6 7F FF   MOV     $FF7F+Y,A
+0277 FE FB      DBNZ    Y,$0274   ; set FF80-87 to #$FF
+; begin main loop
+0279 3F AF 0C   CALL    $0CAF   ; check for and dispatch CPU cmd
+027C EB FD      MOV     Y,$FD
+027E F0 F9      BEQ     $0279   ; process cmds until counter0 != 0
+0280 8D 06      MOV     Y,#$06
+0282 F6 8B 15   MOV     A,$158B+Y
+0285 C4 F2      MOV     $F2,A
+0287 F6 91 15   MOV     A,$1591+Y
+028A 5D         MOV     X,A
+028B E6         MOV     A,(X)
+028C C4 F3      MOV     $F3,A
+028E FE F2      DBNZ    Y,$0282 ; write DSP shadows to registers
+0290 CB B0      MOV     $B0,Y   ; clear key off shadow
+0292 CB AF      MOV     $AF,Y   ; clear key on shadow
+0294 E3 B1 15   BBS     $B1,#7,$02AC
+0297 BA AD      MOVW    YA,$AD
+0299 DA F6      MOVW    $F6,YA  ; write APU2/3 from $AD/E
+029B A3 B1 04   BBS     $B1,#5,$02A2
+029E E8 00      MOV     A,#$00
+02A0 2F 06      BRA     $02A8
+02A2 E4 8B      MOV     A,$8B
+02A4 D0 02      BNE     $02A8
+02A6 B2 B1      CLR1    $B1.#5
+02A8 C4 F5      MOV     $F5,A   ; write 0 or $8B to APU1
+02AA 2F 03      BRA     $02AF
+02AC 3F 8E 13   CALL    $138E   ; read wave height regs, write APU0-3
+02AF BA CB      MOVW    YA,$CB
+02B1 D0 0A      BNE     $02BD
+02B3 8B DD      DEC     $DD
+02B5 D0 06      BNE     $02BD
+02B7 8F 07 DD   MOV     $DD,#$07
+02BA 3F E5 13   CALL    $13E5
+02BD 3F F7 02   CALL    $02F7   ; do tempo adds, process vcmds if it's time
+02C0 CD 00      MOV     X,#$00
+02C2 8F 01 B2   MOV     $B2,#$01
+02C5 E4 AE      MOV     A,$AE
+02C7 48 FF      EOR     A,#$FF
+02C9 24 AD      AND     A,$AD
+02CB C4 02      MOV     $02,A
+02CD 4B 02      LSR     $02
+02CF 90 05      BCC     $02D6
+02D1 D8 05      MOV     $05,X
+02D3 3F C0 0A   CALL    $0AC0
+02D6 3D         INC     X
+02D7 3D         INC     X
+02D8 0B B2      ASL     $B2
+02DA D0 F1      BNE     $02CD
+02DC CD 10      MOV     X,#$10
+02DE 8F 01 B2   MOV     $B2,#$01
+02E1 E4 AE      MOV     A,$AE
+02E3 C4 02      MOV     $02,A
+02E5 4B 02      LSR     $02
+02E7 90 05      BCC     $02EE
+02E9 D8 05      MOV     $05,X
+02EB 3F C0 0A   CALL    $0AC0
+02EE 3D         INC     X
+02EF 3D         INC     X
+02F0 0B B2      ASL     $B2
+02F2 D0 F1      BNE     $02E5
+02F4 5F 79 02   JMP     $0279
+;
+02F7 E4 90      MOV     A,$90
+02F9 48 80      EOR     A,#$80
+02FB EB 7D      MOV     Y,$7D
+02FD CF         MUL     YA
+02FE DD         MOV     A,Y
+02FF F3 90 0A   BBC     $90,#7,$030C
+0302 1C         ASL     A
+0303 60         CLRC
+0304 84 7D      ADC     A,$7D
+0306 90 07      BCC     $030F
+0308 E8 FF      MOV     A,#$FF
+030A 2F 03      BRA     $030F
+030C D0 01      BNE     $030F
+030E BC         INC     A
+030F 60         CLRC
+0310 84 7E      ADC     A,$7E
+0312 C4 7E      MOV     $7E,A
+0314 23 B1 02   BBS     $B1,#1,$0319
+0317 90 4E      BCC     $0367
+0319 CD 00      MOV     X,#$00   ; foreach voice
+031B 8F 01 B2   MOV     $B2,#$01
+031E FA AD 02   MOV     $02,$AD  ; get active voice flags from AD
+0321 4B 02      LSR     $02
+0323 90 30      BCC     $0355    ; skip voice if voice not active
+0325 D8 05      MOV     $05,X
+0327 9B 3C      DEC     $3C+X    ; DEC voice activity counter
+0329 D0 05      BNE     $0330
+032B 3F B1 03   CALL    $03B1    ; process vcmds
+032E 2F 21      BRA     $0351
+0330 E4 AE      MOV     A,$AE
+0332 24 B2      AND     A,$B2
+0334 D0 1F      BNE     $0355
+0336 E8 02      MOV     A,#$02
+0338 DE 3C 09   CBNE    $3C+X,$0344
+033B E4 C2      MOV     A,$C2
+033D 24 B2      AND     A,$B2
+033F D0 03      BNE     $0344
+0341 09 B2 B0   OR      $B0,$B2 ; set keyoff shadow bit for this voice
+0344 40         SETP
+0345 F4 00      MOV     A,$00+X
+0347 F0 02      BEQ     $034B
+0349 9B 00      DEC     $00+X
+034B F4 01      MOV     A,$01+X
+034D F0 02      BEQ     $0351
+034F 9B 01      DEC     $01+X
+0351 20         CLRP
+0352 3F DF 09   CALL    $09DF   ; do per-voice fades
+0355 3D         INC     X
+0356 3D         INC     X
+0357 0B B2      ASL     $B2
+0359 D0 C6      BNE     $0321   ; next voice
+035B E4 80      MOV     A,$80   ; do global fades
+035D F0 08      BEQ     $0367
+035F 8B 80      DEC     $80
+0361 BA 81      MOVW    YA,$81
+0363 7A 7C      ADDW    YA,$7C
+0365 DA 7C      MOVW    $7C,YA
+0367 E8 78      MOV     A,#$78
+0369 60         CLRC
+036A 84 7F      ADC     A,$7F
+036C C4 7F      MOV     $7F,A
+036E 23 B1 02   BBS     $B1,#1,$0373
+0371 90 3D      BCC     $03B0
+0373 CD 10      MOV     X,#$10  ; foreach super-voice
+0375 8F 01 B2   MOV     $B2,#$01
+0378 E4 AE      MOV     A,$AE
+037A C4 02      MOV     $02,A
+037C 4B 02      LSR     $02
+037E 90 2A      BCC     $03AA
+0380 D8 05      MOV     $05,X
+0382 9B 3C      DEC     $3C+X   ; DEC voice activity counter
+0384 D0 05      BNE     $038B
+0386 3F B1 03   CALL    $03B1   ; process vcmds
+0389 2F 1B      BRA     $03A6
+038B E8 02      MOV     A,#$02
+038D DE 3C 09   CBNE    $3C+X,$0399
+0390 E4 C3      MOV     A,$C3
+0392 24 B2      AND     A,$B2
+0394 D0 03      BNE     $0399
+0396 09 B2 B0   OR      $B0,$B2 ; set keyoff shadow bit for this voice
+0399 40         SETP
+039A F4 00      MOV     A,$00+X
+039C F0 02      BEQ     $03A0
+039E 9B 00      DEC     $00+X
+03A0 F4 01      MOV     A,$01+X
+03A2 F0 02      BEQ     $03A6
+03A4 9B 01      DEC     $01+X
+03A6 20         CLRP
+03A7 3F DF 09   CALL    $09DF   ; do per-voice fades
+03AA 3D         INC     X
+03AB 3D         INC     X
+03AC 0B B2      ASL     $B2
+03AE D0 CC      BNE     $037C
+03B0 6F         RET
+; process vcmds
+03B1 3F 62 05   CALL    $0562   ; get next voice stream byte
+03B4 68 D2      CMP     A,#$D2
+03B6 90 05      BCC     $03BD
+03B8 3F 4E 05   CALL    $054E   ; dispatch cmd
+03BB 2F F4      BRA     $03B1
+03BD 8D 00      MOV     Y,#$00
+03BF CD 0F      MOV     X,#$0F
+03C1 9E         DIV     YA,X    ; A = note = A / $F, Y = duration = A % $F
+03C2 F8 05      MOV     X,$05
+03C4 F6 2C 15   MOV     A,$152C+Y  ; get duration from table
+03C7 D4 3C      MOV     $3C+X,A    ; put in voice activity counter
+03C9 3F 6D 05   CALL    $056D
+03CC 78 B4 04   CMP     $04,#$B4   ; (tie)
+03CF 90 09      BCC     $03DA
+03D1 78 C3 04   CMP     $04,#$C3   ; (rest)
+03D4 B0 03      BCS     $03D9   
+03D6 5F 85 04   JMP     $0485   ; tie
+03D9 6F         RET
+03DA C8 10      CMP     X,#$10
+03DC B0 06      BCS     $03E4
+03DE E4 AE      MOV     A,$AE
+03E0 24 B2      AND     A,$B2
+03E2 D0 F5      BNE     $03D9
+03E4 E4 04      MOV     A,$04
+03E6 8D 00      MOV     Y,#$00
+03E8 CD 0F      MOV     X,#$0F
+03EA 9E         DIV     YA,X
+03EB C4 04      MOV     $04,A   ; save note in $04
+03ED F8 05      MOV     X,$05
+03EF F4 3D      MOV     A,$3D+X ; current octave
+03F1 8D 0C      MOV     Y,#$0C
+03F3 CF         MUL     YA
+03F4 60         CLRC
+03F5 84 04      ADC     A,$04
+03F7 60         CLRC
+03F8 95 61 FD   ADC     A,$FD61+X     ; add per-voice transpose
+03FB 80         SETC
+03FC A8 0A      SBC     A,#$0A
+03FE D5 41 FD   MOV     $FD41+X,A     ; store corrected note #
+0401 3F ED 04   CALL    $04ED         ; calculate pitch value base in $08/9
+0404 E4 08      MOV     A,$08
+0406 D5 60 FE   MOV     $FE60+X,A
+0409 E4 09      MOV     A,$09
+040B D5 61 FE   MOV     $FE61+X,A     ; store pitch in FE60/1+X
+040E 8D 07      MOV     Y,#$07
+0410 F5 21 01   MOV     A,$0121+X
+0413 F0 22      BEQ     $0437
+0415 68 C0      CMP     A,#$C0
+0417 B0 04      BCS     $041D
+0419 E8 00      MOV     A,#$00
+041B 2F 02      BRA     $041F
+041D E8 80      MOV     A,#$80
+041F D5 C0 FD   MOV     $FDC0+X,A
+0422 E8 01      MOV     A,#$01
+0424 D5 E0 FC   MOV     $FCE0+X,A
+0427 F5 60 01   MOV     A,$0160+X
+042A D5 00 01   MOV     $0100+X,A
+042D F0 03      BEQ     $0432
+042F DD         MOV     A,Y
+0430 2F 02      BRA     $0434
+0432 E8 00      MOV     A,#$00
+0434 D5 00 FE   MOV     $FE00+X,A
+0437 F5 40 01   MOV     A,$0140+X
+043A F0 24      BEQ     $0460
+043C 68 C0      CMP     A,#$C0
+043E B0 04      BCS     $0444
+0440 E8 00      MOV     A,#$00
+0442 2F 02      BRA     $0446
+0444 E8 80      MOV     A,#$80
+0446 D5 C1 FD   MOV     $FDC1+X,A
+0449 E8 01      MOV     A,#$01
+044B D5 E1 FC   MOV     $FCE1+X,A
+044E F5 61 01   MOV     A,$0161+X
+0451 D5 01 01   MOV     $0101+X,A
+0454 F0 03      BEQ     $0459
+0456 DD         MOV     A,Y
+0457 2F 02      BRA     $045B
+0459 E8 00      MOV     A,#$00
+045B D5 01 FE   MOV     $FE01+X,A
+045E E8 00      MOV     A,#$00
+0460 D5 40 FE   MOV     $FE40+X,A
+0463 D5 41 FE   MOV     $FE41+X,A
+0466 D5 01 FD   MOV     $FD01+X,A
+0469 D5 80 FD   MOV     $FD80+X,A
+046C D5 81 FD   MOV     $FD81+X,A
+046F C8 10      CMP     X,#$10
+0471 B0 06      BCS     $0479
+0473 E4 AE      MOV     A,$AE
+0475 24 B2      AND     A,$B2
+0477 D0 0C      BNE     $0485
+0479 09 B2 C9   OR      $C9,$B2
+047C 09 B2 CA   OR      $CA,$B2
+047F 09 B2 AF   OR      $AF,$B2 ; set key on shadow bit for this voice
+0482 3F 83 08   CALL    $0883
+0485 F5 20 01   MOV     A,$0120+X
+0488 F0 62      BEQ     $04EC
+048A 60         CLRC
+048B 95 41 FD   ADC     A,$FD41+X
+048E D5 41 FD   MOV     $FD41+X,A
+0491 3F ED 04   CALL    $04ED
+0494 F5 60 FE   MOV     A,$FE60+X
+0497 C4 34      MOV     $34,A
+0499 F5 61 FE   MOV     A,$FE61+X
+049C C4 35      MOV     $35,A
+049E BA 08      MOVW    YA,$08
+04A0 80         SETC
+04A1 9A 34      SUBW    YA,$34
+04A3 DA 34      MOVW    $34,YA
+04A5 0D         PUSH    PSW
+04A6 B0 08      BCS     $04B0
+04A8 58 FF 34   EOR     $34,#$FF
+04AB 58 FF 35   EOR     $35,#$FF
+04AE 3A 34      INCW    $34
+04B0 F5 C1 FC   MOV     A,$FCC1+X
+04B3 D0 08      BNE     $04BD
+04B5 FA 35 34   MOV     $34,$35
+04B8 8F 00 35   MOV     $35,#$00
+04BB 2F 0D      BRA     $04CA
+04BD 5D         MOV     X,A
+04BE E4 35      MOV     A,$35
+04C0 8D 00      MOV     Y,#$00
+04C2 9E         DIV     YA,X
+04C3 C4 35      MOV     $35,A
+04C5 E4 34      MOV     A,$34
+04C7 9E         DIV     YA,X
+04C8 C4 34      MOV     $34,A
+04CA BA 34      MOVW    YA,$34
+04CC D0 02      BNE     $04D0
+04CE AB 34      INC     $34
+04D0 8E         POP     PSW
+04D1 B0 08      BCS     $04DB
+04D3 58 FF 34   EOR     $34,#$FF
+04D6 58 FF 35   EOR     $35,#$FF
+04D9 3A 34      INCW    $34
+04DB F8 05      MOV     X,$05
+04DD E4 34      MOV     A,$34
+04DF D5 80 FD   MOV     $FD80+X,A
+04E2 E4 35      MOV     A,$35
+04E4 D5 81 FD   MOV     $FD81+X,A
+04E7 E8 00      MOV     A,#$00
+04E9 D5 20 01   MOV     $0120+X,A
+04EC 6F         RET
+; calculate base pitch value for note # in A
+04ED CD 0C      MOV     X,#$0C
+04EF 8D 00      MOV     Y,#$00
+04F1 9E         DIV     YA,X
+04F2 F8 05      MOV     X,$05
+04F4 C4 03      MOV     $03,A
+04F6 DD         MOV     A,Y
+04F7 1C         ASL     A
+04F8 FD         MOV     Y,A
+04F9 F6 F2 14   MOV     A,$14F2+Y
+04FC C4 0A      MOV     $0A,A
+04FE F6 F3 14   MOV     A,$14F3+Y
+0501 C4 0B      MOV     $0B,A     ; get pitch from table into $0A/B
+0503 FD         MOV     Y,A
+0504 F5 20 FD   MOV     A,$FD20+X
+0507 60         CLRC
+0508 95 40 FD   ADC     A,$FD40+X
+050B 0D         PUSH    PSW
+050C 2D         PUSH    A
+050D CF         MUL     YA
+050E DA 08      MOVW    $08,YA
+0510 EB 0A      MOV     Y,$0A
+0512 AE         POP     A
+0513 CF         MUL     YA
+0514 DD         MOV     A,Y
+0515 8D 00      MOV     Y,#$00
+0517 7A 08      ADDW    YA,$08
+0519 DA 08      MOVW    $08,YA
+051B F5 21 FD   MOV     A,$FD21+X
+051E F0 08      BEQ     $0528
+0520 CF         MUL     YA
+0521 DD         MOV     A,Y
+0522 8D 00      MOV     Y,#$00
+0524 7A 08      ADDW    YA,$08
+0526 2F 02      BRA     $052A
+0528 E4 08      MOV     A,$08
+052A 8E         POP     PSW
+052B 30 02      BMI     $052F
+052D 7A 0A      ADDW    YA,$0A
+052F DA 08      MOVW    $08,YA
+0531 E8 04      MOV     A,#$04
+0533 EB 03      MOV     Y,$03
+0535 30 0E      BMI     $0545
+0537 64 03      CMP     A,$03
+0539 B0 0F      BCS     $054A
+053B 0B 08      ASL     $08
+053D 2B 09      ROL     $09
+053F BC         INC     A
+0540 2E 03 F8   CBNE    $03,$053B
+0543 2F 08      BRA     $054D
+0545 4B 09      LSR     $09
+0547 6B 08      ROR     $08
+0549 9C         DEC     A
+054A 2E 03 F8   CBNE    $03,$0545
+054D 6F         RET
+; dispatch vcmd
+054E A8 D2      SBC     A,#$D2
+0550 1C         ASL     A
+0551 FD         MOV     Y,A       ; A - D2 index to table
+0552 F6 29 14   MOV     A,$1429+Y
+0555 2D         PUSH    A
+0556 F6 28 14   MOV     A,$1428+Y
+0559 2D         PUSH    A         ; push return address from table
+055A DD         MOV     A,Y
+055B 5C         LSR     A
+055C FD         MOV     Y,A
+055D F6 84 14   MOV     A,$1484+Y ; get operand count from table
+0560 F0 0A      BEQ     $056C
+; get next byte from voice stream (0C+X)
+0562 E7 0C      MOV     A,[$0C+X]
+0564 C4 04      MOV     $04,A     ; store a copy in $04
+0566 BB 0C      INC     $0C+X
+0568 D0 02      BNE     $056C
+056A BB 0D      INC     $0D+X
+056C 6F         RET
+; find next note command
+056D F4 0C      MOV     A,$0C+X
+056F FB 0D      MOV     Y,$0D+X
+0571 DA 2C      MOVW    $2C,YA
+0573 F4 5C      MOV     A,$5C+X
+0575 C4 DE      MOV     $DE,A
+0577 8D 00      MOV     Y,#$00
+0579 F7 2C      MOV     A,[$2C]+Y
+057B 68 D2      CMP     A,#$D2
+057D 90 76      BCC     $05F5
+057F 3A 2C      INCW    $2C
+0581 68 F2      CMP     A,#$F2
+0583 F0 70      BEQ     $05F5
+0585 68 FA      CMP     A,#$FA
+0587 D0 0E      BNE     $0597
+0589 F7 2C      MOV     A,[$2C]+Y
+058B 2D         PUSH    A
+058C FC         INC     Y
+058D F7 2C      MOV     A,[$2C]+Y
+058F FD         MOV     Y,A
+0590 AE         POP     A
+0591 7A 06      ADDW    YA,$06
+0593 DA 2C      MOVW    $2C,YA
+0595 2F E0      BRA     $0577
+0597 68 F1      CMP     A,#$F1
+0599 D0 27      BNE     $05C2
+059B EB DE      MOV     Y,$DE
+059D F6 C0 FE   MOV     A,$FEC0+Y
+05A0 F0 11      BEQ     $05B3
+05A2 9C         DEC     A
+05A3 D0 0E      BNE     $05B3
+05A5 8B DE      DEC     $DE
+05A7 7D         MOV     A,X
+05A8 1C         ASL     A
+05A9 9C         DEC     A
+05AA 2E DE CA   CBNE    $DE,$0577
+05AD 60         CLRC
+05AE 98 04 DE   ADC     $DE,#$04
+05B1 2F C4      BRA     $0577
+05B3 DD         MOV     A,Y
+05B4 1C         ASL     A
+05B5 FD         MOV     Y,A
+05B6 F6 00 FF   MOV     A,$FF00+Y
+05B9 C4 2C      MOV     $2C,A
+05BB F6 01 FF   MOV     A,$FF01+Y
+05BE C4 2D      MOV     $2D,A
+05C0 2F B5      BRA     $0577
+05C2 68 F9      CMP     A,#$F9
+05C4 D0 11      BNE     $05D7
+05C6 EB DE      MOV     Y,$DE
+05C8 F6 A0 FE   MOV     A,$FEA0+Y
+05CB BC         INC     A
+05CC 77 2C      CMP     A,[$2C]+Y
+05CE D0 03      BNE     $05D3
+05D0 FC         INC     Y
+05D1 2F B6      BRA     $0589
+05D3 8D 03      MOV     Y,#$03
+05D5 2F 18      BRA     $05EF
+05D7 68 FB      CMP     A,#$FB
+05D9 D0 0A      BNE     $05E5
+05DB E4 B2      MOV     A,$B2
+05DD 24 C4      AND     A,$C4
+05DF D0 A8      BNE     $0589
+05E1 8D 02      MOV     Y,#$02
+05E3 2F 0A      BRA     $05EF
+05E5 80         SETC
+05E6 A8 D2      SBC     A,#$D2
+05E8 FD         MOV     Y,A
+05E9 F6 84 14   MOV     A,$1484+Y
+05EC F0 89      BEQ     $0577
+05EE FD         MOV     Y,A
+05EF 3A 2C      INCW    $2C
+05F1 FE FC      DBNZ    Y,$05EF
+05F3 2F 84      BRA     $0579
+05F5 FD         MOV     Y,A     ; found note or halt
+05F6 E4 B2      MOV     A,$B2
+05F8 AD C3      CMP     Y,#$C3
+05FA B0 12      BCS     $060E
+05FC AD B4      CMP     Y,#$B4
+05FE 90 0E      BCC     $060E
+0600 C8 10      CMP     X,#$10
+0602 B0 05      BCS     $0609
+0604 0E C2 00   TSET1   $00C2
+0607 2F 11      BRA     $061A
+0609 0E C3 00   TSET1   $00C3
+060C 2F 0C      BRA     $061A
+060E C8 10      CMP     X,#$10
+0610 B0 05      BCS     $0617
+0612 4E C2 00   TCLR1   $00C2
+0615 2F 03      BRA     $061A
+0617 4E C3 00   TCLR1   $00C3
+061A 6F         RET
+; set DSP reg Y to A
+061B CB F2      MOV     $F2,Y
+061D C4 F3      MOV     $F3,A
+061F 6F         RET
+; vcmd F3
+0620 C8 10      CMP     X,#$10
+0622 B0 08      BCS     $062C
+0624 C4 7D      MOV     $7D,A
+0626 E8 00      MOV     A,#$00
+0628 C4 7C      MOV     $7C,A
+062A C4 80      MOV     $80,A
+062C 6F         RET
+; vcmd F4
+062D C4 80      MOV     $80,A
+062F 3F 62 05   CALL    $0562
+0632 C8 10      CMP     X,#$10
+0634 B0 2E      BCS     $0664
+0636 EB 80      MOV     Y,$80
+0638 F0 E6      BEQ     $0620
+063A 80         SETC
+063B A4 7D      SBC     A,$7D
+063D F0 EB      BEQ     $062A
+063F 0D         PUSH    PSW
+0640 B0 03      BCS     $0645
+0642 48 FF      EOR     A,#$FF
+0644 BC         INC     A
+0645 F8 80      MOV     X,$80
+0647 8D 00      MOV     Y,#$00
+0649 9E         DIV     YA,X
+064A C4 35      MOV     $35,A
+064C E8 00      MOV     A,#$00
+064E 9E         DIV     YA,X
+064F C4 34      MOV     $34,A
+0651 F8 05      MOV     X,$05
+0653 8E         POP     PSW
+0654 B0 08      BCS     $065E
+0656 58 FF 34   EOR     $34,#$FF
+0659 58 FF 35   EOR     $35,#$FF
+065C 3A 34      INCW    $34
+065E BA 34      MOVW    YA,$34
+0660 C4 81      MOV     $81,A
+0662 CB 82      MOV     $82,Y
+0664 6F         RET
+; vcmd F8
+0665 C4 AC      MOV     $AC,A
+0667 6F         RET
+; vcmd D2
+0668 D5 01 FC   MOV     $FC01+X,A
+066B E8 00      MOV     A,#$00
+066D D5 00 FC   MOV     $FC00+X,A
+0670 D5 80 FC   MOV     $FC80+X,A
+0673 6F         RET
+; vcmd D3
+0674 C4 34      MOV     $34,A
+0676 D5 80 FC   MOV     $FC80+X,A
+0679 3F 62 05   CALL    $0562
+067C EB 34      MOV     Y,$34
+067E F0 E8      BEQ     $0668
+0680 80         SETC
+0681 B5 01 FC   SBC     A,$FC01+X
+0684 F0 EA      BEQ     $0670
+0686 0D         PUSH    PSW
+0687 B0 03      BCS     $068C
+0689 48 FF      EOR     A,#$FF
+068B BC         INC     A
+068C F8 34      MOV     X,$34
+068E 8D 00      MOV     Y,#$00
+0690 9E         DIV     YA,X
+0691 C4 35      MOV     $35,A
+0693 E8 00      MOV     A,#$00
+0695 9E         DIV     YA,X
+0696 C4 34      MOV     $34,A
+0698 F8 05      MOV     X,$05
+069A 8E         POP     PSW
+069B B0 08      BCS     $06A5
+069D 58 FF 34   EOR     $34,#$FF
+06A0 58 FF 35   EOR     $35,#$FF
+06A3 3A 34      INCW    $34
+06A5 E4 34      MOV     A,$34
+06A7 D5 20 FC   MOV     $FC20+X,A
+06AA E4 35      MOV     A,$35
+06AC D5 21 FC   MOV     $FC21+X,A
+06AF 6F         RET
+; vcmd F6
+06B0 3F 62 05   CALL    $0562
+; vcmd F5
+06B3 6F         RET
+; vcmd D4
+06B4 C8 10      CMP     X,#$10
+06B6 B0 0C      BCS     $06C4
+06B8 D5 41 FC   MOV     $FC41+X,A
+06BB E8 00      MOV     A,#$00
+06BD D5 40 FC   MOV     $FC40+X,A
+06C0 D5 81 FC   MOV     $FC81+X,A
+06C3 6F         RET
+06C4 FD         MOV     Y,A
+06C5 0D         PUSH    PSW
+06C6 48 80      EOR     A,#$80
+06C8 8E         POP     PSW
+06C9 10 0A      BPL     $06D5
+06CB 60         CLRC
+06CC 95 41 FC   ADC     A,$FC41+X
+06CF 90 0F      BCC     $06E0
+06D1 E8 FF      MOV     A,#$FF
+06D3 2F 0B      BRA     $06E0
+06D5 48 FF      EOR     A,#$FF
+06D7 BC         INC     A
+06D8 60         CLRC
+06D9 95 41 FC   ADC     A,$FC41+X
+06DC B0 02      BCS     $06E0
+06DE E8 00      MOV     A,#$00
+06E0 D5 41 FC   MOV     $FC41+X,A
+06E3 6F         RET
+; vcmd D5
+06E4 C4 34      MOV     $34,A
+06E6 D5 81 FC   MOV     $FC81+X,A
+06E9 3F 62 05   CALL    $0562
+06EC EB 34      MOV     Y,$34
+06EE F0 C8      BEQ     $06B8
+06F0 80         SETC
+06F1 B5 41 FC   SBC     A,$FC41+X
+06F4 F0 CA      BEQ     $06C0
+06F6 0D         PUSH    PSW
+06F7 B0 03      BCS     $06FC
+06F9 48 FF      EOR     A,#$FF
+06FB BC         INC     A
+06FC F8 34      MOV     X,$34
+06FE 8D 00      MOV     Y,#$00
+0700 9E         DIV     YA,X
+0701 C4 35      MOV     $35,A
+0703 E8 00      MOV     A,#$00
+0705 9E         DIV     YA,X
+0706 C4 34      MOV     $34,A
+0708 F8 05      MOV     X,$05
+070A 8E         POP     PSW
+070B B0 08      BCS     $0715
+070D 58 FF 34   EOR     $34,#$FF
+0710 58 FF 35   EOR     $35,#$FF
+0713 3A 34      INCW    $34
+0715 E4 34      MOV     A,$34
+0717 D5 60 FC   MOV     $FC60+X,A
+071A E4 35      MOV     A,$35
+071C D5 61 FC   MOV     $FC61+X,A
+071F 6F         RET
+; vcmd D6
+0720 BC         INC     A
+0721 D5 C1 FC   MOV     $FCC1+X,A
+0724 3F 62 05   CALL    $0562
+0727 D5 20 01   MOV     $0120+X,A
+072A 6F         RET
+; vcmd E8
+072B 60         CLRC
+072C 95 61 FD   ADC     A,$FD61+X
+; vcmd E7
+072F D5 61 FD   MOV     $FD61+X,A
+0732 6F         RET
+; vcmd F7
+0733 3F 62 05   CALL    $0562
+0736 6F         RET
+; vcmd D7
+0737 D5 60 01   MOV     $0160+X,A
+073A 3F 62 05   CALL    $0562
+073D BC         INC     A
+073E D5 A0 FC   MOV     $FCA0+X,A
+0741 E8 01      MOV     A,#$01
+0743 D5 E0 FC   MOV     $FCE0+X,A
+0746 3F 62 05   CALL    $0562
+; vcmd D8
+0749 D5 21 01   MOV     $0121+X,A
+074C 6F         RET
+; vcmd D9
+074D D5 61 01   MOV     $0161+X,A
+0750 3F 62 05   CALL    $0562
+0753 BC         INC     A
+0754 D5 A1 FC   MOV     $FCA1+X,A
+0757 E8 01      MOV     A,#$01
+0759 D5 E1 FC   MOV     $FCE1+X,A
+075C 3F 62 05   CALL    $0562
+; vcmd DA
+075F D5 40 01   MOV     $0140+X,A
+0762 6F         RET
+; vcmd DB
+0763 60         CLRC
+0764 BC         INC     A
+0765 D5 C0 FC   MOV     $FCC0+X,A
+0768 D0 01      BNE     $076B
+076A 80         SETC
+076B 7C         ROR     A
+076C D0 01      BNE     $076F
+076E BC         INC     A
+076F D5 00 FD   MOV     $FD00+X,A
+0772 FD         MOV     Y,A
+0773 3F 62 05   CALL    $0562
+0776 1C         ASL     A
+0777 E4 04      MOV     A,$04
+0779 28 7F      AND     A,#$7F
+077B 90 02      BCC     $077F
+077D 48 7F      EOR     A,#$7F
+077F C4 34      MOV     $34,A
+0781 DD         MOV     A,Y
+0782 10 05      BPL     $0789
+0784 8F 00 35   MOV     $35,#$00
+0787 2F 13      BRA     $079C
+0789 5D         MOV     X,A
+078A 8D 00      MOV     Y,#$00
+078C E4 34      MOV     A,$34
+078E 9E         DIV     YA,X
+078F C4 35      MOV     $35,A
+0791 E8 00      MOV     A,#$00
+0793 9E         DIV     YA,X
+0794 C4 34      MOV     $34,A
+0796 BA 34      MOVW    YA,$34
+0798 D0 02      BNE     $079C
+079A AB 34      INC     $34
+079C 90 08      BCC     $07A6
+079E 58 FF 34   EOR     $34,#$FF
+07A1 58 FF 35   EOR     $35,#$FF
+07A4 3A 34      INCW    $34
+07A6 F8 05      MOV     X,$05
+07A8 E4 34      MOV     A,$34
+07AA D5 A0 FD   MOV     $FDA0+X,A
+07AD E4 35      MOV     A,$35
+07AF D5 A1 FD   MOV     $FDA1+X,A
+07B2 E4 04      MOV     A,$04
+; vcmd DC
+07B4 D5 41 01   MOV     $0141+X,A
+07B7 E8 00      MOV     A,#$00
+07B9 D5 E0 FD   MOV     $FDE0+X,A
+07BC D5 E1 FD   MOV     $FDE1+X,A
+07BF 6F         RET
+; vcmd E5 - inc octave
+07C0 F5 3D 00   MOV     A,$003D+X
+07C3 BC         INC     A
+07C4 2F 04      BRA     $07CA
+; vcmd E6 - dec octave
+07C6 F5 3D 00   MOV     A,$003D+X
+07C9 9C         DEC     A
+; vcmd E4 - set octave
+07CA D5 3D 00   MOV     $003D+X,A
+07CD 6F         RET
+; vcmd E2 - enable echo
+07CE C8 10      CMP     X,#$10
+07D0 B0 05      BCS     $07D7
+07D2 09 B2 BC   OR      $BC,$B2
+07D5 2F 03      BRA     $07DA
+07D7 09 B2 BD   OR      $BD,$B2
+07DA E4 AE      MOV     A,$AE
+07DC 48 FF      EOR     A,#$FF
+07DE 24 BC      AND     A,$BC
+07E0 04 BD      OR      A,$BD
+07E2 C4 B8      MOV     $B8,A   ; echo DSP shadow
+07E4 6F         RET
+; vcmd E3 - disable echo
+07E5 E4 B2      MOV     A,$B2
+07E7 C8 10      CMP     X,#$10
+07E9 B0 05      BCS     $07F0
+07EB 4E BC 00   TCLR1   $00BC
+07EE 2F EA      BRA     $07DA
+07F0 4E BD 00   TCLR1   $00BD
+07F3 2F E5      BRA     $07DA
+; vcmd DE - enable noise
+07F5 C8 10      CMP     X,#$10
+07F7 B0 05      BCS     $07FE
+07F9 09 B2 BE   OR      $BE,$B2
+07FC 2F 05      BRA     $0803
+07FE 09 B2 BF   OR      $BF,$B2
+0801 82 B1      SET1    $B1.#4
+0803 E4 BB      MOV     A,$BB
+0805 28 E0      AND     A,#$E0
+0807 83 B1 04   BBS     $B1,#4,$080E
+080A 04 C5      OR      A,$C5
+080C 2F 02      BRA     $0810
+080E 04 C6      OR      A,$C6
+0810 C4 BB      MOV     $BB,A   ; set noise freq bits of FLG shadow
+0812 E4 AE      MOV     A,$AE
+0814 48 FF      EOR     A,#$FF
+0816 24 BE      AND     A,$BE
+0818 04 BF      OR      A,$BF
+081A C4 B9      MOV     $B9,A   ; noise enable DSP shadow
+081C 6F         RET
+; vcmd DF - disable noise
+081D E4 B2      MOV     A,$B2
+081F C8 10      CMP     X,#$10
+0821 B0 05      BCS     $0828
+0823 4E BE 00   TCLR1   $00BE
+0826 2F DB      BRA     $0803
+0828 4E BF 00   TCLR1   $00BF
+082B D0 D6      BNE     $0803
+082D 92 B1      CLR1    $B1.#4
+082F 2F D2      BRA     $0803
+; vcmd DD - set noise freq
+0831 28 1F      AND     A,#$1F
+0833 C8 10      CMP     X,#$10
+0835 B0 04      BCS     $083B
+0837 C4 C5      MOV     $C5,A
+0839 2F C8      BRA     $0803
+083B C4 C6      MOV     $C6,A
+083D 2F C4      BRA     $0803
+; vcmd E0 - enable pitchmod
+083F C8 10      CMP     X,#$10
+0841 B0 05      BCS     $0848
+0843 09 B2 C0   OR      $C0,$B2
+0846 2F 03      BRA     $084B
+0848 09 B2 C1   OR      $C1,$B2
+084B E4 AE      MOV     A,$AE
+084D 48 FF      EOR     A,#$FF
+084F 24 C0      AND     A,$C0
+0851 04 C1      OR      A,$C1
+0853 C4 BA      MOV     $BA,A   ; pitchmod DSP shadow
+0855 6F         RET
+; vcmd E1 - disable pitchmod
+0856 E4 B2      MOV     A,$B2
+0858 C8 10      CMP     X,#$10
+085A B0 05      BCS     $0861
+085C 4E C0 00   TCLR1   $00C0
+085F 2F EA      BRA     $084B
+0861 4E C1 00   TCLR1   $00C1
+0864 2F E5      BRA     $084B
+; vcmd EA - set patch
+0866 D4 5D      MOV     $5D+X,A
+0868 1C         ASL     A
+0869 FD         MOV     Y,A
+086A F6 00 18   MOV     A,$1800+Y
+086D D5 20 FD   MOV     $FD20+X,A
+0870 F6 01 18   MOV     A,$1801+Y
+0873 D5 21 FD   MOV     $FD21+X,A
+0876 F6 80 18   MOV     A,$1880+Y
+0879 D5 80 FE   MOV     $FE80+X,A       ; default ADSR1
+087C F6 81 18   MOV     A,$1881+Y 
+087F D5 81 FE   MOV     $FE81+X,A       ; default ADSR2
+0882 6F         RET
+; set SRCN reg for voice X/2 from $5D+x
+0883 FB 5D      MOV     Y,$5D+X
+0885 7D         MOV     A,X
+0886 9F         XCN     A
+0887 5C         LSR     A
+0888 08 04      OR      A,#$04
+088A C4 F2      MOV     $F2,A
+088C CB F3      MOV     $F3,Y
+088E 2F 10      BRA     $08A0
+; vcmd EB - set ADSR attack
+0890 28 0F      AND     A,#$0F
+0892 C4 04      MOV     $04,A
+0894 F5 80 FE   MOV     A,$FE80+X
+0897 28 70      AND     A,#$70          ; keep old decay
+0899 04 04      OR      A,$04           ; set new attack
+089B 08 80      OR      A,#$80          ; set ADSR mode
+089D D5 80 FE   MOV     $FE80+X,A
+08A0 C8 10      CMP     X,#$10
+08A2 B0 07      BCS     $08AB
+08A4 E4 AE      MOV     A,$AE
+08A6 24 B2      AND     A,$B2
+08A8 F0 01      BEQ     $08AB
+08AA 6F         RET
+08AB 7D         MOV     A,X
+08AC 9F         XCN     A
+08AD 5C         LSR     A
+08AE 08 05      OR      A,#$05
+08B0 FD         MOV     Y,A
+08B1 F5 80 FE   MOV     A,$FE80+X
+08B4 3F 1B 06   CALL    $061B           ; set ADSR1 from FE80+X
+08B7 FC         INC     Y
+08B8 F5 81 FE   MOV     A,$FE81+X       ; set ADSR2 from FE81+X
+08BB 5F 1B 06   JMP     $061B
+; vcmd EC - set ADSR decay
+08BE 28 07      AND     A,#$07
+08C0 9F         XCN     A
+08C1 C4 04      MOV     $04,A
+08C3 F5 80 FE   MOV     A,$FE80+X
+08C6 28 0F      AND     A,#$0F          ; keep old attack
+08C8 04 04      OR      A,$04           ; add new decay
+08CA 08 80      OR      A,#$80          ; force ADSR mode
+08CC D5 80 FE   MOV     $FE80+X,A
+08CF 2F CF      BRA     $08A0           ; write DSP regs
+; vcmd ED - set ADSR sustain
+08D1 28 07      AND     A,#$07
+08D3 9F         XCN     A
+08D4 1C         ASL     A
+08D5 C4 04      MOV     $04,A
+08D7 F5 81 FE   MOV     A,$FE81+X
+08DA 28 1F      AND     A,#$1F          ; keep old release
+08DC 04 04      OR      A,$04           ; add new sustain
+08DE D5 81 FE   MOV     $FE81+X,A
+08E1 2F BD      BRA     $08A0           ; write DSP regs
+; vcmd EE - set ADSR release
+08E3 28 1F      AND     A,#$1F
+08E5 C4 04      MOV     $04,A
+08E7 F5 81 FE   MOV     A,$FE81+X
+08EA 28 E0      AND     A,#$E0          ; keep old sustain
+08EC 04 04      OR      A,$04           ; add new release
+08EE D5 81 FE   MOV     $FE81+X,A
+08F1 2F AD      BRA     $08A0           ; write DSP regs
+; vcmd EF - restore default ADSR values for patch
+08F3 F4 5D      MOV     A,$5D+X         ; get current patch #
+08F5 1C         ASL     A
+08F6 FD         MOV     Y,A             ; as index into tables
+08F7 F6 80 18   MOV     A,$1880+Y
+08FA D5 80 FE   MOV     $FE80+X,A       ; ADSR1 value
+08FD F6 81 18   MOV     A,$1881+Y
+0900 D5 81 FE   MOV     $FE81+X,A       ; ADSR2 value
+0903 2F 9B      BRA     $08A0           ; write DSP ADSR regs
+; vcmd FA - goto
+0905 FD         MOV     Y,A
+0906 3F 62 05   CALL    $0562
+0909 C8 10      CMP     X,#$10
+090B B0 09      BCS     $0916
+090D DD         MOV     A,Y
+090E EB 04      MOV     Y,$04   ; address -> YA
+0910 7A 06      ADDW    YA,$06  ; add offset from $06/7
+0912 D4 0C      MOV     $0C+X,A
+0914 DB 0D      MOV     $0D+X,Y ; set new vptr value
+0916 6F         RET
+; vcmd F9
+0917 C4 36      MOV     $36,A
+0919 3F 62 05   CALL    $0562
+091C C4 34      MOV     $34,A
+091E 3F 62 05   CALL    $0562
+0921 C4 35      MOV     $35,A
+0923 C8 10      CMP     X,#$10
+0925 B0 12      BCS     $0939
+0927 F5 A0 FE   MOV     A,$FEA0+X
+092A BC         INC     A
+092B D5 A0 FE   MOV     $FEA0+X,A
+092E 2E 36 08   CBNE    $36,$0939
+0931 BA 34      MOVW    YA,$34
+0933 7A 06      ADDW    YA,$06
+0935 D4 0C      MOV     $0C+X,A
+0937 DB 0D      MOV     $0D+X,Y
+0939 6F         RET
+; vcmd FC
+093A C8 10      CMP     X,#$10
+093C B0 05      BCS     $0943
+093E E8 00      MOV     A,#$00
+0940 D5 A0 FE   MOV     $FEA0+X,A
+0943 6F         RET
+; vcmd F0
+0944 BB 5C      INC     $5C+X
+0946 7D         MOV     A,X
+0947 1C         ASL     A
+0948 60         CLRC
+0949 88 04      ADC     A,#$04
+094B DE 5C 05   CBNE    $5C+X,$0953
+094E 80         SETC
+094F A8 04      SBC     A,#$04
+0951 D4 5C      MOV     $5C+X,A
+0953 FB 5C      MOV     Y,$5C+X
+0955 E4 04      MOV     A,$04
+0957 F0 01      BEQ     $095A
+0959 BC         INC     A
+095A D6 C0 FE   MOV     $FEC0+Y,A
+095D DD         MOV     A,Y
+095E 1C         ASL     A
+095F FD         MOV     Y,A
+0960 F4 0C      MOV     A,$0C+X
+0962 D6 00 FF   MOV     $FF00+Y,A
+0965 F4 0D      MOV     A,$0D+X
+0967 D6 01 FF   MOV     $FF01+Y,A
+096A 6F         RET
+; vcmd F1
+096B FB 5C      MOV     Y,$5C+X
+096D F6 C0 FE   MOV     A,$FEC0+Y
+0970 F0 15      BEQ     $0987
+0972 9C         DEC     A
+0973 D0 0F      BNE     $0984
+0975 7D         MOV     A,X
+0976 1C         ASL     A
+0977 9C         DEC     A
+0978 9B 5C      DEC     $5C+X
+097A DE 5C 17   CBNE    $5C+X,$0994
+097D 60         CLRC
+097E 88 04      ADC     A,#$04
+0980 D4 5C      MOV     $5C+X,A
+0982 2F 10      BRA     $0994
+0984 D6 C0 FE   MOV     $FEC0+Y,A
+0987 DD         MOV     A,Y
+0988 1C         ASL     A
+0989 FD         MOV     Y,A
+098A F6 00 FF   MOV     A,$FF00+Y
+098D D4 0C      MOV     $0C+X,A
+098F F6 01 FF   MOV     A,$FF01+Y
+0992 D4 0D      MOV     $0D+X,A
+0994 6F         RET
+; vcmd FB
+0995 FD         MOV     Y,A
+0996 3F 62 05   CALL    $0562
+0999 C8 10      CMP     X,#$10
+099B B0 12      BCS     $09AF
+099D E4 B2      MOV     A,$B2
+099F 24 C4      AND     A,$C4
+09A1 F0 0C      BEQ     $09AF
+09A3 4E C4 00   TCLR1   $00C4
+09A6 DD         MOV     A,Y
+09A7 EB 04      MOV     Y,$04
+09A9 7A 06      ADDW    YA,$06
+09AB D4 0C      MOV     $0C+X,A
+09AD DB 0D      MOV     $0D+X,Y
+09AF 6F         RET
+; vcmd E9
+09B0 D5 40 FD   MOV     $FD40+X,A
+09B3 6F         RET
+; vcmd FD
+09B4 C8 10      CMP     X,#$10
+09B6 B0 03      BCS     $09BB
+09B8 C5 88 FF   MOV     $FF88,A
+09BB 6F         RET
+; vcmd F2,FE,FF - halt
+09BC AE         POP     A
+09BD AE         POP     A
+09BE E4 B2      MOV     A,$B2
+09C0 C8 10      CMP     X,#$10
+09C2 B0 05      BCS     $09C9
+09C4 4E AD 00   TCLR1   $00AD
+09C7 2F 0D      BRA     $09D6
+09C9 4E AE 00   TCLR1   $00AE
+09CC 7D         MOV     A,X
+09CD 5C         LSR     A
+09CE 28 07      AND     A,#$07
+09D0 FD         MOV     Y,A
+09D1 E8 FF      MOV     A,#$FF
+09D3 D6 80 FF   MOV     $FF80+Y,A
+09D6 3F 1D 08   CALL    $081D
+09D9 3F 56 08   CALL    $0856
+09DC 5F E5 07   JMP     $07E5
+; do per-voice fades
+09DF F5 80 FC   MOV     A,$FC80+X
+09E2 F0 26      BEQ     $0A0A
+09E4 9C         DEC     A
+09E5 D5 80 FC   MOV     $FC80+X,A
+09E8 F5 00 FC   MOV     A,$FC00+X
+09EB C4 34      MOV     $34,A
+09ED F5 01 FC   MOV     A,$FC01+X
+09F0 C4 35      MOV     $35,A
+09F2 F5 21 FC   MOV     A,$FC21+X
+09F5 FD         MOV     Y,A
+09F6 F5 20 FC   MOV     A,$FC20+X
+09F9 7A 34      ADDW    YA,$34
+09FB D5 00 FC   MOV     $FC00+X,A
+09FE DD         MOV     A,Y
+09FF 75 01 FC   CMP     A,$FC01+X
+0A02 D5 01 FC   MOV     $FC01+X,A
+0A05 F0 03      BEQ     $0A0A
+0A07 09 B2 C9   OR      $C9,$B2
+0A0A F5 81 FC   MOV     A,$FC81+X
+0A0D F0 26      BEQ     $0A35
+0A0F 9C         DEC     A
+0A10 D5 81 FC   MOV     $FC81+X,A
+0A13 F5 40 FC   MOV     A,$FC40+X
+0A16 C4 34      MOV     $34,A
+0A18 F5 41 FC   MOV     A,$FC41+X
+0A1B C4 35      MOV     $35,A
+0A1D F5 61 FC   MOV     A,$FC61+X
+0A20 FD         MOV     Y,A
+0A21 F5 60 FC   MOV     A,$FC60+X
+0A24 7A 34      ADDW    YA,$34
+0A26 D5 40 FC   MOV     $FC40+X,A
+0A29 DD         MOV     A,Y
+0A2A 75 41 FC   CMP     A,$FC41+X
+0A2D D5 41 FC   MOV     $FC41+X,A
+0A30 F0 03      BEQ     $0A35
+0A32 09 B2 C9   OR      $C9,$B2
+0A35 F5 80 FD   MOV     A,$FD80+X
+0A38 C4 34      MOV     $34,A
+0A3A F5 81 FD   MOV     A,$FD81+X
+0A3D C4 35      MOV     $35,A
+0A3F BA 34      MOVW    YA,$34
+0A41 F0 22      BEQ     $0A65
+0A43 F5 C1 FC   MOV     A,$FCC1+X
+0A46 9C         DEC     A
+0A47 D0 06      BNE     $0A4F
+0A49 D5 80 FD   MOV     $FD80+X,A
+0A4C D5 81 FD   MOV     $FD81+X,A
+0A4F D5 C1 FC   MOV     $FCC1+X,A
+0A52 F5 61 FE   MOV     A,$FE61+X
+0A55 FD         MOV     Y,A
+0A56 F5 60 FE   MOV     A,$FE60+X
+0A59 7A 34      ADDW    YA,$34
+0A5B D5 60 FE   MOV     $FE60+X,A
+0A5E DD         MOV     A,Y
+0A5F D5 61 FE   MOV     $FE61+X,A
+0A62 09 B2 CA   OR      $CA,$B2
+0A65 F5 41 01   MOV     A,$0141+X
+0A68 F0 55      BEQ     $0ABF
+0A6A F5 A0 FD   MOV     A,$FDA0+X
+0A6D C4 34      MOV     $34,A
+0A6F F5 A1 FD   MOV     A,$FDA1+X
+0A72 C4 35      MOV     $35,A
+0A74 F5 E1 FD   MOV     A,$FDE1+X
+0A77 FD         MOV     Y,A
+0A78 C4 36      MOV     $36,A
+0A7A F5 E0 FD   MOV     A,$FDE0+X
+0A7D 7A 34      ADDW    YA,$34
+0A7F D5 E0 FD   MOV     $FDE0+X,A
+0A82 DD         MOV     A,Y
+0A83 E3 35 09   BBS     $35,#7,$0A8F
+0A86 E3 36 0D   BBS     $36,#7,$0A96
+0A89 10 0B      BPL     $0A96
+0A8B E8 7F      MOV     A,#$7F
+0A8D 2F 07      BRA     $0A96
+0A8F F3 36 04   BBC     $36,#7,$0A96
+0A92 30 02      BMI     $0A96
+0A94 E8 80      MOV     A,#$80
+0A96 75 E1 FD   CMP     A,$FDE1+X
+0A99 D5 E1 FD   MOV     $FDE1+X,A
+0A9C F0 03      BEQ     $0AA1
+0A9E 09 B2 C9   OR      $C9,$B2
+0AA1 F5 00 FD   MOV     A,$FD00+X
+0AA4 9C         DEC     A
+0AA5 D0 15      BNE     $0ABC
+0AA7 58 FF 34   EOR     $34,#$FF
+0AAA 58 FF 35   EOR     $35,#$FF
+0AAD 3A 34      INCW    $34
+0AAF E4 34      MOV     A,$34
+0AB1 D5 A0 FD   MOV     $FDA0+X,A
+0AB4 E4 35      MOV     A,$35
+0AB6 D5 A1 FD   MOV     $FDA1+X,A
+0AB9 F5 C0 FC   MOV     A,$FCC0+X
+0ABC D5 00 FD   MOV     $FD00+X,A
+0ABF 6F         RET
+;
+0AC0 F5 21 01   MOV     A,$0121+X
+0AC3 F0 6C      BEQ     $0B31
+0AC5 FD         MOV     Y,A
+0AC6 F5 00 01   MOV     A,$0100+X
+0AC9 D0 66      BNE     $0B31
+0ACB F5 E0 FC   MOV     A,$FCE0+X
+0ACE 9C         DEC     A
+0ACF D0 5D      BNE     $0B2E
+0AD1 F5 00 FE   MOV     A,$FE00+X
+0AD4 DA 34      MOVW    $34,YA
+0AD6 F5 C0 FD   MOV     A,$FDC0+X
+0AD9 C4 36      MOV     $36,A
+0ADB 3F 5E 0C   CALL    $0C5E
+0ADE D5 C0 FD   MOV     $FDC0+X,A
+0AE1 1C         ASL     A
+0AE2 D0 03      BNE     $0AE7
+0AE4 FD         MOV     Y,A
+0AE5 2F 3A      BRA     $0B21
+0AE7 0D         PUSH    PSW
+0AE8 2D         PUSH    A
+0AE9 2D         PUSH    A
+0AEA E4 34      MOV     A,$34
+0AEC D5 00 FE   MOV     $FE00+X,A
+0AEF 8D 0F      MOV     Y,#$0F
+0AF1 F5 61 FE   MOV     A,$FE61+X
+0AF4 CF         MUL     YA
+0AF5 DA 36      MOVW    $36,YA
+0AF7 8D 0F      MOV     Y,#$0F
+0AF9 F5 60 FE   MOV     A,$FE60+X
+0AFC CF         MUL     YA
+0AFD DD         MOV     A,Y
+0AFE 8D 00      MOV     Y,#$00
+0B00 7A 36      ADDW    YA,$36
+0B02 C4 36      MOV     $36,A
+0B04 AE         POP     A
+0B05 CF         MUL     YA
+0B06 DA 38      MOVW    $38,YA
+0B08 AE         POP     A
+0B09 EB 36      MOV     Y,$36
+0B0B CF         MUL     YA
+0B0C DD         MOV     A,Y
+0B0D 8D 00      MOV     Y,#$00
+0B0F 7A 38      ADDW    YA,$38
+0B11 8E         POP     PSW
+0B12 90 0D      BCC     $0B21
+0B14 48 FF      EOR     A,#$FF
+0B16 C4 38      MOV     $38,A
+0B18 DD         MOV     A,Y
+0B19 48 FF      EOR     A,#$FF
+0B1B C4 39      MOV     $39,A
+0B1D 3A 38      INCW    $38
+0B1F BA 38      MOVW    YA,$38
+0B21 D5 40 FE   MOV     $FE40+X,A
+0B24 DD         MOV     A,Y
+0B25 D5 41 FE   MOV     $FE41+X,A
+0B28 09 B2 CA   OR      $CA,$B2
+0B2B F5 A0 FC   MOV     A,$FCA0+X
+0B2E D5 E0 FC   MOV     $FCE0+X,A
+0B31 F5 40 01   MOV     A,$0140+X
+0B34 F0 2D      BEQ     $0B63
+0B36 FD         MOV     Y,A
+0B37 F5 01 01   MOV     A,$0101+X
+0B3A D0 27      BNE     $0B63
+0B3C F5 E1 FC   MOV     A,$FCE1+X
+0B3F 9C         DEC     A
+0B40 D0 1E      BNE     $0B60
+0B42 F5 01 FE   MOV     A,$FE01+X
+0B45 DA 34      MOVW    $34,YA
+0B47 F5 C1 FD   MOV     A,$FDC1+X
+0B4A C4 36      MOV     $36,A
+0B4C 3F 5E 0C   CALL    $0C5E
+0B4F D5 C1 FD   MOV     $FDC1+X,A
+0B52 D5 01 FD   MOV     $FD01+X,A
+0B55 E4 34      MOV     A,$34
+0B57 D5 01 FE   MOV     $FE01+X,A
+0B5A 09 B2 C9   OR      $C9,$B2
+0B5D F5 A1 FC   MOV     A,$FCA1+X
+0B60 D5 E1 FC   MOV     $FCE1+X,A
+0B63 BA C9      MOVW    YA,$C9
+0B65 D0 01      BNE     $0B68
+0B67 6F         RET
+0B68 7D         MOV     A,X
+0B69 28 0F      AND     A,#$0F
+0B6B C4 34      MOV     $34,A
+0B6D 9F         XCN     A
+0B6E 5C         LSR     A
+0B6F C4 35      MOV     $35,A
+0B71 E4 B2      MOV     A,$B2
+0B73 24 C9      AND     A,$C9
+0B75 D0 03      BNE     $0B7A
+0B77 5F 0A 0C   JMP     $0C0A
+0B7A 8F 80 36   MOV     $36,#$80
+0B7D 03 B1 1C   BBS     $B1,#0,$0B9C
+0B80 F5 41 FC   MOV     A,$FC41+X
+0B83 60         CLRC
+0B84 95 E1 FD   ADC     A,$FDE1+X
+0B87 2D         PUSH    A
+0B88 F5 E1 FD   MOV     A,$FDE1+X
+0B8B AE         POP     A
+0B8C 30 06      BMI     $0B94
+0B8E 90 08      BCC     $0B98
+0B90 E8 FF      MOV     A,#$FF
+0B92 2F 04      BRA     $0B98
+0B94 B0 02      BCS     $0B98
+0B96 E8 00      MOV     A,#$00
+0B98 48 FF      EOR     A,#$FF
+0B9A C4 36      MOV     $36,A
+0B9C F5 01 FC   MOV     A,$FC01+X
+0B9F FD         MOV     Y,A
+0BA0 C4 37      MOV     $37,A
+0BA2 F5 01 FD   MOV     A,$FD01+X
+0BA5 1C         ASL     A
+0BA6 F0 10      BEQ     $0BB8
+0BA8 90 03      BCC     $0BAD
+0BAA 48 FF      EOR     A,#$FF
+0BAC BC         INC     A
+0BAD CF         MUL     YA
+0BAE B0 08      BCS     $0BB8
+0BB0 DD         MOV     A,Y
+0BB1 84 37      ADC     A,$37
+0BB3 90 02      BCC     $0BB7
+0BB5 E8 FF      MOV     A,#$FF
+0BB7 FD         MOV     Y,A
+0BB8 C8 10      CMP     X,#$10
+0BBA B0 0E      BCS     $0BCA
+0BBC E4 84      MOV     A,$84
+0BBE CF         MUL     YA
+0BBF E5 88 FF   MOV     A,$FF88
+0BC2 74 5D      CMP     A,$5D+X
+0BC4 F0 07      BEQ     $0BCD
+0BC6 E4 AC      MOV     A,$AC
+0BC8 2F 02      BRA     $0BCC
+0BCA E8 90      MOV     A,#$90
+0BCC CF         MUL     YA
+0BCD CB 37      MOV     $37,Y
+0BCF C8 10      CMP     X,#$10
+0BD1 90 06      BCC     $0BD9
+0BD3 AA B1 60   MOV1    C,$00B1.#3
+0BD6 CA 34 00   MOV1    $0034.#0,C
+0BD9 E4 36      MOV     A,$36
+0BDB FD         MOV     Y,A
+0BDC E4 37      MOV     A,$37
+0BDE CF         MUL     YA
+0BDF E4 B2      MOV     A,$B2
+0BE1 24 B3      AND     A,$B3
+0BE3 F0 02      BEQ     $0BE7
+0BE5 8D 00      MOV     Y,#$00
+0BE7 DD         MOV     A,Y
+0BE8 EB 34      MOV     Y,$34
+0BEA D6 CD 00   MOV     $00CD+Y,A
+0BED 5C         LSR     A
+0BEE FD         MOV     Y,A
+0BEF E4 35      MOV     A,$35
+0BF1 C8 10      CMP     X,#$10
+0BF3 90 05      BCC     $0BFA
+0BF5 73 B1 02   BBC     $B1,#3,$0BFA
+0BF8 48 01      EOR     A,#$01
+0BFA C4 F2      MOV     $F2,A
+0BFC CB F3      MOV     $F3,Y
+0BFE E4 36      MOV     A,$36
+0C00 48 FF      EOR     A,#$FF
+0C02 EA 34 00   NOT1    $0034.#0
+0C05 AB 35      INC     $35
+0C07 33 35 D1   BBC     $35,#1,$0BDB
+0C0A 22 35      SET1    $35.#1
+0C0C E4 B2      MOV     A,$B2
+0C0E 24 CA      AND     A,$CA
+0C10 F0 43      BEQ     $0C55
+0C12 F5 60 FE   MOV     A,$FE60+X
+0C15 C4 36      MOV     $36,A
+0C17 F5 61 FE   MOV     A,$FE61+X
+0C1A C4 37      MOV     $37,A
+0C1C F5 41 FE   MOV     A,$FE41+X
+0C1F FD         MOV     Y,A
+0C20 F5 40 FE   MOV     A,$FE40+X
+0C23 7A 36      ADDW    YA,$36
+0C25 DA 36      MOVW    $36,YA
+0C27 C8 10      CMP     X,#$10
+0C29 B0 1D      BCS     $0C48
+0C2B E4 9C      MOV     A,$9C
+0C2D 48 80      EOR     A,#$80
+0C2F 0D         PUSH    PSW
+0C30 2D         PUSH    A
+0C31 CF         MUL     YA
+0C32 DA 38      MOVW    $38,YA
+0C34 AE         POP     A
+0C35 EB 36      MOV     Y,$36
+0C37 CF         MUL     YA
+0C38 DD         MOV     A,Y
+0C39 8D 00      MOV     Y,#$00
+0C3B 7A 38      ADDW    YA,$38
+0C3D 8E         POP     PSW
+0C3E 30 08      BMI     $0C48
+0C40 1C         ASL     A
+0C41 2D         PUSH    A
+0C42 DD         MOV     A,Y
+0C43 3C         ROL     A
+0C44 FD         MOV     Y,A
+0C45 AE         POP     A
+0C46 7A 36      ADDW    YA,$36
+0C48 F8 35      MOV     X,$35
+0C4A D8 F2      MOV     $F2,X
+0C4C C4 F3      MOV     $F3,A
+0C4E 3D         INC     X
+0C4F D8 F2      MOV     $F2,X
+0C51 CB F3      MOV     $F3,Y
+0C53 F8 05      MOV     X,$05
+0C55 E4 B2      MOV     A,$B2
+0C57 4E C9 00   TCLR1   $00C9
+0C5A 4E CA 00   TCLR1   $00CA
+0C5D 6F         RET
+0C5E DD         MOV     A,Y
+0C5F 28 3F      AND     A,#$3F
+0C61 1C         ASL     A
+0C62 BC         INC     A
+0C63 F3 35 09   BBC     $35,#7,$0C6F
+0C66 D3 35 06   BBC     $35,#6,$0C6F
+0C69 F3 36 3E   BBC     $36,#7,$0CAA
+0C6C 8F 00 36   MOV     $36,#$00
+0C6F 0B 36      ASL     $36
+0C71 D0 29      BNE     $0C9C
+0C73 EB 34      MOV     Y,$34
+0C75 F0 27      BEQ     $0C9E
+0C77 13 34 09   BBC     $34,#0,$0C83
+0C7A 12 34      CLR1    $34.#0
+0C7C 5C         LSR     A
+0C7D 5C         LSR     A
+0C7E D0 1E      BNE     $0C9E
+0C80 BC         INC     A
+0C81 2F 1B      BRA     $0C9E
+0C83 33 34 08   BBC     $34,#1,$0C8E
+0C86 32 34      CLR1    $34.#1
+0C88 5C         LSR     A
+0C89 D0 13      BNE     $0C9E
+0C8B BC         INC     A
+0C8C 2F 10      BRA     $0C9E
+0C8E 52 34      CLR1    $34.#2
+0C90 5C         LSR     A
+0C91 C4 38      MOV     $38,A
+0C93 5C         LSR     A
+0C94 60         CLRC
+0C95 84 38      ADC     A,$38
+0C97 D0 05      BNE     $0C9E
+0C99 BC         INC     A
+0C9A 2F 02      BRA     $0C9E
+0C9C E8 00      MOV     A,#$00
+0C9E 38 40 35   AND     $35,#$40
+0CA1 0B 35      ASL     $35
+0CA3 58 80 35   EOR     $35,#$80
+0CA6 04 35      OR      A,$35
+0CA8 2F 04      BRA     $0CAE
+0CAA E4 36      MOV     A,$36
+0CAC 08 80      OR      A,#$80
+0CAE 6F         RET
+; check for CPU command on APU0
+0CAF F8 F4      MOV     X,$F4   ; check APU0
+0CB1 F0 3D      BEQ     $0CF0   ; return if 0
+0CB3 BA F6      MOVW    YA,$F6
+0CB5 DA B6      MOVW    $B6,YA  ; save APU2/3 in $B6/7
+0CB7 BA F4      MOVW    YA,$F4
+0CB9 DA B4      MOVW    $B4,YA  ; save APU0/1 in $B4/5
+0CBB 68 83      CMP     A,#$83
+0CBD D0 02      BNE     $0CC1
+0CBF CB F5      MOV     $F5,Y   ; write APU1 back if APU0 == $83
+0CC1 C4 F4      MOV     $F4,A   ; write APU0 back
+0CC3 64 F4      CMP     A,$F4
+0CC5 F0 FC      BEQ     $0CC3   ; wait for APU0 to change
+0CC7 5D         MOV     X,A
+0CC8 10 0D      BPL     $0CD7    ; if X >= $80 then
+0CCA C8 FE      CMP     X,#$FE
+0CCC D0 03      BNE     $0CD1
+0CCE 5F EA 11   JMP     $11EA    ;  if X == $FE then JMP 11EA
+0CD1 8F 00 F4   MOV     $F4,#$00 ;  write 0 to APU0
+0CD4 5F F9 0F   JMP     $0FF9    ;  JMP 0FF9
+0CD7 C8 01      CMP     X,#$01
+0CD9 F0 16      BEQ     $0CF1    ; if X == $01 then JMP 0CF1
+0CDB 8F 00 F4   MOV     $F4,#$00 ; write 0 to APU0
+0CDE C8 02      CMP     X,#$02
+0CE0 D0 03      BNE     $0CE5
+0CE2 5F 10 0E   JMP     $0E10   ; if X == $02 then JMP 0E10
+0CE5 C8 10      CMP     X,#$10
+0CE7 90 07      BCC     $0CF0
+0CE9 C8 20      CMP     X,#$20
+0CEB B0 03      BCS     $0CF0
+0CED 5F F6 0E   JMP     $0EF6   ; if X >= $10 && X < $20 then JMP 0EF6
+0CF0 6F         RET
+; CPU cmd 01
+0CF1 E8 FF      MOV     A,#$FF
+0CF3 8D 5C      MOV     Y,#$5C
+0CF5 3F 1B 06   CALL    $061B    ; key off all voices NOW
+0CF8 8F 00 F1   MOV     $F1,#$00 ; stop timers
+0CFB 8F 40 FA   MOV     $FA,#$40 ; set timer0 latch to #$40 (31.25 Hz, 8ms)
+0CFE 8F 01 F1   MOV     $F1,#$01 ; start timer0
+0D01 E4 FD      MOV     A,$FD    ; clear counter0
+0D03 E4 FD      MOV     A,$FD
+0D05 F0 FC      BEQ     $0D03    ; wait for counter0 to trigger
+0D07 8F 00 F1   MOV     $F1,#$00 ; stop timers
+0D0A 8F 24 FA   MOV     $FA,#$24 ; reset timer0 latch to normal val
+0D0D 8F 01 F1   MOV     $F1,#$01 ; start timer0
+0D10 F8 F4      MOV     X,$F4
+0D12 E4 F6      MOV     A,$F6
+0D14 28 0F      AND     A,#$0F
+0D16 C4 DF      MOV     $DF,A    ; set echo delay from APU2 & #$0F
+0D18 E4 F7      MOV     A,$F7
+0D1A C4 A7      MOV     $A7,A
+0D1C D8 F4      MOV     $F4,X   ; write APU0 value back
+0D1E 3E F4      CMP     X,$F4
+0D20 F0 FC      BEQ     $0D1E   ; wait for APU0 change
+0D22 F8 F4      MOV     X,$F4
+0D24 BA F6      MOVW    YA,$F6
+0D26 C4 C8      MOV     $C8,A
+0D28 CB C7      MOV     $C7,Y   ; set $C7/8 from APU2/3
+0D2A D8 F4      MOV     $F4,X   ; write APU0 value back
+0D2C 3E F4      CMP     X,$F4
+0D2E F0 FC      BEQ     $0D2C   ; wait for APU0 change
+0D30 3F DE 12   CALL    $12DE   ; set echo registers
+0D33 3F EA 11   CALL    $11EA   ; simulate CPU cmd FE
+0D36 E8 00      MOV     A,#$00
+0D38 FD         MOV     Y,A
+0D39 DA AD      MOVW    $AD,YA
+0D3B DA BC      MOVW    $BC,YA
+0D3D DA BE      MOVW    $BE,YA
+0D3F DA C0      MOVW    $C0,YA
+0D41 C4 B8      MOV     $B8,A   ; zero echo enable shadow
+0D43 C4 B9      MOV     $B9,A   ; zero noise enable shadow
+0D45 C4 BA      MOV     $BA,A   ; zero pitchmod enable shadow
+0D47 32 B1      CLR1    $B1.#1
+0D49 DA AF      MOVW    $AF,YA  ; zero keyon/off shadows
+0D4B C4 90      MOV     $90,A
+0D4D E2 90      SET1    $90.#7
+0D4F C4 97      MOV     $97,A
+0D51 C4 9C      MOV     $9C,A
+0D53 E2 9C      SET1    $9C.#7
+0D55 C4 A3      MOV     $A3,A
+0D57 DA C9      MOVW    $C9,YA
+0D59 DA C2      MOVW    $C2,YA
+0D5B C4 C4      MOV     $C4,A
+0D5D DA CB      MOVW    $CB,YA
+0D5F 8F 01 7D   MOV     $7D,#$01
+0D62 8F FF 7E   MOV     $7E,#$FF
+0D65 8F FF AC   MOV     $AC,#$FF
+0D68 E3 B1 02   BBS     $B1,#7,$0D6D
+0D6B C4 B3      MOV     $B3,A
+0D6D 3F 2F 13   CALL    $132F           ; finish echo setup
+0D70 73 04 03   BBC     $04,#3,$0D76
+0D73 5F DD 0D   JMP     $0DDD
+0D76 CD 10      MOV     X,#$10
+0D78 F5 01 1A   MOV     A,$1A01+X
+0D7B D4 0B      MOV     $0B+X,A
+0D7D 1D         DEC     X
+0D7E D0 F8      BNE     $0D78
+0D80 E5 00 1A   MOV     A,$1A00
+0D83 C4 06      MOV     $06,A
+0D85 E5 01 1A   MOV     A,$1A01
+0D88 C4 07      MOV     $07,A
+0D8A E8 14      MOV     A,#$14
+0D8C 8D 1A      MOV     Y,#$1A
+0D8E 9A 06      SUBW    YA,$06
+0D90 DA 06      MOVW    $06,YA
+0D92 CD 0E      MOV     X,#$0E
+0D94 8F 80 B2   MOV     $B2,#$80
+0D97 E5 12 1A   MOV     A,$1A12
+0D9A EC 13 1A   MOV     Y,$1A13
+0D9D DA 34      MOVW    $34,YA
+0D9F F4 0C      MOV     A,$0C+X
+0DA1 FB 0D      MOV     Y,$0D+X
+0DA3 5A 34      CMPW    YA,$34
+0DA5 F0 11      BEQ     $0DB8
+0DA7 09 B2 AD   OR      $AD,$B2
+0DAA 7A 06      ADDW    YA,$06
+0DAC D4 0C      MOV     $0C+X,A
+0DAE DB 0D      MOV     $0D+X,Y
+0DB0 E8 FF      MOV     A,#$FF
+0DB2 C5 88 FF   MOV     $FF88,A
+0DB5 3F E5 0D   CALL    $0DE5
+0DB8 1D         DEC     X
+0DB9 1D         DEC     X
+0DBA 4B B2      LSR     $B2
+0DBC D0 E1      BNE     $0D9F
+0DBE E4 B7      MOV     A,$B7
+0DC0 28 F0      AND     A,#$F0
+0DC2 9F         XCN     A
+0DC3 8D 11      MOV     Y,#$11
+0DC5 CF         MUL     YA
+0DC6 C4 84      MOV     $84,A
+0DC8 E4 B6      MOV     A,$B6
+0DCA 28 F0      AND     A,#$F0
+0DCC C4 B5      MOV     $B5,A
+0DCE E4 B7      MOV     A,$B7
+0DD0 28 0F      AND     A,#$0F
+0DD2 04 B5      OR      A,$B5
+0DD4 C4 B5      MOV     $B5,A
+0DD6 E8 81      MOV     A,#$81
+0DD8 C4 B4      MOV     $B4,A
+0DDA 3F 11 10   CALL    $1011   ; cpu cmd $80
+0DDD CD FF      MOV     X,#$FF
+0DDF BD         MOV     SP,X
+0DE0 E4 FD      MOV     A,$FD
+0DE2 5F 79 02   JMP     $0279
+0DE5 7D         MOV     A,X
+0DE6 1C         ASL     A
+0DE7 D4 5C      MOV     $5C+X,A
+0DE9 E8 00      MOV     A,#$00
+0DEB D5 20 01   MOV     $0120+X,A
+0DEE D5 80 FD   MOV     $FD80+X,A
+0DF1 D5 81 FD   MOV     $FD81+X,A
+0DF4 D5 21 01   MOV     $0121+X,A
+0DF7 D5 40 01   MOV     $0140+X,A
+0DFA D5 41 01   MOV     $0141+X,A
+0DFD D5 E0 FD   MOV     $FDE0+X,A
+0E00 D5 E1 FD   MOV     $FDE1+X,A
+0E03 D5 40 FD   MOV     $FD40+X,A
+0E06 D5 61 FD   MOV     $FD61+X,A
+0E09 D5 80 FC   MOV     $FC80+X,A
+0E0C BC         INC     A
+0E0D D4 3C      MOV     $3C+X,A
+0E0F 6F         RET
+; CPU cmd 02
+0E10 FA B5 2C   MOV     $2C,$B5
+0E13 8F 00 2D   MOV     $2D,#$00
+0E16 0B 2C      ASL     $2C
+0E18 2B 2D      ROL     $2D
+0E1A 0B 2C      ASL     $2C
+0E1C 2B 2D      ROL     $2D
+0E1E E8 00      MOV     A,#$00
+0E20 8D 2C      MOV     Y,#$2C
+0E22 7A 2C      ADDW    YA,$2C
+0E24 DA 2C      MOVW    $2C,YA
+0E26 CD 00      MOV     X,#$00
+0E28 8D 01      MOV     Y,#$01
+0E2A F7 2C      MOV     A,[$2C]+Y
+0E2C D0 09      BNE     $0E37
+0E2E 8D 03      MOV     Y,#$03
+0E30 F7 2C      MOV     A,[$2C]+Y
+0E32 F0 17      BEQ     $0E4B
+0E34 DC         DEC     Y
+0E35 2F 08      BRA     $0E3F
+0E37 8D 03      MOV     Y,#$03
+0E39 F7 2C      MOV     A,[$2C]+Y
+0E3B D0 0F      BNE     $0E4C
+0E3D 8D 00      MOV     Y,#$00
+0E3F F7 2C      MOV     A,[$2C]+Y
+0E41 C4 30      MOV     $30,A
+0E43 FC         INC     Y
+0E44 F7 2C      MOV     A,[$2C]+Y
+0E46 C4 31      MOV     $31,A
+0E48 5F 11 0F   JMP     $0F11
+0E4B 6F         RET
+0E4C 8F 40 B2   MOV     $B2,#$40
+0E4F CD 1C      MOV     X,#$1C
+0E51 3F CE 0F   CALL    $0FCE
+0E54 DD         MOV     A,Y
+0E55 F0 0A      BEQ     $0E61
+0E57 C8 10      CMP     X,#$10
+0E59 F0 25      BEQ     $0E80
+0E5B 4B B2      LSR     $B2
+0E5D 1D         DEC     X
+0E5E 1D         DEC     X
+0E5F 2F 1F      BRA     $0E80
+0E61 78 FE AE   CMP     $AE,#$FE
+0E64 90 01      BCC     $0E67
+0E66 6F         RET
+0E67 8F 40 B2   MOV     $B2,#$40
+0E6A CD 1C      MOV     X,#$1C
+0E6C E4 B2      MOV     A,$B2
+0E6E 24 AE      AND     A,$AE
+0E70 D0 07      BNE     $0E79
+0E72 E4 B2      MOV     A,$B2
+0E74 1C         ASL     A
+0E75 24 AE      AND     A,$AE
+0E77 F0 07      BEQ     $0E80
+0E79 1D         DEC     X
+0E7A 1D         DEC     X
+0E7B 4B B2      LSR     $B2
+0E7D D0 ED      BNE     $0E6C
+0E7F 6F         RET
+0E80 E4 B2      MOV     A,$B2
+0E82 0B B2      ASL     $B2
+0E84 04 B2      OR      A,$B2
+0E86 0E B0 00   TSET1   $00B0
+0E89 4E AF 00   TCLR1   $00AF
+0E8C 4E C9 00   TCLR1   $00C9
+0E8F 4E CA 00   TCLR1   $00CA
+0E92 4E B8 00   TCLR1   $00B8
+0E95 4E BA 00   TCLR1   $00BA
+0E98 4E B9 00   TCLR1   $00B9
+0E9B 4E BD 00   TCLR1   $00BD
+0E9E 4E C1 00   TCLR1   $00C1
+0EA1 4E BF 00   TCLR1   $00BF
+0EA4 4E C3 00   TCLR1   $00C3
+0EA7 0E AE 00   TSET1   $00AE
+0EAA 3D         INC     X
+0EAB 3D         INC     X
+0EAC 7D         MOV     A,X
+0EAD 5C         LSR     A
+0EAE 28 07      AND     A,#$07
+0EB0 FD         MOV     Y,A
+0EB1 E4 B5      MOV     A,$B5
+0EB3 D6 80 FF   MOV     $FF80+Y,A
+0EB6 D6 7F FF   MOV     $FF7F+Y,A
+0EB9 4D         PUSH    X
+0EBA 3F 91 0F   CALL    $0F91
+0EBD CE         POP     X
+0EBE 8D 03      MOV     Y,#$03
+0EC0 F7 2C      MOV     A,[$2C]+Y
+0EC2 D4 0D      MOV     $0D+X,A
+0EC4 DC         DEC     Y
+0EC5 F7 2C      MOV     A,[$2C]+Y
+0EC7 D4 0C      MOV     $0C+X,A
+0EC9 3F E5 0D   CALL    $0DE5
+0ECC BB 3C      INC     $3C+X
+0ECE E8 64      MOV     A,#$64
+0ED0 D5 01 FC   MOV     $FC01+X,A
+0ED3 E4 B7      MOV     A,$B7
+0ED5 D5 41 FC   MOV     $FC41+X,A
+0ED8 E4 B6      MOV     A,$B6
+0EDA D5 81 FC   MOV     $FC81+X,A
+0EDD E4 B4      MOV     A,$B4
+0EDF D5 60 FC   MOV     $FC60+X,A
+0EE2 E4 B5      MOV     A,$B5
+0EE4 D5 61 FC   MOV     $FC61+X,A
+0EE7 6D         PUSH    Y
+0EE8 E8 04      MOV     A,#$04
+0EEA 3F 66 08   CALL    $0866
+0EED EE         POP     Y
+0EEE 1D         DEC     X
+0EEF 1D         DEC     X
+0EF0 4B B2      LSR     $B2
+0EF2 DC         DEC     Y
+0EF3 10 CB      BPL     $0EC0
+0EF5 6F         RET
+; CPU cmds 10-1F
+0EF6 7D         MOV     A,X
+0EF7 28 0F      AND     A,#$0F
+0EF9 1C         ASL     A
+0EFA FD         MOV     Y,A
+0EFB F6 3C 15   MOV     A,$153C+Y
+0EFE D0 01      BNE     $0F01
+0F00 6F         RET
+0F01 C4 31      MOV     $31,A
+0F03 F6 3B 15   MOV     A,$153B+Y
+0F06 C4 30      MOV     $30,A
+0F08 8F FE B5   MOV     $B5,#$FE
+0F0B 8F 0F B6   MOV     $B6,#$0F
+0F0E 8F 80 B7   MOV     $B7,#$80
+0F11 8F 80 B2   MOV     $B2,#$80
+0F14 CD 1E      MOV     X,#$1E
+0F16 3F CE 0F   CALL    $0FCE
+0F19 DD         MOV     A,Y
+0F1A D0 16      BNE     $0F32
+0F1C 78 FF AE   CMP     $AE,#$FF
+0F1F F0 6F      BEQ     $0F90
+0F21 8F 80 B2   MOV     $B2,#$80
+0F24 CD 1E      MOV     X,#$1E
+0F26 E4 B2      MOV     A,$B2
+0F28 24 AE      AND     A,$AE
+0F2A F0 06      BEQ     $0F32
+0F2C 1D         DEC     X
+0F2D 1D         DEC     X
+0F2E 4B B2      LSR     $B2
+0F30 2F F4      BRA     $0F26
+0F32 E4 B2      MOV     A,$B2
+0F34 0E B0 00   TSET1   $00B0
+0F37 4E AF 00   TCLR1   $00AF
+0F3A 4E C9 00   TCLR1   $00C9
+0F3D 4E CA 00   TCLR1   $00CA
+0F40 4E B8 00   TCLR1   $00B8
+0F43 4E BA 00   TCLR1   $00BA
+0F46 4E B9 00   TCLR1   $00B9
+0F49 4E BD 00   TCLR1   $00BD
+0F4C 4E C1 00   TCLR1   $00C1
+0F4F 4E BF 00   TCLR1   $00BF
+0F52 4E C3 00   TCLR1   $00C3
+0F55 0E AE 00   TSET1   $00AE
+0F58 7D         MOV     A,X
+0F59 5C         LSR     A
+0F5A 28 07      AND     A,#$07
+0F5C FD         MOV     Y,A
+0F5D E4 B5      MOV     A,$B5
+0F5F D6 80 FF   MOV     $FF80+Y,A
+0F62 4D         PUSH    X
+0F63 3F 91 0F   CALL    $0F91
+0F66 CE         POP     X
+0F67 BA 30      MOVW    YA,$30
+0F69 D4 0C      MOV     $0C+X,A
+0F6B DB 0D      MOV     $0D+X,Y
+0F6D 3F E5 0D   CALL    $0DE5
+0F70 BB 3C      INC     $3C+X
+0F72 E8 04      MOV     A,#$04
+0F74 3F 66 08   CALL    $0866
+0F77 E8 64      MOV     A,#$64
+0F79 D5 01 FC   MOV     $FC01+X,A
+0F7C E4 B7      MOV     A,$B7
+0F7E D5 41 FC   MOV     $FC41+X,A
+0F81 E4 B6      MOV     A,$B6
+0F83 D5 81 FC   MOV     $FC81+X,A
+0F86 E4 B4      MOV     A,$B4
+0F88 D5 60 FC   MOV     $FC60+X,A
+0F8B E4 B5      MOV     A,$B5
+0F8D D5 61 FC   MOV     $FC61+X,A
+0F90 6F         RET
+;
+0F91 E4 B7      MOV     A,$B7
+0F93 9F         XCN     A
+0F94 28 F0      AND     A,#$F0
+0F96 D0 02      BNE     $0F9A
+0F98 E8 80      MOV     A,#$80
+0F9A C4 B5      MOV     $B5,A
+0F9C 38 F0 B7   AND     $B7,#$F0
+0F9F D0 02      BNE     $0FA3
+0FA1 E2 B7      SET1    $B7.#7
+0FA3 38 F0 B6   AND     $B6,#$F0
+0FA6 E4 B7      MOV     A,$B7
+0FA8 80         SETC
+0FA9 A4 B5      SBC     A,$B5
+0FAB 0D         PUSH    PSW
+0FAC B0 03      BCS     $0FB1
+0FAE 48 FF      EOR     A,#$FF
+0FB0 BC         INC     A
+0FB1 F8 B6      MOV     X,$B6
+0FB3 D0 03      BNE     $0FB8
+0FB5 AE         POP     A
+0FB6 2F 15      BRA     $0FCD
+0FB8 8D 00      MOV     Y,#$00
+0FBA 9E         DIV     YA,X
+0FBB C4 B5      MOV     $B5,A
+0FBD E8 00      MOV     A,#$00
+0FBF 9E         DIV     YA,X
+0FC0 C4 B4      MOV     $B4,A
+0FC2 8E         POP     PSW
+0FC3 90 08      BCC     $0FCD
+0FC5 58 FF B4   EOR     $B4,#$FF
+0FC8 58 FF B5   EOR     $B5,#$FF
+0FCB 3A B4      INCW    $B4
+0FCD 6F         RET
+;
+0FCE 8D 08      MOV     Y,#$08
+0FD0 E4 B5      MOV     A,$B5
+0FD2 76 7F FF   CMP     A,$FF7F+Y
+0FD5 F0 04      BEQ     $0FDB
+0FD7 FE F9      DBNZ    Y,$0FD2
+0FD9 2F 1D      BRA     $0FF8
+0FDB E4 B6      MOV     A,$B6
+0FDD 28 0F      AND     A,#$0F
+0FDF F0 15      BEQ     $0FF6
+0FE1 CB 34      MOV     $34,Y
+0FE3 8B 34      DEC     $34
+0FE5 0B 34      ASL     $34
+0FE7 82 34      SET1    $34.#4
+0FE9 7D         MOV     A,X
+0FEA 2F 04      BRA     $0FF0
+0FEC 4B B2      LSR     $B2
+0FEE 9C         DEC     A
+0FEF 9C         DEC     A
+0FF0 2E 34 F9   CBNE    $34,$0FEC
+0FF3 5D         MOV     X,A
+0FF4 2F 02      BRA     $0FF8
+0FF6 AE         POP     A
+0FF7 AE         POP     A
+0FF8 6F         RET
+; handle CPU cmd >= $80 in X
+0FF9 C8 F0      CMP     X,#$F0
+0FFB B0 04      BCS     $1001
+0FFD C8 90      CMP     X,#$90
+0FFF B0 0D      BCS     $100E   ; if X >= $90 && X < $F0 then return
+1001 7D         MOV     A,X
+1002 28 1F      AND     A,#$1F
+1004 1C         ASL     A
+1005 FD         MOV     Y,A
+1006 F6 B3 14   MOV     A,$14B3+Y
+1009 2D         PUSH    A
+100A F6 B2 14   MOV     A,$14B2+Y
+100D 2D         PUSH    A         ; push addr from table for return
+100E 6F         RET
+; CPU cmd 83
+100F A2 B1      SET1    $B1.#5
+; CPU cmd 80
+1011 E4 B5      MOV     A,$B5
+1013 38 F0 B5   AND     $B5,#$F0
+1016 28 0F      AND     A,#$0F
+1018 8D 11      MOV     Y,#$11
+101A CF         MUL     YA
+101B C4 B6      MOV     $B6,A
+101D FA B5 F5   MOV     $F5,$B5
+1020 EB B6      MOV     Y,$B6
+1022 E4 B5      MOV     A,$B5
+1024 C4 8B      MOV     $8B,A
+1026 D0 0D      BNE     $1035
+1028 CB 84      MOV     $84,Y
+102A C4 83      MOV     $83,A
+102C C4 88      MOV     $88,A
+102E C4 87      MOV     $87,A
+1030 09 AD C9   OR      $C9,$AD
+1033 2F 30      BRA     $1065
+1035 DD         MOV     A,Y
+1036 80         SETC
+1037 A4 84      SBC     A,$84
+1039 F0 E9      BEQ     $1024
+103B 0D         PUSH    PSW
+103C B0 03      BCS     $1041
+103E 48 FF      EOR     A,#$FF
+1040 BC         INC     A
+1041 F8 B5      MOV     X,$B5
+1043 8D 00      MOV     Y,#$00
+1045 9E         DIV     YA,X
+1046 C4 35      MOV     $35,A
+1048 E8 00      MOV     A,#$00
+104A 9E         DIV     YA,X
+104B C4 34      MOV     $34,A
+104D BA 34      MOVW    YA,$34
+104F D0 02      BNE     $1053
+1051 AB 34      INC     $34
+1053 8E         POP     PSW
+1054 B0 08      BCS     $105E
+1056 58 FF 34   EOR     $34,#$FF
+1059 58 FF 35   EOR     $35,#$FF
+105C 3A 34      INCW    $34
+105E BA 34      MOVW    YA,$34
+1060 DA 87      MOVW    $87,YA
+1062 8F 00 83   MOV     $83,#$00
+1065 6F         RET
+; CPU cmd 86
+1066 E4 B5      MOV     A,$B5
+1068 28 07      AND     A,#$07
+106A F0 0A      BEQ     $1076
+106C 73 B5 01   BBC     $B5,#3,$1070
+106F 9C         DEC     A
+1070 8D 12      MOV     Y,#$12
+1072 CF         MUL     YA
+1073 63 B5 02   BBS     $B5,#3,$1078
+1076 48 80      EOR     A,#$80
+1078 C4 B6      MOV     $B6,A
+107A 38 F0 B5   AND     $B5,#$F0
+107D EB B6      MOV     Y,$B6
+107F E4 B5      MOV     A,$B5
+1081 C4 97      MOV     $97,A
+1083 D0 0A      BNE     $108F
+1085 CB 90      MOV     $90,Y
+1087 C4 8F      MOV     $8F,A
+; CPU cmd 89
+1089 C4 94      MOV     $94,A
+108B C4 93      MOV     $93,A
+108D 2F 30      BRA     $10BF
+108F DD         MOV     A,Y
+1090 80         SETC
+1091 A4 90      SBC     A,$90
+1093 F0 EC      BEQ     $1081
+1095 0D         PUSH    PSW
+1096 B0 03      BCS     $109B
+1098 48 FF      EOR     A,#$FF
+109A BC         INC     A
+109B F8 B5      MOV     X,$B5
+109D 8D 00      MOV     Y,#$00
+109F 9E         DIV     YA,X
+10A0 C4 35      MOV     $35,A
+10A2 E8 00      MOV     A,#$00
+10A4 9E         DIV     YA,X
+10A5 C4 34      MOV     $34,A
+10A7 BA 34      MOVW    YA,$34
+10A9 D0 02      BNE     $10AD
+10AB AB 34      INC     $34
+10AD 8E         POP     PSW
+10AE B0 08      BCS     $10B8
+10B0 58 FF 34   EOR     $34,#$FF
+10B3 58 FF 35   EOR     $35,#$FF
+10B6 3A 34      INCW    $34
+10B8 BA 34      MOVW    YA,$34
+10BA DA 93      MOVW    $93,YA
+10BC 8F 00 8F   MOV     $8F,#$00
+10BF 6F         RET
+10C0 AB B4      INC     $B4
+10C2 E4 B5      MOV     A,$B5
+10C4 28 07      AND     A,#$07
+10C6 F0 0A      BEQ     $10D2
+10C8 73 B5 01   BBC     $B5,#3,$10CC
+10CB 9C         DEC     A
+10CC 8D 12      MOV     Y,#$12
+10CE CF         MUL     YA
+10CF 63 B5 02   BBS     $B5,#3,$10D4
+10D2 48 80      EOR     A,#$80
+10D4 C4 B6      MOV     $B6,A
+10D6 38 F0 B5   AND     $B5,#$F0
+10D9 EB B6      MOV     Y,$B6
+10DB E4 B5      MOV     A,$B5
+10DD C4 A3      MOV     $A3,A
+10DF D0 0D      BNE     $10EE
+10E1 CB 9C      MOV     $9C,Y
+10E3 C4 9B      MOV     $9B,A
+10E5 C4 A0      MOV     $A0,A
+10E7 C4 9F      MOV     $9F,A
+10E9 09 AD CA   OR      $CA,$AD
+10EC 2F 30      BRA     $111E
+10EE DD         MOV     A,Y
+10EF 80         SETC
+10F0 A4 9C      SBC     A,$9C
+10F2 F0 E9      BEQ     $10DD
+10F4 0D         PUSH    PSW
+10F5 B0 03      BCS     $10FA
+10F7 48 FF      EOR     A,#$FF
+10F9 BC         INC     A
+10FA F8 B5      MOV     X,$B5
+10FC 8D 00      MOV     Y,#$00
+10FE 9E         DIV     YA,X
+10FF C4 35      MOV     $35,A
+1101 E8 00      MOV     A,#$00
+1103 9E         DIV     YA,X
+1104 C4 34      MOV     $34,A
+1106 BA 34      MOVW    YA,$34
+1108 D0 02      BNE     $110C
+110A AB 34      INC     $34
+110C 8E         POP     PSW
+110D B0 08      BCS     $1117
+110F 58 FF 34   EOR     $34,#$FF
+1112 58 FF 35   EOR     $35,#$FF
+1115 3A 34      INCW    $34
+1117 BA 34      MOVW    YA,$34
+1119 DA 9F      MOVW    $9F,YA
+111B 8F 00 9B   MOV     $9B,#$00
+111E 6F         RET
+; CPU cmds F3-F4
+111F 13 B4 04   BBC     $B4,#0,$1126
+1122 12 B1      CLR1    $B1.#0
+1124 2F 02      BRA     $1128
+1126 02 B1      SET1    $B1.#0
+1128 8F FF C9   MOV     $C9,#$FF
+112B 6F         RET
+; CPU cmds F0-F2
+112C 23 B4 24   BBS     $B4,#1,$1153
+112F E4 AE      MOV     A,$AE
+1131 48 FF      EOR     A,#$FF
+1133 0E B0 00   TSET1   $00B0
+1136 4E AF 00   TCLR1   $00AF
+1139 4E B8 00   TCLR1   $00B8
+113C 4E BA 00   TCLR1   $00BA
+113F 4E B9 00   TCLR1   $00B9
+1142 E8 00      MOV     A,#$00
+1144 C4 AD      MOV     $AD,A
+1146 C4 CB      MOV     $CB,A
+1148 C4 BC      MOV     $BC,A
+114A C4 C0      MOV     $C0,A
+114C C4 BE      MOV     $BE,A
+114E B2 B1      CLR1    $B1.#5
+1150 03 B4 26   BBS     $B4,#0,$1179
+1153 E4 AE      MOV     A,$AE
+1155 0E B0 00   TSET1   $00B0
+1158 4E AF 00   TCLR1   $00AF
+115B 4E B8 00   TCLR1   $00B8
+115E 4E BA 00   TCLR1   $00BA
+1161 4E B9 00   TCLR1   $00B9
+1164 92 B1      CLR1    $B1.#4
+1166 E8 00      MOV     A,#$00
+1168 C4 AE      MOV     $AE,A
+116A C4 BD      MOV     $BD,A
+116C C4 C1      MOV     $C1,A
+116E C4 BF      MOV     $BF,A
+1170 8D 08      MOV     Y,#$08
+1172 E8 FF      MOV     A,#$FF
+1174 D6 7F FF   MOV     $FF7F+Y,A
+1177 FE FB      DBNZ    Y,$1174
+1179 6F         RET
+; CPU cmd F5
+117A FA B5 B3   MOV     $B3,$B5
+117D 8F FF C9   MOV     $C9,#$FF
+1180 6F         RET
+; CPU cmd FB
+1181 FA AD C4   MOV     $C4,$AD
+1184 6F         RET
+; CPU cmd FC
+1185 60         CLRC
+1186 E8 FF      MOV     A,#$FF
+1188 84 B5      ADC     A,$B5
+118A CA B1 60   MOV1    $00B1.#3,C
+118D 6F         RET
+; CPU cmds F6-F7
+118E 03 B4 3A   BBS     $B4,#0,$11CB
+1191 8D 05      MOV     Y,#$05
+1193 CB F2      MOV     $F2,Y
+1195 E4 F3      MOV     A,$F3
+1197 28 7F      AND     A,#$7F
+1199 C4 F3      MOV     $F3,A
+119B DD         MOV     A,Y
+119C 60         CLRC
+119D 88 10      ADC     A,#$10
+119F FD         MOV     Y,A
+11A0 10 F1      BPL     $1193
+11A2 CD 00      MOV     X,#$00
+11A4 8D 00      MOV     Y,#$00
+11A6 CB F2      MOV     $F2,Y
+11A8 D8 F3      MOV     $F3,X
+11AA FC         INC     Y
+11AB CB F2      MOV     $F2,Y
+11AD D8 F3      MOV     $F3,X
+11AF DD         MOV     A,Y
+11B0 60         CLRC
+11B1 88 0F      ADC     A,#$0F
+11B3 FD         MOV     Y,A
+11B4 10 F0      BPL     $11A6
+11B6 BA AD      MOVW    YA,$AD
+11B8 F0 06      BEQ     $11C0
+11BA DA CB      MOVW    $CB,YA
+11BC BA 00      MOVW    YA,$00
+11BE DA AD      MOVW    $AD,YA
+11C0 C4 AF      MOV     $AF,A
+11C2 8D 10      MOV     Y,#$10
+11C4 D6 CC 00   MOV     $00CC+Y,A
+11C7 FE FB      DBNZ    Y,$11C4
+11C9 2F 1E      BRA     $11E9
+11CB 8D 05      MOV     Y,#$05
+11CD CB F2      MOV     $F2,Y
+11CF E4 F3      MOV     A,$F3
+11D1 08 80      OR      A,#$80
+11D3 C4 F3      MOV     $F3,A
+11D5 DD         MOV     A,Y
+11D6 60         CLRC
+11D7 88 10      ADC     A,#$10
+11D9 FD         MOV     Y,A
+11DA 10 F1      BPL     $11CD
+11DC BA CB      MOVW    YA,$CB
+11DE F0 09      BEQ     $11E9
+11E0 8F FF C9   MOV     $C9,#$FF
+11E3 DA AD      MOVW    $AD,YA
+11E5 BA 00      MOVW    YA,$00
+11E7 DA CB      MOVW    $CB,YA
+11E9 6F         RET
+; cpu cmd FE
+11EA E4 F5      MOV     A,$F5
+11EC C4 04      MOV     $04,A   ; get APU1 in A, $04
+11EE 28 07      AND     A,#$07
+11F0 C4 F5      MOV     $F5,A   ; write A & 7 back to APU1
+11F2 D0 04      BNE     $11F8
+11F4 D8 F4      MOV     $F4,X   ; if A == 0, write cmd back to APU0
+11F6 2F 1B      BRA     $1213   ; and return
+11F8 1C         ASL     A
+11F9 2D         PUSH    A
+11FA BA F6      MOVW    YA,$F6
+11FC DA 2C      MOVW    $2C,YA
+11FE EE         POP     Y
+11FF F6 19 14   MOV     A,$1419+Y
+1202 2D         PUSH    A
+1203 F6 18 14   MOV     A,$1418+Y
+1206 2D         PUSH    A
+1207 8D 00      MOV     Y,#$00
+1209 F8 F4      MOV     X,$F4
+120B D8 F4      MOV     $F4,X
+120D 3E F4      CMP     X,$F4
+120F F0 FC      BEQ     $120D
+1211 F8 F4      MOV     X,$F4
+1213 6F         RET
+; CPU cmd FE-03
+1214 E4 F5      MOV     A,$F5
+1216 D7 2C      MOV     [$2C]+Y,A
+1218 D8 F4      MOV     $F4,X
+121A FC         INC     Y
+121B E4 F6      MOV     A,$F6
+121D D7 2C      MOV     [$2C]+Y,A
+121F FC         INC     Y
+1220 E4 F7      MOV     A,$F7
+1222 D7 2C      MOV     [$2C]+Y,A
+1224 60         CLRC
+1225 98 03 2C   ADC     $2C,#$03
+1228 98 00 2D   ADC     $2D,#$00
+122B 8D 00      MOV     Y,#$00
+122D 3E F4      CMP     X,$F4
+122F F0 FC      BEQ     $122D
+1231 F8 F4      MOV     X,$F4
+1233 D0 DF      BNE     $1214
+1235 2F B3      BRA     $11EA   ; goto CPU cmd FE main
+; CPU cmd FE-02
+1237 E4 F6      MOV     A,$F6
+1239 D7 2C      MOV     [$2C]+Y,A
+123B D8 F4      MOV     $F4,X
+123D FC         INC     Y
+123E E4 F7      MOV     A,$F7
+1240 D7 2C      MOV     [$2C]+Y,A
+1242 3A 2C      INCW    $2C
+1244 3A 2C      INCW    $2C
+1246 DC         DEC     Y
+1247 3E F4      CMP     X,$F4
+1249 F0 FC      BEQ     $1247
+124B F8 F4      MOV     X,$F4
+124D D0 E8      BNE     $1237
+124F 2F 99      BRA     $11EA   ; goto CPU cmd FE main
+; CPU cmd FE-01
+1251 D8 F4      MOV     $F4,X
+1253 E4 F7      MOV     A,$F7
+1255 D7 2C      MOV     [$2C]+Y,A
+1257 3A 2C      INCW    $2C
+1259 3E F4      CMP     X,$F4
+125B F0 FC      BEQ     $1259
+125D F8 F4      MOV     X,$F4
+125F D0 F0      BNE     $1251
+1261 2F 87      BRA     $11EA   ; goto CPU cmd FE main
+; CPU cmd FE-00,04,05,06
+1263 D8 F4      MOV     $F4,X
+1265 3E F4      CMP     X,$F4
+1267 F0 FC      BEQ     $1265
+1269 F8 F4      MOV     X,$F4
+126B D0 F6      BNE     $1263
+126D 5F EA 11   JMP     $11EA   ; goto CPU cmd FE main
+; CPU cmd FE-07
+1270 BA F6      MOVW    YA,$F6
+1272 DA 2E      MOVW    $2E,YA
+1274 D8 F4      MOV     $F4,X
+1276 3E F4      CMP     X,$F4
+1278 F0 FC      BEQ     $1276
+127A F8 F4      MOV     X,$F4
+127C BA F6      MOVW    YA,$F6
+127E DA 34      MOVW    $34,YA
+1280 D8 F4      MOV     $F4,X
+1282 8D 00      MOV     Y,#$00
+1284 F7 2C      MOV     A,[$2C]+Y
+1286 D7 2E      MOV     [$2E]+Y,A
+1288 FC         INC     Y
+1289 D0 04      BNE     $128F
+128B AB 2D      INC     $2D
+128D AB 2F      INC     $2F
+128F 1A 34      DECW    $34
+1291 D0 F1      BNE     $1284
+1293 3E F4      CMP     X,$F4
+1295 F0 FC      BEQ     $1293
+1297 F8 F4      MOV     X,$F4
+1299 F0 0E      BEQ     $12A9
+129B BA F6      MOVW    YA,$F6
+129D DA 2C      MOVW    $2C,YA
+129F D8 F4      MOV     $F4,X
+12A1 3E F4      CMP     X,$F4
+12A3 F0 FC      BEQ     $12A1
+12A5 F8 F4      MOV     X,$F4
+12A7 2F C7      BRA     $1270
+12A9 5F EA 11   JMP     $11EA   ; goto CPU cmd FE main
+;
+12AC EA B4 20   NOT1    $00B4.#1
+12AF AA B4 20   MOV1    C,$00B4.#1
+12B2 CA B1 20   MOV1    $00B1.#1,C
+12B5 B0 04      BCS     $12BB
+12B7 E8 24      MOV     A,#$24
+12B9 2F 02      BRA     $12BD
+12BB E8 01      MOV     A,#$01
+12BD 8F 00 F1   MOV     $F1,#$00
+12C0 C4 FA      MOV     $FA,A
+12C2 8F 01 F1   MOV     $F1,#$01
+12C5 6F         RET
+; CPU cmd FF
+12C6 E8 FF      MOV     A,#$FF
+12C8 8D FE      MOV     Y,#$FE
+12CA 5A B4      CMPW    YA,$B4
+12CC D0 0C      BNE     $12DA
+12CE E8 FD      MOV     A,#$FD
+12D0 8D FC      MOV     Y,#$FC
+12D2 5A B6      CMPW    YA,$B6
+12D4 D0 04      BNE     $12DA
+12D6 E2 B1      SET1    $B1.#7
+12D8 2F 02      BRA     $12DC
+12DA F2 B1      CLR1    $B1.#7
+12DC 6F         RET
+; no-op CPU cmds
+12DD 6F         RET
+; set up echo registers; set timer1 for old echo delay time
+12DE 8F 6C F2   MOV     $F2,#$6C
+12E1 E4 F3      MOV     A,$F3
+12E3 08 20      OR      A,#$20
+12E5 C4 F3      MOV     $F3,A   ; DSP FLG bit ECEN on (disable echo)
+12E7 E8 00      MOV     A,#$00
+12E9 8D 4D      MOV     Y,#$4D
+12EB 3F 1B 06   CALL    $061B   ; clear all voice echo enable bits
+12EE 8D 0D      MOV     Y,#$0D
+12F0 3F 1B 06   CALL    $061B   ; zero echo feedback
+12F3 8D 2C      MOV     Y,#$2C
+12F5 3F 1B 06   CALL    $061B   ; zero echo vol L
+12F8 8D 3C      MOV     Y,#$3C
+12FA 3F 1B 06   CALL    $061B   ; zero echo vol R
+12FD 8D 7D      MOV     Y,#$7D
+12FF CB F2      MOV     $F2,Y
+1301 E4 F3      MOV     A,$F3
+1303 28 0F      AND     A,#$0F
+1305 C4 E0      MOV     $E0,A   ; save old echo delay in $e0
+1307 E4 DF      MOV     A,$DF
+1309 3F 1B 06   CALL    $061B   ; set echo delay from $DF
+130C FD         MOV     Y,A
+130D D0 01      BNE     $1310
+130F BC         INC     A       ; A = 1 if A == 0
+1310 1C         ASL     A
+1311 1C         ASL     A
+1312 1C         ASL     A
+1313 48 FF      EOR     A,#$FF
+1315 BC         INC     A
+1316 60         CLRC
+1317 88 FA      ADC     A,#$FA
+1319 8D 6D      MOV     Y,#$6D
+131B 3F 1B 06   CALL    $061B   ; set echo mem to $FA00-delay*8
+131E C4 E2      MOV     $E2,A
+1320 8F 00 E1   MOV     $E1,#$00 ; save echo mem addr in $E1/2
+1323 8F 01 F1   MOV     $F1,#$01
+1326 8F 80 FB   MOV     $FB,#$80 ; set timer1 latch to 80 (62.5 Hz, 16ms)
+1329 8F 03 F1   MOV     $F1,#$03 ; start timers 0 and 1
+132C E4 FE      MOV     A,$FE    ; clear timer1 counter
+132E 6F         RET
+; finish echo setup
+132F E8 00      MOV     A,#$00
+1331 FD         MOV     Y,A
+1332 D7 E1      MOV     [$E1]+Y,A
+1334 FC         INC     Y
+1335 D0 FB      BNE     $1332
+1337 AB E2      INC     $E2
+1339 78 FA E2   CMP     $E2,#$FA
+133C D0 F4      BNE     $1332     ; zero echo mem region
+133E E4 FE      MOV     A,$FE
+1340 2F 05      BRA     $1347
+1342 EB FE      MOV     Y,$FE
+1344 F0 FC      BEQ     $1342     ; wait for counter1 to increase
+1346 BC         INC     A
+1347 64 E0      CMP     A,$E0     ; waited long enough (old echo delay)?
+1349 90 F7      BCC     $1342     ; nope, wait more
+134B 8F 6C F2   MOV     $F2,#$6C
+134E E4 F3      MOV     A,$F3
+1350 28 DF      AND     A,#$DF
+1352 C4 F3      MOV     $F3,A     ; clear ECEN in FLG to enable echo
+1354 E4 FE      MOV     A,$FE
+1356 2F 05      BRA     $135D
+1358 EB FE      MOV     Y,$FE
+135A F0 FC      BEQ     $1358
+135C BC         INC     A
+135D 64 DF      CMP     A,$DF   ; waited long enough (new echo delay?)
+135F 90 F7      BCC     $1358   ; nope, wait more
+1361 E4 A7      MOV     A,$A7
+1363 8D 2C      MOV     Y,#$2C
+1365 3F 1B 06   CALL    $061B   ; set echo vol L from $A7
+1368 8D 3C      MOV     Y,#$3C
+136A 3F 1B 06   CALL    $061B   ; set echo vol R from $A7
+136D 38 03 C7   AND     $C7,#$03
+1370 E4 C7      MOV     A,$C7   ; get filter index from $C7
+1372 1C         ASL     A
+1373 1C         ASL     A
+1374 1C         ASL     A
+1375 FD         MOV     Y,A
+1376 CD 0F      MOV     X,#$0F    ; set DSP filter coeffs
+1378 F6 0C 15   MOV     A,$150C+Y ; from table at 150C
+137B D8 F2      MOV     $F2,X
+137D C4 F3      MOV     $F3,A
+137F FC         INC     Y
+1380 7D         MOV     A,X
+1381 60         CLRC
+1382 88 10      ADC     A,#$10
+1384 5D         MOV     X,A
+1385 10 F1      BPL     $1378
+1387 8D 0D      MOV     Y,#$0D
+1389 E4 C8      MOV     A,$C8
+138B 5F 1B 06   JMP     $061B
+;
+138E E8 34      MOV     A,#$34
+1390 C4 39      MOV     $39,A
+1392 E8 CD      MOV     A,#$CD
+1394 8F 00 03   MOV     $03,#$00
+1397 43 B1 05   BBS     $B1,#2,$139F
+139A 8F 09 B2   MOV     $B2,#$09        ; OUTX wave height for voice 0
+139D 2F 08      BRA     $13A7
+139F 8F 49 B2   MOV     $B2,#$49
+13A2 60         CLRC
+13A3 88 08      ADC     A,#$08
+13A5 E2 03      SET1    $03.#7
+13A7 C4 3A      MOV     $3A,A
+13A9 60         CLRC
+13AA 88 08      ADC     A,#$08
+13AC C4 02      MOV     $02,A
+13AE F8 3A      MOV     X,$3A
+13B0 EB B2      MOV     Y,$B2
+13B2 CB F2      MOV     $F2,Y
+13B4 EB F3      MOV     Y,$F3   ; read wave height for voice
+13B6 6D         PUSH    Y
+13B7 BF         MOV     A,(X)+
+13B8 CF         MUL     YA
+13B9 DD         MOV     A,Y
+13BA 28 70      AND     A,#$70
+13BC C4 38      MOV     $38,A
+13BE EE         POP     Y
+13BF BF         MOV     A,(X)+
+13C0 CF         MUL     YA
+13C1 DD         MOV     A,Y
+13C2 D8 3A      MOV     $3A,X
+13C4 F8 39      MOV     X,$39
+13C6 9F         XCN     A
+13C7 28 07      AND     A,#$07
+13C9 04 38      OR      A,$38
+13CB 04 03      OR      A,$03
+13CD AF         MOV     (X)+,A
+13CE D8 39      MOV     $39,X
+13D0 60         CLRC
+13D1 98 10 B2   ADC     $B2,#$10
+13D4 69 02 3A   CMP     $3A,$02
+13D7 D0 D5      BNE     $13AE
+13D9 BA 34      MOVW    YA,$34
+13DB DA F4      MOVW    $F4,YA          ; write APU0/1 from $34/5
+13DD BA 36      MOVW    YA,$36
+13DF DA F6      MOVW    $F6,YA          ; write APU2/3 from $36/7
+13E1 58 04 B1   EOR     $B1,#$04
+13E4 6F         RET
+;
+13E5 E4 8B      MOV     A,$8B
+13E7 F0 0F      BEQ     $13F8
+13E9 8B 8B      DEC     $8B
+13EB BA 87      MOVW    YA,$87
+13ED 7A 83      ADDW    YA,$83
+13EF 7E 84      CMP     Y,$84
+13F1 DA 83      MOVW    $83,YA
+13F3 F0 03      BEQ     $13F8
+13F5 09 AD C9   OR      $C9,$AD
+13F8 E4 97      MOV     A,$97
+13FA F0 08      BEQ     $1404
+13FC 8B 97      DEC     $97
+13FE BA 93      MOVW    YA,$93
+1400 7A 8F      ADDW    YA,$8F
+1402 DA 8F      MOVW    $8F,YA
+1404 E4 A3      MOV     A,$A3
+1406 F0 0F      BEQ     $1417
+1408 8B A3      DEC     $A3
+140A BA 9F      MOVW    YA,$9F
+140C 7A 9B      ADDW    YA,$9B
+140E 7E 9C      CMP     Y,$9C
+1410 DA 9B      MOVW    $9B,YA
+1412 F0 03      BEQ     $1417
+1414 09 AD CA   OR      $CA,$AD
+1417 6F         RET
+; dispatch table for CPU cmd FE subcommands
+1418 63 12  ; 00
+141A 51 12  ; 01
+141C 37 12  ; 02
+141E 14 12  ; 03
+1420 63 12  ; 04
+1422 63 12  ; 05
+1424 63 12  ; 06
+1426 70 12  ; 07
+; vcmd dispatch table (D2-FF)
+1428 68 06  ; D2
+142A 74 06  ; D3
+142C B4 06  ; D4
+142E E4 06  ; D5
+1430 20 07  ; D6
+1432 37 07  ; D7
+1434 49 07  ; D8
+1436 4D 07  ; D9
+1438 5F 07  ; DA
+143A 63 07  ; DB
+143C B4 07  ; DC
+143E 31 08  ; DD - set noise freq
+1440 F5 07  ; DE - enable noise
+1442 1D 08  ; DF - disable noise
+1444 3F 08  ; E0 - enable pitchmod
+1446 56 08  ; E1 - disable pitchmod
+1448 CE 07  ; E2 - enable echo
+144A E5 07  ; E3 - disable echo
+144C CA 07  ; E4 - set octave
+144E C0 07  ; E5 - inc octave
+1450 C6 07  ; E6 - dec octave
+1452 2F 07  ; E7
+1454 2B 07  ; E8
+1456 B0 09  ; E9
+1458 66 08  ; EA - set patch
+145A 90 08  ; EB - set ADSR attack
+145C BE 08  ; EC - set ADSR decay
+145E D1 08  ; ED - set ADSR sustain
+1460 E3 08  ; EE - set ADSR release
+1462 F3 08  ; EF - restore default ADSR for patch
+1464 44 09  ; F0
+1466 6B 09  ; F1
+1468 BC 09  ; F2 - halt
+146A 20 06  ; F3
+146C 2D 06  ; F4
+146E B3 06  ; F5 - NOP
+1470 B0 06  ; F6 - NOP with arg
+1472 33 07  ; F7 - NOP with arg
+1474 65 06  ; F8
+1476 17 09  ; F9
+1478 05 09  ; FA - goto
+147A 95 09  ; FB
+147C 3A 09  ; FC
+147E B4 09  ; FD
+1480 BC 09  ; FE - halt
+1482 BC 09  ; FF - halt
+; opcode length table
+1484       01 02  01 02 02 03  ; D2-D7
+148A 00 03 00 02  00 01 00 00  ; D8-DF
+1492 00 00 00 00  01 00 00 01  ; E0-E7
+149A 01 01 01 01  01 01 01 00  ; E8-EF
+14A2 01 00 00 01  02 01 02 02  ; F0-F7
+14AA 01 03 02 02  00 01 00 00  ; F8-FF
+; table for CPU cmds 80-8F and F0-FF
+14B2 11 10  ; 80
+14B4 DD 12  ; 81 - NOP
+14B6 DD 12  ; 82 - NOP
+14B8 0F 10  ; 83
+14BA DD 12  ; 84 - NOP
+14BC DD 12  ; 85 - NOP
+14BE 66 10  ; 86
+14C0 DD 12  ; 87 - NOP
+14C2 DD 12  ; 88 - NOP
+14C4 C0 10  ; 89
+14C6 DD 12  ; 8A - NOP
+14C8 DD 12  ; 8B - NOP
+14CA DD 12  ; 8C - NOP
+14CC DD 12  ; 8D - NOP
+14CE DD 12  ; 8E - NOP
+14D0 DD 12  ; 8F - NOP
+14D2 2C 11  ; F0
+14D4 2C 11  ; F1
+14D6 2C 11  ; F2
+14D8 1F 11  ; F3
+14DA 1F 11  ; F4
+14DC 7A 11  ; F5
+14DE 8E 11  ; F6
+14E0 8E 11  ; F7
+14E2 AC 12  ; F8
+14E4 AC 12  ; F9
+14E6 AC 12  ; FA
+14E8 81 11  ; FB
+14EA 85 11  ; FC
+14EC DD 12  ; FD - NOP
+14EE DD 12  ; FE - NOP (actually handled seperately)
+14F0 C6 12  ; FF
+; pitch table
+14F2 79 08  ; C
+14F4 FA 08  ; C#
+14F6 83 09  ; D
+14F8 14 0A  ; D#
+14FA AD 0A  ; E
+14FC 50 0B  ; F
+14FE FC 0B  ; F#
+1500 B2 0C  ; G
+1502 74 0D  ; G#
+1504 41 0E  ; A
+1506 1A 0F  ; A#
+1508 00 10  ; B
+150A F3 10  ; C
+; filter coeffecients table
+150C 7F 00 00 00  00 00 00 00
+1514 0C 21 2B 2B  13 FE F3 F9
+151C 58 BF DB F0  FE 07 0C 0C
+1524 34 33 00 D9  E5 01 FC EB
+; duration table
+152C C0 90 60 40  48 30 20 24  18 10 0C 08  06 04 03
+; table for CPU cmds 10-1F
+153B 5B 15  ; 10
+153D 6A 15  ; 11
+153F 7A 15  ; 12
+1541 00 00  ; 13
+1543 00 00  ; 14
+1545 00 00  ; 15
+1547 00 00  ; 16
+1549 00 00  ; 17
+154B 00 00  ; 18
+154D 00 00  ; 19
+154F 00 00  ; 1A
+1551 00 00  ; 1B
+1553 00 00  ; 1C
+1555 00 00  ; 1D
+1557 00 00  ; 1E
+1559 00 00  ; 1F
+; vcmds for CPU cmd 10
+155B D2 FF  EA 03  E4 08  D6 28 74  D7 00 04 FF  56  F2
+; vcmds for CPU cmd 11
+156A D2 FF  EA 00  E4 04  D7 00 00 FF  D6 04 0C  0B  1B  F2
+; vcmds for CPU cmd 12
+157A D2 FF  EA 03  E4 07  D7 00 18 DD  94  D6 18 7E  EE 14  71  F2 
+; shadow reg table
+158C 4C 5C 2D 3D 4D 6C
+1592 AF B0 BA B9 B8 BB
+;    || || || || || \\ BB = 6C FLG
+;    || || || || \\=== B8 = 4D Echo enable vbits
+;    || || || \\====== B9 = 3D Noise enable vbits
+;    || || \\========= BA = 2D Pitchmod enable vbits
+;    || \\============ B0 = 5C Key off
+;    \\=============== AF = 4C Key on

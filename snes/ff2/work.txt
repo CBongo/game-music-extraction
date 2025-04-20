@@ -1,0 +1,693 @@
+16-bit indexes, 8-bit accum
+data bank = 00
+direct page = 000600
+stack ptr = 0002ff
+
+87CF: sets up NMI/IRQ handlers:
+ 0200 5c 85 90 00  JMP $009085 (NMI)
+ 0204 5c 60 92 00  JMP $009260 (IRQ)
+
+15c9b0: clear/setup RAM
+ compares 1900-19FF with 14EE00-14EEFF
+  if not same, zero out 1A00-1A64
+ zero out 0000-01FF
+ zero out 0300-0FFE
+ zero out 1000-19FF
+ zero out 1A65-1DFF
+ zero out 7E2000-7FFFFF
+
+048000 -> 048008: initialize SPC
+ send blocks 04/8683 - 04/BBCF, format:
+ word: length
+ word: address
+ final block: length = 0, address = start addr of code
+
+01801C -> 0182BB -> 14FD00 -> 14FDD9:
+ copies stuff from 14FExx to 1Axx
+018010 -> 01805E -> 14FD03 (with A = 0) -> 14FD12:
+ FD90: (a=04 x=4 y=4218)
+  read joypads
+85FA:
+ set 1E00=01, 1E01=15
+ call 048004 -> 48107
+ cmd $01 -> 816F
+4816F:
+ 1E08 = cmd
+ 1E04 = cmd
+ 1E01 == 1E05 ? return if already playing this song
+ 1E05 = 1E01 (15)
+ 1d 32 01 -> 20 21 22
+4864E:
+   load address of song from table at $06F21D
+   first two bytes are length; rest is sent to SPC via port 2
+    (with song cmd as port 0)
+  next table base from C006: 00000F reloc to 04C00F
+  15 << 5 = 0000 0010 1010 0000 = 02A0
+  04C00F + 02A0 = 04/C2AF
+  copy $20 bytes from table to 1EC0, 1EE0
+  zero $20 bytes at 1EA0
+1EC0 - list of instr for this song
+1E40 - list of instr currently in SPC
+1EA0 - list of instr we already have from this set
+1E60 - addr of samples in SPC memory first init to $3000
+1E80 - size of samples
+
+01 Overture
+04/C02F: 01 00 06 00 0B 00 10 00  0A 00 07 00 00 00 00 00
+04/C03F: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+
+1e40: 01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+1e50: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+
+1e60: 00 30 A0 47 00 30 00 30  00 30 00 30 00 30 00 30
+1e70: 00 30 00 30 00 30 00 30  00 30 00 30 00 30 00 30
+
+1ea0: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+1eb0: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+
+1ec0: 01 00 06 00 0B 00 10 00  0A 00 07 00 00 00 00 00
+1ed0: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+
+1ee0: 01 00 06 00 0B 00 10 00  0A 00 07 00 00 00 00 00
+1ef0: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+
+28 = 01
+
+00 04/C8CF: 00 00  00 00
+01 04/C8D3: 00 00  1B 00
+02 04/C8D7: 00 00  FC 00
+03 04/C8DB: 00 00  BE 02
+04 04/C8DF: 00 00  00 00
+05 04/C8E3: 00 00  1B 00
+06 04/C8E7: 00 00  8C 01
+07 04/C8EB: 00 00  71 01
+08 04/C8EF: 00 00  00 00
+09 04/C8F3: 00 00  46 05
+0a 04/C8F7: 00 00  00 00
+0b 04/C8FB: 00 00  57 03
+0c 04/C8FF: 00 00  00 00
+0d 04/C903: 00 00  00 00
+0e 04/C907: 00 00  00 00
+0f 04/C90B: 00 00  00 00
+10 04/C90F: 00 00  BB 05
+11 04/C913: 00 00  00 00
+12 04/C917: 00 00  00 00
+13 04/C91B: 00 00  00 00
+14 04/C91F: 00 00  00 00
+15 04/C923: 00 00  00 00
+16 04/C927: 00 00  80 04
+;
+04/C92B: 00 01 E3 E3 02 01 E3 E3  02 FF 01 02 00 00 00 00 
+04/C93B: 00 00 00 00 00 00 00
+;
+00 04/C942: 00 00 00
+01 04/C945: 8A 09 00   04/C98A len 17A0 - strings (48)
+02 04/C948: 2C 21 00   04/E12C - harp (46) or dulcimer (15)?
+03 04/C94B: 3C 22 00   04/E23C - piano (0) or bright piano (1)?
+04 04/C94E: 44 25 00   04/E544 - piano (0) or harp (46)?
+05 04/C951: 77 48 00   05/8877 - pipe organ (19)
+06 04/C954: B9 53 00   05/93B9 len 01B0 - trumpet (56)
+07 04/C957: 6B 55 00   05/956B - flute (73)
+08 04/C95A: F0 56 00   05/96F0 - xylophone (13)
+09 04/C95D: BE 75 00   05/B5BE - elec bass  (34)
+0a 04/C960: A8 7B 00   05/BBA8 - timpani (47)
+0b 04/C963: DB 9E 00   05/DEDB - contra bass (43)
+0c 04/C966: D1 B3 00   05/F3D1 - snare (lo) (k40)
+0d 04/C969: 39 C3 00   06/8339 - kick drum (k36)
+0e 04/C96C: 8A C8 00   06/888A - snare (hi) reverb (k38)
+0f 04/C96F: 40 DB 00   06/9B40 - kick drum reverb (k35)
+10 04/C972: F6 ED 00   06/ADF6 - crash cymbal (k49)
+11 04/C975: FD 00 01   06/C0FD - hihat closed (k42)
+12 04/C978: B2 08 01   06/C8B2 - agogo (113)
+13 04/C97B: 87 11 01   06/D187 - shaker (k69? k70?)
+14 04/C97E: F7 15 01   06/D5F7 - "uh oh"? (85?)
+15 04/C981: 40 1D 01   06/DD40 - melodic tom (117)
+16 04/C984: A8 2C 01   06/ECA8 - whistle (78)
+;
+
+04/C000: 1D 32 01   ; 06/F21D song pointers
+04/C003: 42 09 00   ; 04/C942 instrument data table
+04/C006: 0F 00 00   ; 04/C00F (width $20) song instrument tables
+04/C009: CF 08 00   ; 04/C8CF (width 4) source directory (sample start/loop)
+                      2 words added to 1E60,X sent to APU2
+04/C00C: 2B 09 00   ; 04/C92B (width 1) indexed by 1EC0,X for SPC $FF40
+
+; song table
+06/F21D: EF 32 01   len 0010  ; 06/F2EF 00 (dummy)
+06/F220: 27 37 01   len 03BF  ; 06/F727 01 Overture
+06/F223: E8 3A 01   len 00FC  ; 06/FAE8 02 Elder
+06/F226: E6 3B 01   len 0127  ; 06/FBE6 03 short fanfare (non US?)
+06/F229: 0F 3D 01   len 0339  ; 06/FD0F 04 Chocobo
+06/F22C: 4A 40 01   len 02C0  ; 07/804A 05 Mambo de Chocobo
+06/F22F: 0C 43 01   len 0563  ; 07/830C 06 Underworld
+06/F232: 71 48 01   len 0B71  ; 07/8871 07 Zeromus
+06/F235: E4 53 01   len 0256  ; 07/93E4 08 Victory
+06/F238: 3C 56 01   len 01F9  ; 07/963C 09 Town
+06/F23B: 37 58 01   len 03E3  ; 07/9837 0A Rydia's Theme
+06/F23E: 1C 5C 01   len 0817  ; 07/9C1C 0B Battle with Fiends
+06/F241: 35 64 01   len 0399  ; 07/A435 0C Mountain
+06/F244: D0 67 01   len 0409  ; 07/A7D0 0D Overworld
+06/F247: DB 6B 01   len 04B5  ; 07/ABDB 0E Big Whale
+06/F24A: 92 70 01   len 0166  ; 07/B092 0F Sadness
+06/F24D: FA 71 01   len 00C0  ; 07/B1FA 10 Take a Nap
+06/F250: BC 72 01   len 02E5  ; 07/B2BC 11 Golbez' Theme
+06/F253: A3 75 01   len 01E0  ; 07/B5A3 12 Edward's Theme
+06/F256: 85 77 01   len 036E  ; 07/B785 13 Rosa's Theme
+06/F259: F5 7A 01   len 02B8  ; 07/BAF5 14 Baron
+06/F25C: AF 7D 01   len 05B0  ; 07/BDAF 15 Prelude
+06/F25F: 61 83 01   len 01A0  ; 07/C361 16 Evil Golbez
+06/F262: 03 85 01   len 03C9  ; 07/C503 17 Tower of Babil
+06/F265: CE 88 01   len 0345  ; 07/C8CE 18 Airship
+06/F268: 15 8C 01   len 038C  ; 07/CC15 19 Fiends' Theme
+06/F26B: A3 8F 01   len 04BE  ; 07/CFA3 1A Boss
+06/F26E: 63 94 01   len 0448  ; 07/D463 1B Giant of Babil
+06/F271: AD 98 01   len 023B  ; 07/D8AD 1C Illusionary World
+06/F274: EA 9A 01   len 0224  ; 07/DAEA 1D Ring of Bombs
+06/F277: 10 9D 01   len 023B  ; 07/DD10 1E Lunar Cave
+06/F27A: 4D 9F 01   len 00F4  ; 07/DF4D 1F Surprise
+06/F27D: 43 A0 01   len 0210  ; 07/E043 20 Dwarf Castle
+06/F280: 55 A2 01   len 02B1  ; 07/E255 21 Palom and Porom
+06/F283: 08 A5 01   len 019D  ; 07/E508 22 Calbrena
+06/F286: A7 A6 01   len 024E  ; 07/E6A7 23 Run!!
+06/F289: F7 A8 01   len 037F  ; 07/E8F7 24 Cid's Theme
+06/F28C: 78 AC 01   len 04C0  ; 07/EC78 25 Cave
+06/F28F: 3A B1 01   len 02D5  ; 07/F13A 26 Dance
+06/F292: 11 B4 01   len 04C1  ; 07/F411 27 Battle
+06/F295: D4 B8 01   len 020E  ; 07/F8D4 28 Damcyan
+06/F298: E4 BA 01   len 0119  ; 07/FAE4 29 Fanfare
+06/F29B: FF BB 01   len 00E2  ; 07/FBFF 2A Sorrow
+06/F29E: E3 BC 01   len 00E2  ; 07/FCE3 2B Chocobo Forest
+06/F2A1: C7 BD 01   len 0370  ; 07/FDC7 2C Red Wings
+06/F2A4: 39 C1 01   len 00EC  ; 08/8139 2D Suspicion
+06/F2A7: 27 C2 01   len 020C  ; 08/8227 2E Fabul
+06/F2AA: 35 C4 01   len 022F  ; 08/8435 2F Cecil becomes a Paladin
+06/F2AD: 66 C6 01   len 013A  ; 08/8666 30 Big Chocobo
+06/F2B0: A2 C7 01   len 02E0  ; 08/87A2 31 Moon
+06/F2B3: 84 CA 01   len 03C6  ; 08/8A84 32 Toroia Castle
+06/F2B6: 4C CE 01   len 0315  ; 08/8E4C 33 Mysidia
+06/F2B9: 63 D1 01   len 02FD  ; 08/9163 34 Castle?
+06/F2BC: 62 D4 01   len 0B12  ; 08/9462 35 Ending
+06/F2BF: 76 DF 01   len 0EE4  ; 08/9F76 36 Epilogue
+06/F2C2: 5C EE 01   len 0A5B  ; 08/AE5C 37 Credits
+06/F2C5: EF 32 01   len 0010  ; 06/F2EF 38 (dummy)
+06/F2C8: EF 32 01   len 0010  ; 06/F2EF 39 (dummy)
+06/F2CB: EF 32 01   len 0010  ; 06/F2EF 3A (dummy)
+06/F2CE: EF 32 01   len 0010  ; 06/F2EF 3B (dummy)
+06/F2D1: EF 32 01   len 0010  ; 06/F2EF 3C (dummy)
+06/F2D4: EF 32 01   len 0010  ; 06/F2EF 3D (dummy)
+06/F2D7: 01 33 01   len 012D  ; 06/F301 3E ??
+06/F2DA: 30 34 01   len 0094  ; 06/F430 3F Gongs & Foghorn?
+06/F2DD: C6 34 01   len 00C7  ; 06/F4C6 40 Door open?
+06/F2E0: 8F 35 01   len 00C7  ; 06/F58F 41 Door open?
+06/F2E3: 58 36 01   len 003E  ; 06/F658 42 Earthquake
+06/F2E6: 98 36 01   len 003C  ; 06/F698 43 Fall Down
+06/F2E9: D6 36 01   len 0036  ; 06/F6D6 44 Leviathan Rises
+06/F2EC: 0E 37 01   len 0017  ; 06/F70E 45 (dummy)
+
+; instrument indexes
+01
+02
+03
+04
+05
+06
+07
+08
+09
+0A
+0B
+0C
+0D
+0E
+0F
+10
+11
+12
+13
+14
+15
+16
+
+; display saved game menu
+1800C -> 19598
+ 1873A: read VRAM $2000-2FFF into 7EE600 
+ STZ $1B9A
+ skip to $9988 call if $1A5F == #$1BE4
+ set $1A5F to #$1BE4
+ zero $1A3C
+ 1992A: 0100->1a37,16ae; 0002->16b0,1a39; 00->1a3b,16b2
+ 182BB -> 14FD00 -> 14FDD9: copies stuff from 14FExx to 1Axx
+       14FE86->1A05 (len $18)
+       14FE86->1A1D (len $18)
+         14/FE86: 00 80 00 40 00 80 00 00
+         14/FE8E: 00 08 00 04 00 02 00 01
+         14/FE96: 80 00 40 00 00 00 10 00
+       16A9 -> 1A64
+       zero words at 1A2D, 1A1D, 1A2F, 1A1F, 1A21
+       word 14FE7E + 1A3A * 2 -> 1A31
+       word 14FE7E + 1A3B * 2 -> 1A23
+       set 1A05+various to $0080, $8000, $0040
+       $04/05 <- #$FFFF
+       $DD -> $08/09
+  14FE63: write word in X to 1A05 + (table indexed by A)
+ 19988
+  197A1
+   copy default char names to $1500-$1553
+   0FFBC -> 092D0: copy default game state from 0FA900 -> 1000
+    0E65E (0->3D)
+    38006 -> 38036
+     397FD
+      38235: init lots of memory locations
+             $80-$FF, $2000-$397D, $1804-B  all zeros
+      394A8
+       set $80 to #$2000
+       move DP to X
+       set $A9 to 0
+       move DP to Y
+       copy $40 bytes from $1000,X to ($80),Y
+       save X
+       move DP to Y
+       get char actor byte from ($80)
+       if no char then
+        store 0's in working char bytes $2003-$2006
+        goto 9566
+       if not stoned or swooned then
+        get char index in $A9 * 2 -> X
+        set $29EB,X to #$40
+        get max HP into 16-bit A
+        38486: A >>= 2  (A /= 4)
+        compare A to current HP
+        if >= then
+         set bit 0 of char byte $2006  ("near death"?)
+        else
+         clear bit 0 of char byte $2006
+        set $203B to #$10
+      38ECC
+       set $86 to #$2030
+       set $84 to #$2780
+       set $A9 to #$00
+       store DP in $AB and Y
+       copy from ($86),Y to $AD,X till X = 3, subst #$60 for 0's
+       copy from ($86),Y to $AD,X till X = 7
+       LDA $A9
+       3847E: A = A << 3
+       TAX
+
+       3845E
+       383E0
+      39837
+       38489
+        383E0 ^^
+        383B9
+      copy $40 bytes from ($80),0 to $1000,($A6/2)
+      copy ($80),$40 to $102D/E
+   $41/42 -> $1007,09
+   zero $1040,1080,10C0,1100
+  for $48 = 0 to 3:
+  19956: check for savegame in slot A - return carry set if OK, else clear
+   1CC34: calculate checksum for savegame (A-1)
+    187B4: a->43, 43->x
+  break if carry set (save game present)
+  perform game save (copy 7E1000 to SRAM)
+  set 16AA flag to #$2000 (window bg = 50% blue)
+  next
+ 19AEF: check for a valid save game in SRAM
+  19B1D: zero some game state and copy default names; set $16AA to #$3000
+   18749 -> 14FD09 -> 14FED6: copy 16AA to A0X2, A0XA; X=014589cd
+   copy default char names to $1500
+   copy cecil's name to 1B0A
+   0 -> 16AE
+   1 -> 16AF, 16B1
+   2 -> 16AD, 16AC, 16B0
+  1991D: set magic # in current game state; zero $17FB
+  195D2
+   for $48 = 0 to 4
+   1B977 set X from 0FC625 (1000+idx*40) from 14FF9D,A
+   if (X) & $3F then break
+   next
+   $48 -> $E7, $1B3E, $1B8A
+   set $1BA5 to #$FFD8
+   $16A9 -> $1C
+ 195FE: do savegame menu
+  play prelude BGM
+  18C7F
+   1EFCCD: set video mode MODE0  tiles at $2000  OBJ base = $4000
+           BG1 sc=$6000, BG2 sc=$6800, BG3 sc=$7000, BG4 sc=$7800
+   194AF: clear $1C words at $000189+$000141
+   19301 (with bank=C,A=20,Y=F9C0): copy sprite data at $0CF9C0 to $4000 VRAM
+   STZ $41,$42
+   set $DE to #$1000
+   194AA -> 14FD0C -> 14FF0A: copy shadow regs $8A-A0 to $210F-$2114
+   18078: copy chargen font tiles to VRAM at $2000
+   18D6C: move all sprites off bottom screen, but move first 8 off right
+   18D2F: do following then set $44 to zero
+    18D47 fill $D600 from $41/42
+    18D3D fill $B600 from $41/42
+    18D42 fill $C600 with $2000
+    18D38 fill $A600 with $2000
+   19417 update all BG sc's from memory
+    19429 update BG2 sc from $7EA600
+    19436 update BG1 sc from $7EB600
+    19443 update BG4 sc from $7EC600
+    19450 update BG3 sc from $7ED600
+   1EFD1A copy 0D87D0-EF to A000,A040,A080,A0C0; copy -DF to A060
+   18749 copy 16AA to A0X2, A0XA; X=014589cd
+   copy 0D80C0-F to $7EA100
+   180B2 copy color table from $7EA000 to CGRAM via DMA
+   1824F copy OBJ table to OAM
+   19417 update all BG sc's from memory $7Ex600
+   STZ $84,$85,$88
+   set $3F to #$30
+   setup JMP's at $01CC, 01CF (to 8D2E)
+   182BB copy stuff from $14FExx to $1Axx
+   set $E3 to #$63
+   set $88 to #$80
+   STZ $1BC9
+  set $C1 to #$30
+  19988 ^^ mangle unused saves
+  zero $1B47
+  18D2F fill A600/C600 with $2000, B600/D600 with ($41/$42)
+  18D6C move all sprites off bottom screen, but move first 8 off right
+  1824F copy OBJ table to OAM
+  $1A3C -> A
+  19785 load saved game in A or new game data if A=0
+  18DA2 copy all char sprites/palettes to VRAM/$FE28
+        1A67,Y = char data $00 & #$0F
+        1A68,Y = char data $01
+  198CF position character sprites on savegame menu
+   set $C1 to #$30
+   198B9 copy char sprite palettes to A160
+   18D6C move sprites offscreen
+   set $1D/E to 0
+   set $1F/20 from table (idx = 2 * $1A3C)
+01/990A: 6C 04
+01/990C: 78 28
+01/990E: 78 58
+01/9910: 78 88
+01/9912: 78 B8
+   set $5A to #$05
+   1906A
+    19126  48X
+   add $0018 to $1F; INC $1D
+   repeat last two 5 times
+  196E4 display savegame bg's
+   set palettes from savegame bg's
+   set A = 0
+   19A39 display one savegame menu bg
+   19A39 "
+   19A39 "
+   19A39 "
+01/9AE7: BA 84  prepare to edit BG2
+01/9AE8: A2 84  prepare to edit BG1
+01/9AEA: 88 84  prepare to edit BG4
+01/9AEC: 70 84  prepare to edit BG3
+    X=0082, Y=D869 ("Save" from menu)
+    182CD print message in Y at screen offset X
+    19956 check for savegame in slot A - return carry set if OK, else clear
+    18301 
+   set $A022 to #$4000
+   save $34
+   0184B7 set BG2 params for writing $29<-A600; $35<-$6800; $C3<-0; $34<-$20
+   set $34 to #$30
+   set Y to $DBDA  ($2B=0000, $2D=10, $2E=02)
+   180D9 draw window with specs from (Y)
+    load $2B from (Y) in bank 1
+    load $2D from (Y+2) in bank 1 (Window size x,y)
+    load $2F from $34
+    180F5
+     Add $29 to $2B -> Y   (base mem of BG + offset from message)
+     $2D->$31
+     A=$F7; JSR 811C
+     
+     A=$FC; JSR 811C
+   restore $34
+  184BA setup for BG2 access but don't clear
+  18301 print "New Game" at (1,3)
+  19417 send BG's to VRAM
+  199BE slide bg's into place
+   if 1B9A != 0
+    19A24
+     set $93/94 to $FFB8   $210E shadow - BG1 vertical scroll
+     set $99/9A to $FF88   $2114 shadow - BG4 vertical scroll
+     set $9F/A0 to $FF58   $2112 shadow - BG3 vertical scroll
+    194AA -> 14FD0C -> 14FF0A: copy shadow regs $8A-A0 to $210F-$2114
+    1946A do fade in effect
+   else
+    INC 1B9A
+    set $88 to 0
+    set $93/4, $99/9A, $9F/A0 to $FFE8
+    set $4E to $03
+    set Y to $0030
+    194A7
+     1818A
+     14FD0C
+    $93--
+    $99 -= 2
+    $9F -= 3
+    $4E--
+    $4E = 3, $88++ if $4E == 0
+    182C0
+    if A, up, or down pressed then
+     19A24
+     set $93/94 to $FFB8
+     set $99/9A to $FF88
+     set $9F/A0 to $FF58
+     set $4E to 3
+     set $88 to $0F
+     set Y to 2
+    endif
+    Y--
+    BNE ^ 1947
+    set $88 to $0F
+  1965F
+   1824C:   copy OBJ table to OAM during next vblank
+  (19914)
+  197D9
+   19264
+    19279
+    19334 copy 0D86D0, class&$F * 16 to palette table for char slot in A
+     1A8F1 get char state byte 0 AND #$3F
+   18897 print all chars' menu displays, then goto 88FD
+    1899B state at Y, scroffset at X
+     18C23 (Y -> $48, X -> $4B)
+      18C49
+     183AB print char in A's name at offset Y
+     18B02
+      18C17 Y = $4B + #$000E
+      1878B
+     18A2C print 4-digit char stat at Y to screen offset A+X
+    188FD
+     18992
+      18948: get Y position from table at 1EFE0A
+      A = char pos
+      (18E70) sprite setup
+       1A8F1 get char state byte 0 AND #$3F
+  1D434
+  1D39B
+  (19484) fade out
+  19484 fade out
+  (19619) restart menu again
+ 195D2
+  foreach char on menu
+  1B977 convert pos to menu pos, get gamestate offset into X
+   19007 get offset in game state for char A into X
+    187B4 a->43, 43->x
+  break from loop at first present char
+  put first char menupos idx into E7, 1B3E, 1B8A
+  set 1BA5 to FFD8
+  set 1C to 16A9
+0F/C625: 00 10        BRK $10
+0F/C627: 40           RTI 
+0F/C628: 10 80        BPL $C5AA
+0F/C62A: 10 C0        BPL $C5EC
+0F/C62C: 10 00        BPL $C62E
+0F/C62E: 11 FF        ORA ($FF),Y
+ 182B6 -> 14FD03 -> 14FD12: joypad reading
+ 1873F
+  14FFD6: 011D = $2000, 011F = $E600, 0121 = $7E, 0122 = $1000
+  18078: transfer $0123 * 256 bytes from $0121/$011F to VRAM at $011D via DMA
+
+overworld = 8502
+ 834E 85AB 0->1701 0->06FA 8D4B 8F95,a=14,x=8900 F385,a=14,y=8000
+ 148A80-148B7F->0EDB-0FDA 9574 F6E9 15C163
+underworld = 853C
+ 834E 85AB 1->1701 0->06FA 8CA6 8F95,a=14,x=8980 F385,a=14,y=8200
+ 148B80-148C7F->0EDB-0FDA 9574 F6E9
+moon = 8574
+ 834E 85AB 2->1702 2->06FA      8F95,a=14,x=8A00 F385,a=14,y=8400
+ 148C80-148D7F->0EDB-0FDA 9574 F6E9
+dungeon = 83A4
+
+834E: reset OBJ table; clear lots of dpage
+85ab:
+ 85db: AND #$BF $1004, $1044, $1084, $10C4, $1104, $1144
+ 0->D1
+ if $85 != 0 then $85 = 0 else $1705 = 2
+ MODE 7, OBJs + BG1
+ if $B1 == 0 then 8b3f: set BGM based on location
+ 15b181:
+  VRAM word mode
+  VRAM addr = 0
+  148600 + worldarea->0BDB-0CDA
+  1D8000 + worldarea*32->
+ 15c6db: put half-bright inverse colors from ctab into 0BDB
+8D4B:
+ copy $2000-$20FF VRAM to $7F5800
+ copy $1E80-$1F7F VRAM to $7F5900
+8CA6:
+ copy $3800-$38FF VRAM to $7F5800
+8F95:
+ copy bank A, offset X into color table (148900, 148980
+f385:
+ copy bank A, offset Y into $7F4800-$7F49FF
+9574:
+ $cc = 1
+ 15c891:
+ 15c82d:
+ 951d:
+  15b000,4c=4200,4e=0100,4a=c680,49=1b (char sprites?)
+  15b000,4c=4300,4e=1d00,4a=8000,49=1c (world map sprites)
+  15c144
+   if 128a & 40 == 0 then
+   15b000,4c=5a00,4e=0600,4a=9e00,49=1c
+f6e9:
+ fa98:
+15c163: world map MODE7 HDMA stuff
+
+e31a
+e2e6
+  34/2 = 1a
+
+; red wings flying intro
+8083
+ DF63 (with A=10)
+  E01A
+
+; world map
+80AF
+ 8F0F
+
+; pick a char?
+8A54
+
+; item menu 9eff
+a=3; 9521
+
+; customize menu
+d117
+ d176
+  d41b
+  d335 - make rbg slider bars? (Y=BB22,BBA2,BC22)
+  d379 (with X=16AA)
+  d41b
+ 88fd
+
+;
+84D0
+ set bank = program bank (1?)
+ $63 = ($0000,Y & #$3F) >> 1  (x1 start)   $0000,Yw = scr offset of upper left
+ $65 = $0002,Y + $63 + 1      (x2 start)   $0002,Y  = width
+ $64 = $0000,Yw >> 6          (y1 start)   $0003,Y  = height
+ $66 = $0003,Y + $64 + 1      (y2 start)
+ $67 = ($0000,X & #$3F) >> 1  (x1 end)
+ $69 = $0002,X + $67 + 1      (x2 end)
+ $68 = $0000,Xw >> 6          (y1 end)
+ $6A = $0003,X + $68 + 1      (y2 end)
+ restore bank
+ if $64 != $68 then
+   85C0:
+    if $64 >= $68 then
+      8637:
+       X = ($64 << 6) + ($63 << 1) + $29
+       #$FA -> $0000,X; X += 2  (left vertical border)
+       for ($1D = $65 - $63 - 1; $1D > 0; $1D--) do
+         #$FF -> $0000,X; X += 2 (space)
+       #$FB -> $0000,X; (right vertical border)
+      DEC $64
+    else
+      865F:
+       X = ($64 << 6) + ($63 << 1) + $29
+       for ($1D = $65 - $63 + 1; $1D > 0; $1D--) do
+         #$00 -> $0000,X; X += 2
+      INC $64
+    8675:
+     X = ($64 << 6) + ($63 << 1) + $29
+     #$F7 -> $0000,X; X += 2  (left top corner)
+     for ($1D = $65 - $63 - 1; $1D > 0; $1D++) do
+       #$F8 -> $0000,X; X += 2  (top horiz border)
+     #$F9 -> $0000,X;         (right top corner)
+ if $66 != $6A then
+   85D2:
+    if $66 >= $6A then
+      865A:
+       X = ($66 << 6) + ($63 << 1) + $29
+       for ($1D = $65 - $63 + 1; $1D > 0; $1D--) do
+         #$00 -> $0000,X; X += 2
+      DEC $66
+    else
+      8632:
+       X = ($66 << 6) + ($63 << 1) + $29
+       #$FA -> $0000,X; X += 2  (left vertical border)
+       for ($1D = $65 - $63 - 1; $1D > 0; $1D--) do
+         #$FF -> $0000,X; X += 2 (space)
+       #$FB -> $0000,X;         (right vertical border)
+      INC $66
+    8698:
+     X = ($66 << 6) + ($63 << 1) + $29
+     #$FC -> $0000,X; X += 2  (left top corner)
+     for ($1D = $65 - $63 - 1; $1D > 0; $1D++) do
+       #$FD -> $0000,X; X += 2  (top horiz border)
+     #$FE -> $0000,X          (right top corner)
+ if $63 != $67 then
+   85E4:
+    if $63 >= $67 then
+      86BB:
+        $1E = $F8, $FF, $FD  (top horiz, space, bot horiz)
+        86F8:
+          X = ($64 << 6) + ($63 << 1) + $29
+          $1E -> $0000,X; X += #$40
+          for ($1D = $66 - $64 - 1; $1D > 0; $1D++) do
+            $1F -> $0000,X; X += #$40
+          $20 -> $0000,X
+      DEC $63
+    else
+      8722:
+        X = ($64 << 6) + ($63 << 1) + $29
+        for ($1D = $66 - $64 + 1; $1D > 0; $1D--) do
+          #$00 -> $0000,X; X += #$40
+      INC $63
+    86C9:
+        $1E = $F7, $FA, $FC  (left top corner, left side, left bot corner)
+        86F8:
+          X = ($64 << 6) + ($63 << 1) + $29
+          $1E -> $0000,X; X += #$40
+          for ($1D = $66 - $64 - 1; $1D > 0; $1D++) do
+            $1F -> $0000,X; X += #$40
+          $20 -> $0000,X
+ if $65 != $69 then
+   85F6:
+    if $65 >= $69 then
+      871D:
+        X = ($64 << 6) + ($65 << 1) + $29
+        for ($1D = $66 - $64 + 1; $1D > 0; $1D--) do
+          #$00 -> $0000,X; X += #$40
+      DEC $65
+    else
+      86E5:
+        $1E = $F8, $FF, $FD  (top horiz, space, bot horiz)
+        86F3:
+          X = ($64 << 6) + ($65 << 1) + $29
+          $1E -> $0000,X; X += #$40
+          for ($1D = $66 - $64 - 1; $1D > 0; $1D++) do
+            $1F -> $0000,X; X += #$40
+          $20 -> $0000,X
+      INC $65
+    86D7:
+        $1E = $F9, $FB, $FE  (right top, right side, right bot corner)
+        86F3:
+          X = ($64 << 6) + ($65 << 1) + $29
+          $1E -> $0000,X; X += #$40
+          for ($1D = $66 - $64 - 1; $1D > 0; $1D++) do
+            $1F -> $0000,X; X += #$40
+          $20 -> $0000,X
+ 

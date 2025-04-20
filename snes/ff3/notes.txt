@@ -1,0 +1,211 @@
+c00182  default NMI handler
+c00262  default IRQ handler
+c00374  turn off screen, NMI
+c00386  screen on min brightness, enable NMI (at next vblank)
+c004f8  clear zero page
+c00505  copy zero page to 1200
+c00515  copy 1200 to zero page
+c00525  clear (7E)0000-11FF
+c00564  clear $55, wait for it to go non-zero
+c0056d  jsr to c30009
+c00573  set default IRQ/NMI vectors (c00182, c00262)
+c0062e  LDA $C0FD00, $1F6D
+c05228  copy c0e0a0-11f to 1ee0-1f5f
+c070b6  set 0799+x to #$29*(x/2) until x = #$62
+c0bb0c  zero 1e80-1edf
+c0bb18  zero 1e40-1e6f
+c0bd8d  clear/initialize various memory locations
+c30006  set 0229 to #$0308, set 0225 to #$0320, if 1d54&40 then a5c4 else a5d1
+c3a424  set 0229 to #$0308, set 0225 to #$0320, if 1d54&40 then a5c4 else a5d1
+c3a5c4  set 0220/0222 from 1d50/1d52
+c3a5d1  set 0220/0222 to #$3412/#$0656
+c50000  initialize SPC/sound code
+c5061f  set bit 2 (add 4) in sound cmd $00 if $01 value found in 06f9 table
+c50640  resend 2c00 to SPC
+c506a9  send A to 2140 and wait for it to come back on 2140, INC/AND 7F
+c53c5f  sample data ptr tbl
+c53f95  instrument tables for songs
+c53e96  song ptr table
+
+001300-001303 sound command data
+001304-001307 last sound command data
+001308-00130b 2nd to last sound command data?
+001320-00133F 
+0013f0  shadow SPC echo delay
+0013f2  shadow SPC echo region addr
+001500  NMI vector (default: C00182)
+001504  IRQ vector (default: C00262)
+
+SPC:
+00    correction/relocation offset
+02+x  pointer to current voice command byte
+22    dsp shadow for 4C (key on)
+24    dsp shadow for 5C (key off)
+25+x  duration counters for voices
+26+x  repeat index
+46    tempo
+49    tempo delta steps
+4A/4B tempo delta value
+4D    dsp shadow for 2C/3C (echo volume L/R)
+4E/4F echo volume delta value
+50    echo volume delta steps
+52    active (vcmd-processing) voice bits
+53/54 echo enabled bits
+66    dsp shadow for 0F (echo filter C0)
+68    dsp shadow for 1F (echo filter C1)
+6A    dsp shadow for 2F (echo filter C2)
+6C    dsp shadow for 3F (echo filter C3)
+6E    dsp shadow for 4F (echo filter C4)
+70    dsp shadow for 5F (echo filter C5)
+72    dsp shadow for 6F (echo filter C6)
+74    dsp shadow for 7F (echo filter C7)
+76    dsp shadow for 0D (echo feedback)
+78    echo feedback fade delta steps
+79/7A echo feedback delta value
+87    dsp shadow for 4D (echo on/off voice bits)
+88    dsp shadow for 3D (noise enable bits)
+89    dsp shadow for 2D (pitch mod enable bits)
+8A    dsp shadow for 6C (FLG register)
+A2    current voice command stream byte
+BC    multiplier for pitch value
+C2/3  pitch from pitch table for current note
+C4    use normal (#$10) or alternate (#$20) voice start points
+C7    current song #
+03D9  handle next command for voice X/2
+0554  calculate pitch value for note in A
+05B5  dispatch command in A, reading first operand if present
+05C9  read next command for voice X/2 into $A2, A
+05D4  scan ahead to next note command
+0648  Write A to DSP register Y
+064D  reset $F4/$F5 read registers
+0745  set volume/pitch regs on DSP for voice X/2
+0888  set voice volume DSP regs
+0914  set voice pitch DSP regs
+09E1  read a command from SNES CPU (F4-7 -> 8B-E)
+0A1B  process CPU cmd $14 (call 1054, then do $10)
+0A1E  process CPU cmd $10
+0A23  process CPU cmd $15 (call 1054, then do $11)
+0A26  process CPU cmd $11
+0B3D  process CPU cmd $18
+0BF1  process CPU cmds $20-2F
+0C54  process CPU cmd >= $80
+0CC5  divide (for deltas)
+0FD3  process CPU cmds 12-13,16-17,19-1F,86-88,8A-8F,F7-FB (RET)
+0FE8  Write $8D to DSP register $8C
+0FEF  delay for (X) timer1 periods
+1002  set echo delay/start from $8C low nybble, enable echo, $52->$4D if not 0
+1015  set echo delay time/start addr from $80, delay till old echo done
+1041  enable echo after delaying $80 echo periods if nonzero
+10DF  read wave heights, put in APU regs
+178F  pitch table
+17A9  echo filter table
+17D1  duration table
+1881  music op dispatch table (C4-FF)
+18F9  music op length table
+1A00  default F740/1 per sample
+1A80  default ADSR per sample
+
+1C00  start of song data
+2C00  fx data pointers
+3000  fx data
+
+F600+x  current octave
+F601+x  current sample (SRCN)
+F620/1+x  volume
+F640/1+x  volume delta value
+F660/1+x  balance
+F680/1+x  balance delta value
+F6A0+x  volume delta counter
+F6A1+x  balance delta counter
+F6C0+x  vibrato steps
+F6C1+x  current vibrato step ctr
+F6E0+x  tremolo steps
+F6E1+x  current tremolo step ctr
+F700+x  pan sweep steps
+F701+x  current pan sweep step ctr
+F720+x  portamento steps
+F721+x  transpose halfsteps
+F740/1+x  (set from 1A00 on patch change)
+F780/1+x  portamento delta value for this note (lo word)
+F7A0/1+x  pan sweep delta value
+F7C0/1+x  vibrato delta value precorreted
+F7E0/1+x  vibrato delta value postcorrected (/4, +-)
+F800/1+x  tremolo delta value precorrected
+F820/1+x  tremolo delta value postcorrected (/4, +-)
+F840/1+x  vibrato current pitch offset
+F860/1+x  tremolo current volume offset
+F8A0+x  portamento delta value for this note (hi byte)
+F8C0/1+x  pitch
+F8E0/1+x  pitch
+F900+x  ADSR1 ($x5) value - set from 1A80 on patch change
+F901+x  ADSR2 ($x6) value - set from 1A81 on patch change
+F920+y  current repeat iteration
+F940+y  repeat count
+F980/1+y  repeat start addresses
+
+c30006
+c3a424 0229 <- 08, 022a <- 03, 0226 <- 03, 0225 <- 20
+  if 1d54 & #$40 then
+    a5c4 0220 <- 1d50, 0222 <- 1d52
+  else
+    a5d1 0220 <- #$3412, 0222 <- #$0656
+
+c0bd8d
+  zero 1600-184F
+  for (x=0; x < $0250, x+=$25) { 1600+x = #$FF, 161e+x = #$FF }
+  zero 1850-185f
+  zero 1969-1a68
+  set 1869-1968 to #$FF
+  zero 1a6e-1cf5
+  zero 1cf6-1d4d
+  copy cf3c40-6f to 1cf8-1d27
+  zero 1a69-1a6c
+  zero 1dc9-1e1c
+  copy c47aa0-bf to 1d2c-1d4b
+  copy e6f564-6  to 1d29-1d2b
+  zero 0565
+  set 1d55 to #$7FFF
+  copy ed1c02-ed1c0f to 1d57-1d65
+  set 1ff3-6 to #$01
+  zero words at 1189/8f/95/9b/8b/91/97/9d
+  zero bytes at 118d/93/99/9f
+  70b6: set 0799+x to #$29*(x/2) until x = #$62
+  zero 11f1
+  989d:
+    zero words $e3, $e8, $e5
+    set $e7 to #$ca
+    zero word $0594
+    set 05c4 to 1
+    set $e2 to #$80
+    zero $e1
+  zero 58, 0559
+  bb0c: zero 1e80-1edf
+  5228: copy c0e0a0-11f to 1ee0-1f5f
+  bb18: zero 1e40-1e6f
+  set e5, 05f4 to 3
+  set e7, 05f6 to #$ca
+  zero word 0594
+  set 0596 to #$ca
+  set 05c7 to 1
+  set word $e8 to 3
+  set 087d to 2
+  zero $47
+
+main:
+  0397:
+
+  bebc:
+  0386: wait for vblank, turn screen on
+  0564: clear $55, wait for it to go nonzero
+  0ea0:
+  8d74:
+  bbf1:
+  bc6f:
+  bbcc:
+  9a5a:
+  18a3:
+  c32d:
+  c4b3:
+  bd20:
+  c13e:
+

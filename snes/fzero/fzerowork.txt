@@ -1,0 +1,154 @@
+00-03  input from APU ports
+04-07  what to send to APU ports
+0E  zero (used as key off shadow after 46)
+30/1+X  voice data stream pointers
+40/1    master song data pointer
+42  master song repeat counter
+44  current voice index for X
+45  key on shadow
+46  key off shadow
+47  current voice vbit
+48  FLG shadow
+49  noise vbits shadow
+4A  echo vbits shadow
+4B  pitchmod vbits shadow
+4D  echo delay shadow
+4E  echo feedback shadow
+4F  new echo vbits to add on next 08FA
+50  global transpose
+52/3  tempo (timer0 latch shadow)
+54  tempo fade counter
+55  tempo fade target
+56/7  tempo fade delta
+58/9  master volume
+5A  master volume fade counter
+5B  master volume fade target
+5C/D  master volume fade delta
+5E  vol change flag?
+5F  perc patch base
+60/1  echo vol L shadow
+62/3  echo vol R shadow
+64/5  echo vol L fade delta
+66/7  echo vol R fade delta
+68  echo vol fade counter
+69  echo vol L fade target
+6A  echo vol R fade target
+
+70+X  duration/activity counter
+71+X  actual duration (key-off) counter
+80+X  subroutine repeat counter
+90+X  voice volume fade counter
+91+X  pan fade counter
+A0+X  portamento counter? (vcmd F9)
+A1+X  portamento? (vcmd F9)
+C1+X  (vcmd EC)
+
+0200+X  duration
+0201+X  dur%
+0210+X  per-note volume
+0211+X  current instrument
+0220/1+X  instr detune
+0230/1+X  subroutine return address
+0240/1+X  subroutine start address
+0280/1+X  (vcmd F1-3)
+0290/1+X  (vcmds F1-2)
+02D1+X  (vcmd EB)
+02E0+X  (vcmd EB)
+02F0+X  per-voice transpose
+0300/1+X  voice volume
+0310/1+X  voice volume fade delta
+0320+X  voice volume fade target
+0321+X  voice volume (= $59 * #$AE * $210+X * $301+X)
+0330/1+X  pan (0-14.00)
+0340/1+X  pan fade delta
+0350+X  pan fade target
+0351+X  negate voice vol L/R if bits 7/6 set
+0361+X  current notenum
+0370/1+X  portamento delta
+0380+X  portamento target notenum
+0381+X  (vcmd F4)
+03A0  echo feedback copy
+03A1  echo vol L shadow copy
+03A2  new echo vbits copy
+
+0A39  set DSP reg Y to A
+0AD3  read next word at $40
+0C6F  read next vbyte from [$30+X]
+0E3D  set echo delay to A
+
+11A2+Y  DSP regs for shadow table
+11AC+Y  shadow regs for shadow table
+11B7/8+Y  pitch table
+
+1728  mess with sample $28
+1776  initialize sample $28
+
+1FD6/7+X  song ptrs?
+
+3c00    source dir
+3CA0-3  source $28 (40): $F800, $F800
+
+len=0270, addr=0500   ; misc data
+len=01a6, addr=3cc0   ; title song data
+len=33fa, addr=0800	  ; code, some song data
+len=288d, addr=a080	  ; additional song data
+len=0001, addr=07fe
+len=0090, addr=3c00   ; sourcedir
+len=6080, addr=4000   ; sample data
+len=0000, addr=0800
+
+06d7  You Lost.spc
+
+1ffc  Ending.spc
+243a  Mute City.spc
+2976  Big Blue.spc
+ffc9  Extra Life.spc
+31d9  Sand Ocean.spc
+3859  Silence.spc
+
+3cc4  Title & Expert Mode Credits.spc
+
+a22f  Port Town.spc
+a082  Ranking.spc
+a85c  Red Canyon.spc
+aeb1  White Land 1.spc
+b435  White Land 2.spc
+ba85  Fire Field.spc
+c2b3  Death Wind.spc
+
+instr table (0518)  SRCN, ADSR1, ADSR2, GAIN, tunelo, tunehi
+00 ff e0 b8 05 00
+01 ff ed b8 02 00 
+02 ff e0 b8 02 00 
+03 ff e0 b8 02 00
+04 ff f2 b8 0f 00 
+05 fb eb b8 01 00 
+06 ff e0 b8 01 00 
+07 ff ee b8 03 00 
+08 ff e6 b8 10 00 
+09 ff f2 b8 1e 00 
+0a ff ee b8 1e 00 
+0b ff e0 b8 02 00
+0c ff e0 b8 02 34 
+0d ff e0 b8 02 ae 
+0e ff e0 b8 03 d3 
+0f ff eb b8 03 00 
+10 ff e0 b8 03 00 
+11 ff e0 b8 03 d4 
+12 f4 eb b8 07 a8 
+13 ff f0 b8 07 a8
+14 ff e0 b8 07 a8 
+15 ff e0 b8 07 a8 
+16 ff f0 b8 03 70 
+17 ff e0 b8 03 70 
+18 ff f1 b8 1d 00 
+19 ff ef b8 07 00 
+1a ff e0 b8 05 00 
+1b ff fa b8 07 00
+1c ff f8 b8 10 00 
+1d fa e0 b8 04 00 
+1e ff e0 b8 04 00 
+1f fa e0 b8 07 00 
+20 ff ee b8 07 00 
+21 ff eb b8 0a 00 
+22 ff e0 b8 01 00 

@@ -1,0 +1,294 @@
+#!/usr/bin/perl
+
+# TODO:
+#
+# * volume/pan/tempo gradients
+# * fix track "name" text
+# * fix 1st/2nd ending (f5)
+# * fill out short tracks to length of longest
+# * repeat song "twice"
+# * tweak volume/octave for patches (log volume?)
+#
+
+use MIDI;
+use Data::Dumper;
+
+open ROM, "< ff2.smc"
+  or die "open failed: $!\n";
+
+$base = s2o('04/C000');
+
+$tempo_factor = 56_075_000;  # 60M is standard MIDI divisor
+
+@songtitle = ("(dummy)", "Overture", "Elder", "short fanfare (non US?)",
+              "Chocobo", "Mambo de Chocobo", "Underworld", "Zeromus",
+              "Victory", "Town", "Rydia's Theme", "Battle with Fiends",
+              "Mountain", "Overworld", "Big Whale", "Sadness",
+              "Take a Nap", "Golbez' Theme", "Edward's Theme",
+              "Rosa's Theme", "Baron", "Prelude", "Evil Golbez",
+              "Tower of Babil", "Airship", "Fiends' Theme", "Boss",
+              "Giant of Babil", "Illusionary World", "Ring of Bombs",
+              "Lunar Cave", "Surprise", "Dwarf Castle", "Palom and Porom",
+              "Calbrena", "Run!!", "Cid's Theme", "Cave", "Dance",
+              "Battle", "Damcyan", "Fanfare", "Sorrow", "Chocobo Forest",
+              "Red Wings", "Suspicion", "Fabul",
+              "Cecil becomes a Paladin", "Big Chocobo", "Moon",
+              "Toroia Castle", "Mysidia", "Castle?", "Ending", "Epilogue",
+              "Credits", "(dummy)", "(dummy)", "(dummy)", "(dummy)",
+              "(dummy)", "(dummy)", "??", "Gongs & Foghorn?",
+              "Door open?", "Door open?", "Earthquake", "Fall Down",
+              "Leviathan Rises", "(dummy)");
+
+%musicop = (0xd2 => "Tempo", 0xd3 => "nop", 0xd4 => "Echo Volume",
+	    0xd5 => "Echo Settings", 0xd6 => "Portamento Settings",
+	    0xd7 => "Tremolo Settings", 0xd8 => "Vibrato Settings",
+	    0xd9 => "Pan Sweep Settings", 0xda => "Set Octave",
+	    0xdb => "Set Patch", 0xdc => "Set Envelope",
+	    0xdd => "Set Gain (Exp Dec Time)",
+	    0xde => "Set Note Dur %",
+	    0xdf => "Set Noise Clock", 0xe0 => "Start Repeat",
+	    0xe1 => "Inc Octave", 0xe2 => "Dec Octave", 0xe3 => "nop",
+	    0xe4 => "nop", 0xe5 => "nop", 0xe6 => "Portamento Off",
+	    0xe7 => "Tremolo Off", 0xe8 => "Vibrato Off",
+	    0xe9 => "Pan Sweep Off", 0xea => "Enable Echo",
+	    0xeb => "Disable Echo", 0xec => "Enable Noise",
+	    0xed => "Disable Noise", 0xee => "Enable Pitchmod",
+	    0xef => "Disable Pitchmod", 0xf0 => "End Repeat",
+	    0xf1 => "Halt", 0xf2 => "Voice Volume", 0xf3 => "Voice Balance",
+	    0xf4 => "Goto", 0xf5 => "Selective Repeat",
+	    0xf6 => "Goto 0760+X", 0xf7 => "Halt", 0xf8 => "Halt",
+	    0xf9 => "Halt", 0xfa => "Halt", 0xfb => "Halt",
+	    0xfc => "Halt", 0xfd => "Halt", 0xfe => "Halt", 0xff => "Halt");
+
+@notes = ("C ", "C#", "D ", "D#", "E ", "F ",
+          "F#", "G ", "G#", "A ", "A#", "B ");
+
+@patchmap  = (    0,  48,  46,   0,   0,  19,  56,  73, 13,  34, 47, 43,
+		-40, -36, -38, -35, -49, -42, 113, -69, 85, 117, 78); 
+
+@transpose = (  0, +1, +1,  0,  +1, +2,   0, +1,  0,  -2, -1, -1,
+		0,  0,  0,  0,   0,  0,   0,  0,  0,  +1,  0);
+
+$whichsong = hex(shift);
+if ($whichsong) {
+  $firstsong = $whichsong;
+  $lastsong  = $whichsong;
+} else {
+  $firstsong = 0;
+  $lastsong  = 0x45;
+}
+
+@ptr{qw(songtbl samptbl songinst srcdir ff40)}
+   = map {$base + $_} &read3ptrs($base, 5);
+
+@songptrs = map {$base + $_} &read3ptrs($ptr{songtbl}, 0x46);
+@sampptrs = map {$base + $_} &read3ptrs($ptr{samptbl}, 0x17);
+
+# get SPC data - music ops lengths, pitch table, duration table
+seek ROM, s2o('04/96D0'), 0;
+read ROM, $buf, 46;
+@musoplen = unpack "C46", $buf;
+
+read ROM, $buf, 26;
+@pitchtbl = unpack "v13", $buf;
+
+seek ROM, s2o('04/9738'), 0;
+read ROM, $buf, 15;
+@durtbl = unpack "C15", $buf;
+
+
+for ($i = $firstsong; $i <= $lastsong; $i++) {
+  my ($opus);
+
+  printf STDERR "%02X ", $i;
+  print STDERR "\n" if $i % 16 == 15;
+
+  open OUT, sprintf "> txt/%02X - %s.txt", $i, $songtitle[$i];
+
+  $opus = new MIDI::Opus ('format' => 1);
+
+  # do song i
+  my ($len) = &read2ptrs($songptrs[$i], 1);
+  # read all song data
+  read ROM, $song, $len;
+  # grab instrument table
+  my (@inst) = map { $_ == 0 ? () : ($_) }
+                 &read2ptrs($ptr{songinst} + $i * 0x20, 0x10);
+  my (@vstart) = unpack "v8", $song;
+
+  printf OUT "Song %02X - %s:\n", $i, $songtitle[$i];
+  printf OUT "  Start %s  Length %04X\n", o2s($songptrs[$i]), $len;
+  print OUT  "  Instruments:";
+  for ($j = 0; $j < @inst; $j++) {
+    printf OUT " %02X", $inst[$j];
+  }
+  print OUT "\n  Voice start addresses:\n   ";
+  for ($j = 0; $j < 8; $j++) {
+    printf OUT " %d:%04X", $j, $vstart[$j];
+  }
+  print OUT "\n";
+
+  for ($v = 0; $v < 8; $v++) {
+    next if $vstart[$v] < 0x100;
+
+    my $track = new MIDI::Track;
+    push @{$opus->tracks_r}, $track;
+    $track->new_event('track_name', 0, "Voice $v");
+    $track->new_event('control_change', 0, $v, 0, 0); # bank 0
+
+    my $dtime = 0;  # time delta between MIDI events
+    my $velocity = 64;
+    my $octave = 4;
+    my $perckey = 0;   # key to use for percussion
+    my $t = 0;  # transpose octaves
+    my (@e, @rpt); # event lists
+    my $e = $e[0] = [];   # current event list
+    my $ep = 0;       # idx of current event list
+    my $master_rpt = 0;
+
+    print OUT "\n" if $v > 0;
+    print OUT "    Voice $v data:\n";
+    for ($p = $vstart[$v] - 0x2000; $p < $len; $p++) {
+      last if grep {$_ == $p + 0x2000 && $_ ne $vstart[$v]} @vstart;
+
+      printf OUT "      %04X: ", $p + 0x2000;
+      my $cmd = ord(substr($song, $p, 1));
+      printf OUT "%02X", $cmd;
+      if ($cmd < 0xd2) {
+        # note
+        print OUT "   " x 4;  # pad out
+        my ($note, $dur) = (int($cmd/15), $cmd % 15);
+        if ($note < 12) {
+          printf OUT "Note %s (%02d) Dur %02X\n",
+            $notes[$note], $note, $durtbl[$dur];
+
+	  my $mnote = 12 * ($octave + $t) + $note;
+	  my $chan = $v;
+	  if ($perckey) {
+	    # substitute appropriate percussion key on chan 10
+	    $chan = 9;  # 10 zero based
+	    $mnote = $perckey;
+	  }
+
+          push @$e, ['note_on', $dtime, $chan, $mnote, $velocity];
+	  push @$e, ['note_off', $durtbl[$dur] << 1, $chan, $mnote, 0];
+	  $dtime = 0;
+        } elsif ($note == 12) {
+          printf OUT "Rest         Dur %02X\n", $durtbl[$dur];
+	  $dtime += $durtbl[$dur] << 1;
+        } else {
+          printf OUT "Tie          Dur %02X\n", $durtbl[$dur];
+	  my ($last_ev) = grep {$_->[0] eq 'note_off'}
+				 reverse @$e;
+	  $last_ev->[1] += $durtbl[$dur] << 1;
+        }
+      } else {
+        # command
+        my $oplen = $musoplen[$cmd - 0xd2];
+        print OUT map {sprintf " %02X",$_}
+                unpack("C$oplen", substr($song, $p + 1, $oplen)) if $oplen;
+        print OUT "   " x (4-$oplen);  # pad out
+        print OUT "$musicop{$cmd}\n";
+
+	my ($op1, $op2, $op3) = map {ord} split //, substr($song, $p+1, 3);
+
+        if ($cmd == 0xd2) {
+	  # tempo
+          push @{$e}, ['set_tempo', $dtime, int($tempo_factor / $op3)];
+	  $dtime = 0;
+        } elsif ($cmd == 0xf2) {
+	  # volume
+	  $velocity = $op3 >> 1;
+	} elsif ($cmd == 0xf3) {
+	  # balance/pan
+	  push @$e, ['control_change', $dtime, $v, 10, $op3 >> 1];
+          $dtime = 0;
+        } elsif ($cmd == 0xdb) {
+	  # patch change
+	  my $inst = $inst[$op1 - 0x40];
+	  if ($patchmap[$inst] < 0) {
+	    # percussion
+	    $perckey = -$patchmap[$inst];
+          } else {
+	    push @$e, ['patch_change', $dtime, $v, $patchmap[$inst]];
+	    $perckey = 0;
+	    $t = $transpose[$inst];
+	    $dtime = 0;
+	  }
+	} elsif ($cmd == 0xda) {
+	  # set octave
+	  $octave = $op1;
+        } elsif ($cmd == 0xe1) {
+	  # inc octave
+	  $octave++;
+	} elsif ($cmd == 0xe2) {
+	  # dec octave
+	  $octave--;
+	} elsif ($cmd == 0xe0) {
+	  # begin repeat
+	  push @$e, ['text_event', $dtime, 'begin rpt'];
+	  $dtime = 0;
+	  $rpt[++$ep] = $op1 + 1;
+          $e = $e[$ep] = [];
+	} elsif ($cmd == 0xf0) {
+	  # end repeat
+	  push @$e, ['text_event', $dtime, 'end rpt'];
+	  push @{$e[$ep-1]}, (@{$e[$ep]}) x $rpt[$ep];
+	  $e = $e[--$ep];
+        }
+        $p += $oplen;  # loop takes care of cmd
+      }
+    }
+    $track->events(@$e);  # set track events from work array
+  }
+  #$opus->dump({dump_tracks => 1, flat => 1});
+  #$opus->write_to_file(sprintf "mid/%02X - %s.mid", $i, $songtitle[$i]);
+  close OUT;
+}
+
+close ROM;
+print STDERR "\n";
+## the end
+
+
+sub read2ptrs {
+  # read $count 2-byte little-endian pointers from offset $start
+  my ($start, $count) = @_;
+  my ($buf);
+  seek ROM, $start, 0;
+  read ROM, $buf, $count * 2;
+  return unpack "v$count", $buf;
+}
+
+sub read3ptrs {
+  # read $count 3-byte little-endian pointers from offset $start
+  my ($start, $count) = @_;
+  my ($buf);
+  seek ROM, $start, 0;
+  read ROM, $buf, $count * 3;
+  return map { &ptr2sv($_) } unpack ("a3" x $count, $buf); 
+}
+
+sub ptr2sv {
+  my ($a,$b,$c) = map { ord } split //, $_[0];
+  return $a + 0x100 * $b + 0x10000 * $c;
+}
+
+sub s2o {
+  my ($snes) = @_;
+  $snes =~ s/^(..)\/(....)$/$1$2/;   # trim bank separator if need be
+
+  my ($bank, $offset) = map { hex } (unpack "A2A4", $snes);
+  return $bank * 0x8000 + ($offset - 0x8000) + 0x200; 
+}
+
+sub o2s {
+  my ($offs) = @_;
+
+  my ($bank, $offset);
+  $offs -= 0x200;  # trim smc header
+  $bank = int($offs / 0x8000);
+  $offset = $offs % 0x8000 + 0x8000;
+  return sprintf "%02X/%04X", $bank, $offset;
+}
+

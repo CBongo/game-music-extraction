@@ -1,0 +1,341 @@
+#!/usr/bin/perl
+
+# 25 Feb 2001  cab@tc.umn.edu
+
+use MIDI;
+use Data::Dumper;
+
+open ROM, "< /export/tylenol/emulators/snes/f_fan3.fig"
+  or die "open failed: $!\n";
+
+$base = s2o('C5/0000');
+$spcbase = $base + 0x70e + 2 - 0x200;
+
+$tempo_factor = 56_075_000;  # 60M is standard MIDI divisor
+
+@songtitle = ("00", "Prelude", "Opening Theme 1", "Opening Theme 2",
+              "Opening Theme 3", "Awakening", "Terra", "Shadow",
+              "Stragus", "Gau", "Edgar and Sabin", "Coin Song",
+              "Cyan", "Locke", "Forever Rachel", "Relm",
+              "Setzer", "Epitaph", "Celes", "Techno de Chocobo",
+              "Decisive Battle", "Johnny C Bad", "Kefka", "Narshe",
+              "Phantom Forest", "Wild West", "Save Them",
+              "Emporer Gestahl", "Troops March On", "Under Martial Law",
+              "1E", "Metamorphosis", "Train Starting",
+              "Another World of Beasts", "Grand Finale 2", "Mt Koltz",
+              "Battle", "Short Fanfare", "Wedding 1",
+              "Aria de Mezzo Carattere", "Serpent Trench",
+              "Slam Shuffle (Zozo)",
+              "Kids Run Through The City Corner", "Double Question Marks",
+              "2C", "Gogo", "Returners", "Fanfare", "Umaro", "Mog",
+              "Unforgiven", "Fierce Battle", "The Day After",
+              "Blackjack", "Catastrophe", "Magic House",
+              "Sleep", "39", "3A", "Dancing Mad 1", "3C", "Spinach Rag",
+              "Rest in Peace", "3F",
+              "40", "Overture 1", "Overture 2", "Overture 3", "Wedding 2",
+              "Wedding 3", "Wedding 4", "Devils Lab",
+              "48", "49", "4A", "New Continent", "Searching for Friends",
+              "Fanatics", "Last Dungeon", "Dark World",
+              "Dancing Mad 5", "51", "Dancing Mad 4",
+              "Ending 1", "Ending 2");
+
+%musicop = (0xc4 => "Set Volume", 0xc5 => "Volume Fade",
+            0xc6 => "Set Balance", 0xc7 => "Balance Fade",
+            0xc8 => "Portamento", 0xc9 => "Vibrato", 0xca => "Vibrato Off",
+            0xcb => "Tremolo", 0xcc => "Tremolo Off", 0xcd => "Pan Sweep",
+            0xce => "Pan Sweep Off", 0xcf => "Set Noise Clock",
+	    0xd0 => "Enable Noise", 0xd1 => "Disable Noise",
+	    0xd2 => "Enable Pitchmod", 0xd3 => "Disable Pitchmod",
+	    0xd4 => "Enable Echo", 0xd5 => "Disable Echo",
+	    0xd6 => "Set Octave", 0xd7 => "Inc Octave", 0xd8 => "Dec Octave",
+	    0xd9 => "Set Transpose", 0xda => "Change Transpose",
+	    0xdb => "Detune", 0xdc => "Patch Change",
+            0xdd => "Set ADSR Attack", 0xde => "Set ADSR Decay",
+            0xdf => "Set ADSR Sustain", 0xe0 => "Set ADSR Release",
+            0xe1 => "Set Default ADSR", 0xe2 => "Begin Repeat",
+            0xe3 => "End Repeat", 0xe4 => "Begin Slur", 0xe5 => "End Slur",
+            0xe6 => "Begin Roll", 0xe7 => "End Roll", 0xe8 => "Utility Rest",
+	    0xe9 => "Play SFX (E9)", 0xea => "Play SFX (EA)",
+            0xeb => "Halt", 0xec => "Halt", 0xed => "Halt", 0xee => "Halt",
+	    0xef => "Halt", 0xf0 => "Set Tempo", 0xf1 => "Tempo Fade",
+	    0xf2 => "Set Echo Volume", 0xf3 => "Fade Echo Volume",
+	    0xf4 => "Set Volume Multiplier", 0xf5 => "Conditional Loop",
+	    0xf6 => "Goto", 0xf7 => "Set/Fade Echo Feedback",
+	    0xf8 => "Set/Fade Filter", 0xf9 => "Advance Cue Point",
+	    0xfa => "Zero Cue Point", 0xfb => "Ignore Volume Multiplier",
+            0xfc => "Branch if \$DD", 0xfd => "Halt", 0xfe => "Halt",
+            0xff => "Halt");
+
+@notes = ("C ", "C#", "D ", "D#", "E ", "F ",
+          "F#", "G ", "G#", "A ", "A#", "B ");
+
+#@patchmap  = (    0,  48,  46,   0,   0,  19,  56,  73, 13,  34, 47, 43,
+#		-40, -36, -38, -35, -49, -42, 113, -69, 85, 117, 78); 
+
+#@transpose = (  0, +1, +1,  0,  +1, +2,   0, +1,  0,  -2, -1, -1,
+#		0,  0,  0,  0,   0,  0,   0,  0,  0,  +1,  0);
+
+$whichsong = hex(shift);
+if ($whichsong) {
+  $firstsong = $whichsong;
+  $lastsong  = $whichsong;
+} else {
+  $firstsong = 0;
+  $lastsong  = 0x54;
+}
+
+@songptrs = &read3ptrs($base + 0x3e96, 0x55);
+@sampptrs = &read3ptrs($base + 0x3c5f, 0x45);
+#print STDERR join("\n", map {o2s($_)} @sampptrs),"\n";
+
+# get SPC data - music ops lengths, pitch table, duration table
+seek ROM, $spcbase + 0x18f9, 0;
+read ROM, $buf, 60;
+@musoplen = unpack "C60", $buf;
+
+seek ROM, $spcbase + 0x178f, 0;
+read ROM, $buf, 26;
+@pitchtbl = unpack "v13", $buf;
+
+seek ROM, $spcbase + 0x17d1, 0;
+read ROM, $buf, 14;
+@durtbl = unpack "C14", $buf;
+#print STDERR "len:\n", join("\n", map {sprintf "%02x:%02x", ($loop++) + 0xc4, $_} @musoplen), "\n";
+#print STDERR "dur: ", join(",", map {sprintf "%02x", $_} @durtbl), "\n";
+
+$data2c_len = &read2ptrs(&s2o('C5/205C'), 1);
+read ROM, $data2c, $data2c_len;
+open OUT, "> txt/data2C" or warn;
+for ($p=0; $p < 0x400; $p += 4) {
+  my ($e9addr, $eaaddr) = unpack "v2", substr($data2c, $p, 4);
+  printf OUT "E9 %02x: %04x    EA %02x: %04x\n",
+    $p/4, $e9addr, $p/4, $eaaddr;
+}
+print OUT "\n";
+for ($p = 0x400; $p < $data2c_len; $p++) {
+      printf OUT "      %04X: ", $p + 0x2c00;
+      my $cmd = ord(substr($data2c, $p, 1));
+      printf OUT "%02X", $cmd;
+      if ($cmd < 0xc4) {
+        # note
+        print OUT "   " x 4;  # pad out
+        my ($note, $dur) = (int($cmd/14), $cmd % 14);
+        if ($note < 12) {
+          printf OUT "Note %s (%02d) Dur %02X\n",
+            $notes[$note], $note, $durtbl[$dur];
+
+        } elsif ($note == 12) {
+          printf OUT "Tie          Dur %02X\n", $durtbl[$dur];
+        } else {
+          printf OUT "Rest         Dur %02X\n", $durtbl[$dur];
+        }
+      } else {
+        # command
+        my $oplen = $musoplen[$cmd - 0xc4];
+        print OUT map {sprintf " %02X",$_}
+                unpack("C$oplen", substr($data2c, $p + 1, $oplen)) if $oplen;
+        print OUT "   " x (4-$oplen);  # pad out
+        print OUT "$musicop{$cmd}\n";
+	print OUT "\n" if $cmd == 0xEB;
+        $p += $oplen;  # loop takes care of cmd
+      }
+}
+close OUT;
+
+
+for ($i = $firstsong; $i <= $lastsong; $i++) {
+  my ($opus);
+
+  printf STDERR "%02X ", $i;
+  print STDERR "\n" if $i % 16 == 15;
+
+  open OUT, sprintf "> txt/%02X - %s.txt", $i, $songtitle[$i];
+
+  $opus = new MIDI::Opus ('format' => 1);
+
+  # do song i
+  my ($len) = &read2ptrs($songptrs[$i], 1);
+  # read all song data
+  read ROM, $song, $len;
+  # grab instrument table
+  my (@inst) = map { $_ == 0 ? () : ($_) }
+                 &read2ptrs(&s2o('C5/3F95') + $i * 0x20, 0x10);
+  my ($vaddroffset, $emptyvoice)  =  unpack "v2", $song;
+#printf STDERR "voff=%04x, ev=%04x\n", $vaddroffset, $emptyvoice;
+  $vaddroffset = (0x11c24 - $vaddroffset) & 0xffff;
+#printf STDERR "voff2=%04x\n", $vaddroffset;
+  my (@vstart) = unpack "v8", substr($song, 4, 0x10);
+  my (@vstart2) = unpack "v8", substr($song, 0x14, 0x10);
+#print STDERR "vs1: ", join(",", map {sprintf "%04x", $_} @vstart), "\n"; 
+#print STDERR "vs2: ", join(",", map {sprintf "%04x", $_} @vstart2), "\n"; 
+  @vstart = map {$_ == $emptyvoice ? 0 : ($_ + $vaddroffset) & 0xffff} @vstart;
+  @vstart2 = map {$_ == $emptyvoice ? 0 : ($_ + $vaddroffset) & 0xffff} @vstart2;
+#print STDERR "vs1b: ", join(",", map {sprintf "%04x", $_} @vstart), "\n"; 
+#print STDERR "vs2b: ", join(",", map {sprintf "%04x", $_} @vstart2), "\n"; 
+
+  printf OUT "Song %02X - %s:\n", $i, $songtitle[$i];
+  printf OUT "  Start %s  Length %04X\n", o2s($songptrs[$i]), $len;
+  print OUT  "  Instruments:";
+  for ($j = 0; $j < @inst; $j++) {
+    printf OUT " %02X", $inst[$j];
+  }
+  print OUT "\n  Voice start addresses:\n   ";
+  for ($j = 0; $j < 8; $j++) {
+    printf OUT " %d:%04X", $j, $vstart[$j];
+  }
+  print OUT "\n  Voice alternate start addresses:\n   ";
+  for ($j = 0; $j < 8; $j++) {
+    printf OUT " %d:%04X", $j, $vstart2[$j];
+  }
+  print OUT "\n";
+
+  for ($v = 0; $v < 8; $v++) {
+    next if $vstart[$v] < 0x100;
+
+    my $track = new MIDI::Track;
+    push @{$opus->tracks_r}, $track;
+    $track->new_event('track_name', 0, "Voice $v");
+    $track->new_event('control_change', 0, $v, 0, 0); # bank 0
+
+    my $dtime = 0;  # time delta between MIDI events
+    my $velocity = 64;
+    my $octave = 4;
+    my $perckey = 0;   # key to use for percussion
+    my $t = 0;  # transpose octaves
+    my (@e, @rpt); # event lists
+    my $e = $e[0] = [];   # current event list
+    my $ep = 0;       # idx of current event list
+    my $master_rpt = 0;
+
+    print OUT "\n" if $v > 0;
+    print OUT "    Voice $v data:\n";
+
+    for ($p = $vstart[$v] - 0x1c00; $p < $len; $p++) {
+      last if grep {$_ == $p + 0x1c00 && $_ ne $vstart[$v]} @vstart;
+
+      printf OUT "      %04X: ", $p + 0x1c00;
+      my $cmd = ord(substr($song, $p, 1));
+      printf OUT "%02X", $cmd;
+      if ($cmd < 0xc4) {
+        # note
+        print OUT "   " x 4;  # pad out
+        my ($note, $dur) = (int($cmd/14), $cmd % 14);
+        if ($note < 12) {
+          printf OUT "Note %s (%02d) Dur %02X\n",
+            $notes[$note], $note, $durtbl[$dur];
+
+	  my $mnote = 12 * ($octave + $t) + $note;
+	  my $chan = $v;
+	  if ($perckey) {
+	    # substitute appropriate percussion key on chan 10
+	    $chan = 9;  # 10 zero based
+	    $mnote = $perckey;
+	  }
+
+          push @$e, ['note_on', $dtime, $chan, $mnote, $velocity];
+	  push @$e, ['note_off', $durtbl[$dur] << 1, $chan, $mnote, 0];
+	  $dtime = 0;
+        } elsif ($note == 12) {
+          printf OUT "Tie          Dur %02X\n", $durtbl[$dur];
+	  my ($last_ev) = grep {$_->[0] eq 'note_off'}
+				 reverse @$e;
+	  $last_ev->[1] += $durtbl[$dur] << 1;
+        } else {
+          printf OUT "Rest         Dur %02X\n", $durtbl[$dur];
+	  $dtime += $durtbl[$dur] << 1;
+        }
+      } else {
+        # command
+        my $oplen = $musoplen[$cmd - 0xc4];
+        print OUT map {sprintf " %02X",$_}
+                unpack("C$oplen", substr($song, $p + 1, $oplen)) if $oplen;
+        print OUT "   " x (4-$oplen);  # pad out
+        print OUT "$musicop{$cmd}";
+
+	my ($op1, $op2, $op3) = map {ord} split //, substr($song, $p+1, 3);
+
+        if ($cmd == 0xf6 || $cmd == 0xfc) {
+          my $newp = (($op1 + $op2 * 256) + $vaddroffset) & 0xffff;
+          printf OUT ": %04X", $newp;
+        } elsif ($cmd == 0xf5) {
+          my $newp = (($op2 + $op3 * 256) + $vaddroffset) & 0xffff;
+          printf OUT ": %04X at %02X", $newp, $op1;
+        } elsif ($cmd == 0xc5 || $cmd == 0xc7 || $cmd == 0xf1 ||
+                 $cmd == 0xf3 || $cmd == 0xf7 || $cmd == 0xf8) {
+          # fades
+          printf OUT ": steps=%02X value=%02X", $op1, $op2;
+        } elsif ($cmd == 0xc8) {
+          printf OUT ": steps=%02X halfsteps=%02X", $op1, $op2;
+        } elsif ($cmd == 0xc9 || $cmd == 0xcb) {
+          printf OUT ": delay=%02X steps=%02X depth=%02X", $op1, $op2, $op3;
+        } elsif ($cmd == 0xcd) {
+          printf OUT ": steps=%02X direction=%02X", $op2, $op1;
+        } elsif ($cmd == 0xcf) {
+          my (@nclk) = qw(0 16 21 25 31 42 50 63 84 100 125 167
+                          200 250 333 400 500 667 800 1000 1300
+                          1600 2000 2700 3200 4000 5300 6400 8000
+                          10700 16000 32000);
+          printf OUT ": freq=%s Hz", $nclk[$op1 & 0x1F];
+        } elsif ($oplen == 1) {
+          $op1++ if $cmd == 0xe2 && $op1 > 0;  # rpt begin
+          printf OUT ": %02X", $op1;
+        } 
+
+        $p += $oplen;  # loop takes care of cmd
+        print OUT "\n";
+      }
+    }
+    $track->events(@$e);  # set track events from work array
+  }
+  #$opus->dump({dump_tracks => 1, flat => 1});
+  #$opus->write_to_file(sprintf "mid/%02X - %s.mid", $i, $songtitle[$i]);
+  close OUT;
+}
+
+close ROM;
+print STDERR "\n";
+## the end
+
+
+sub read2ptrs {
+  # read $count 2-byte little-endian pointers from offset $start
+  my ($start, $count) = @_;
+  my ($buf);
+  seek ROM, $start, 0;
+  read ROM, $buf, $count * 2;
+  return unpack "v$count", $buf;
+}
+
+sub read3ptrs {
+  # read $count 3-byte little-endian pointers from offset $start
+  my ($start, $count) = @_;
+  my ($buf);
+  seek ROM, $start, 0;
+  read ROM, $buf, $count * 3;
+  return map { &ptr2sv($_) } unpack ("a3" x $count, $buf); 
+}
+
+sub ptr2sv {
+  my ($a,$b,$c) = map { ord } split //, $_[0];
+  return $a + 0x100 * $b + 0x10000 * ($c & 0x3f) + 0x200;
+}
+
+sub s2o {
+  # hirom
+  my ($snes) = @_;
+  $snes =~ s/^(..)\/?(....)$/$1$2/;   # trim bank separator if need be
+
+  my ($bank, $offset) = map { hex } (unpack "A2A4", $snes);
+  return ($bank & 0x3f) * 0x10000 + $offset + 0x200; 
+}
+
+sub o2s {
+  my ($offs) = @_;
+
+  my ($bank, $offset);
+  $offs -= 0x200;  # trim smc header
+  $bank = int($offs / 0x10000) | 0xc0;
+  $offset = $offs & 0xFFFF;
+  return sprintf "%02X/%04X", $bank, $offset;
+}
+

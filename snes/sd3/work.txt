@@ -1,0 +1,48 @@
+(fd)
+e99d
+ c50008 init spc
+ 828d
+  82ce clear 4200 regs, zero $e9
+  82c2 ea=#$84, zero $f3, $d1
+   84e1 screen, intr off
+  86d1 set 1000-6f
+  8a24(L) return Z=1 if NTSC, Z=0 if PAL
+ 84e1 screen, intr off
+ 86f5
+ cfe8
+  86f5 (A=6000,X=8000)
+  c9fca4 (A=0200,X=8000,Y=4000)
+  86f5 (A=0004,X=6000)
+  86f5 (A=0006,X=6000)
+  86f5 (A=0007,X=6c00)
+  86f5 (A=000d,X=7000)
+  86f5 (A=600e,X=8000)
+  cb93 (A=0800,X=7800,Y=0400)
+  cb93 (A=0c00,X=7c00,Y=0400)
+  e41c8e
+  83c4 (bank=FD,X=f362)
+  8536 (X=169e,Y=f1cb)
+  ...
+  83bb set screen fade in speed 4
+  cc84 (180e=0)
+   8640 (A=0003,X=17f8)
+  c46d
+   8640 (A=0002,X=17f0)
+  8640 (A=0001,X=1840)
+*8613
+  82ff
+   839c fade screen value
+ d5cf
+ 8613
+ dbea
+ 8613
+ 83bb set up screen fade (delay in A, start in X, target in Y)
+
+85b8 do DMA mode $db from $dd/e/f to reg $e1 size $e5/6
+89ca set normal interrupt handlers
+89d9 set no-op interrupt handlers
+
+callback structure (set by 8640)
+1000+Y address to call
+1002+Y slot occupied flag: 4 = free, 1 = occupied
+1004+Y value A from 8640 call
