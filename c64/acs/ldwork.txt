@@ -1,0 +1,67 @@
+Stack:
+
+22/23 c510
+26/27 c02f
+28  02
+
+
+00 c547  set 26/27 to op1/2^292d (JMP)
+01 c583  28 = 28 & (op1 ^ #$6b)  (AND imm)
+02 c5d9  save 26/7+Y on stack; set 26/7 to op1/2^292d (JSR)
+03 c586	 jsrml; 28 = A (in and out); X/Y in = C6C1/2
+04 c5ae  28 = op1 ^ #$6b (LD immediate)
+05 c5bc  28 = byte at (op1/2 ^ 292d) (LD absolute)
+06 c5a4  goto op1/2^292d if 28 = 0 (BEQ)
+07 c5fc  byte at (op1/2 ^ 292d) = 28 (ST absolute)
+08 c60d  28 = 28 - (op1 ^ #$6b)  (SBC imm)
+09 c59e  JMPML; jmp to op1/2^292d
+0a c5f1  restore 26/7 from stack (RTS)
+0b c5c8  28 = byte at (op1/2^292d + 28)  (LD absolute indexed)
+0c c608  shift 28 left 1 (ASL)
+0d c622  inc byte at (op1/2 ^ 292d) (INC absolute)
+0e c625  28 = 28 + (byte at op1/2^292d)  (ADC absolute)
+0f c628  (2 bytes at 2c/2d) each ^ 28; 28 = 2d ^ 7f
+10 c62b  goto (op1/2^292d) if 28 not 0  (BNE)
+11 c62e  28 = 28 - (byte at op1/2^292d)  (SBC absolute)
+12 c631  goto op1/2^292d if 28 >= 0 (BPL)
+13 c634  c6c1/2 = (op1/^292d)  (SETXY for JSRML)
+
+c0aa  check that 2c
+c0e2  read sectors 00-19 track 1+ into (c003)00-(c004-1)00
+c155  restore screen/graphics to normal
+c196  delay a while (length #$28)
+c198  delay a while (length A)
+c1a9  read data from previous U1 cmd into (2c)
+c293  validate checksum in c005 against data loaded into (c003)00-(c004-1)00
+c2d3  send "B-P:2,0" to serial bus
+c2da  send "U1:2,0,TT,SS" to serial bus
+
+c40d  try to read sectors 00-06 and 10-16; fail on drive error
+c41e  try to read sectors x0-x6; fail if not OK from drive
+c45b  inc logo color and set color mem
+c4d3  INC or DEC C6BF; CMP C6C0; return C6bf if not equal
+      else c6bf = FF; INC c6c0; return C6c0
+c54a  26/7 = 22/3; Y = 0  (GOTO 22/3)
+c557  22/23 = op1/2 ^ #$292d
+
+c6bf  checksum value + #$26
+c6c0  checksum value
+
+c6e5 current logo color
+c6e6 set up graphics; display EA logo
+ c7ca set color ram to #$10 (black)
+ c7ab clear bitmap at $e000-$ffff
+ 
+c7e0 00
+c74c/d  c821
+
+c003 = load addr start (high)
+c004 = load addr end (high)
+c005 = checksum
+
+c008 checksum = 4D
+c309 checksum = 14
+
+at c4d3 first entry, c6bf = 73, c6c0 = 14, 28 = 08
+
+99f - 26,f9

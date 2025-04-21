@@ -1,0 +1,151 @@
+X    6e   (forth SP)
+7E/F 1836 (forth PC)
+80   6c   JMP indirect
+81/2 181c
+83/4 0800 
+
+0925  startup
+
+12b8 (12ba)  lastdrive related
+12bc (12be)  lastdrive related
+1592 (1594)  lastdrive related (error condition?)
+
+17ef set interrupt handlers
+
+fffa NMI   17ee  (RTI) 
+fffc RESET copied from ROM
+fffe IRQ   17d1
+
+gfx mode layout:
+alternate charsets $2800,$3800
+gfx bg = $3780
+divider bg = $4AA1
+msgbox bg = $16E2
+
+disk usage:
+ACS back:
+1B-2A  fantasy gfx
+2B-3A  contemporary gfx
+3B-4A  futuristic gfx
+
+adv disk:
+ 6C-169   long msgs (00-FE)
+1C6       disk signature
+1C7-26F  region data  (12 blocks per region)
+287-296  gfx data
+
+ACS char codes:
+00 -- 20 ' '
+01 -- 01 'A'
+02 -- 02 'B'
+...
+19 -- 19 'Y'
+1a -- 1a 'Z'
+1b -- 31 '1'
+1c -- 32 '2'
+1d -- 33 '3'
+...
+22 -- 38 '8'
+23 -- 39 '9'
+24 -- 2e '.'
+25 -- 2c ','
+26 -- 2d '-'
+27 -- 27 '''
+
+screenmodes:
+0: normal unsplit
+1: play/room construct split
+2: thing/person/creature edit split
+3?: 930c
+4?: a5cc
+5?: 9318
+
+4a1f charset = $2800, bg=$3780
+4a3b charset = $3000
+4a30 charset = $2800
+4aa4 charset = uc/gfx, bg from $4AA1
+4a99 charset = uc/gfx, bg from $16E2; do IRQ handler
+
+(25d7) bit 7: multiply (25d7)+2 by 20
+(25d7) bit 6: multiply (25d7)+1 by 20
+(25d7) bit 5: negate (25d7)+1
+
+E000-EBFF: Region data
+--------------------------------------------
+CREATURE/PLAYER ABILITIES
+
+name
+
+picture  ($3852)+22 & $7F  (base char of 4)
+
+con 00-3F	($3852) & $3F
+lifeforce 00-3F	($3852)+3 & $3F
+wis 00-1F	($3852)+17 & $1F
+power 00-7F	($3852)+5 & $7F
+str 00-1F	($3852)+1 & $1F
+size 00-1F	($3852)+15 & $1F
+dex 00-1F	($3852)+2 & $1F
+
+armor skill 00-7F	($3852)+8 & $7F
+missile skill 00-7F	($3852)+10 & $7F
+dodge skill 00-7F	($3852)+6 & $7F
+melee skill 00-7F	($3852)+9 & $7F
+parry skill 00-7F	($3852)+7 & $7F
+
+wealth 0-25000  ($3852)+18
+speed 00-0F	($3852)+4 & $0F
+
+magic defense 00-03  ($3852) & $C0
+
+ready weapon  ($3852)+20
+ready armor   ($3852)+21
+
+strategy 00-02
+mimic 00-01
+
+possessions
+acs adds none, 1-14, many to this adv 00-0F
+--------------------------------------------
+7AFD  7B1B  ; 00 "DO NOTHING"
+7AFF  7B26  ; 01 "KILL ANYONE BUT AN OWNER OF"
+7B01  7B42  ; 02 "SUMMON OR BANISH CREATURE"
+7B03  7B5C  ; 03 "INCREASE MAGIC DEFENSE, BUT NOT ABOVE"
+7B05  7B82  ; 04 "DECREASE MAGIC DEFENSE, BUT NOT BELOW"
+7B07  7BA8  ; 05 "INCREASE VICTIM'S"
+7B09  7BBA  ; 06 "DECREASE VICTIM'S"
+7B0B  7BCC  ; 07 "CHANGE POWER OF VICTIM BY"
+7B0D  7BE6  ; 08 "CHANGE LIFE FORCE OF VICTIM BY"
+7B0F  7C05  ; 09 "GIVE TO VICTIM ONE"
+7B11  7C18  ; 0A "DISPLAY LONG MESSAGE"
+7B13  7C2D  ; 0B "PLAY MUSIC"
+7B15  7C38  ; 0C "RID ROOM OF EVERY UNCARRIED"
+7B17  7C54  ; 0D "ADD TO ROOM ONE"
+7B19  7C64  ; 0E "ACTIVATE ALL THINGS AT THIS PLACE"
+
+7CA1  7CB5  ; 00 "CONSTITUTION"
+7CA3  7CC2  ; 01 "STRENGTH"
+7CA5  7CCB  ; 02 "DEXTERITY"
+7CA7  7CD5  ; 03 "SPEED"
+7CA9  7CDB  ; 04 "WISDOM"
+7CAB  7CE2  ; 05 "DODGE SKILL"
+7CAD  7CEE  ; 06 "PARRY SKILL"
+7CAF  7CFA  ; 07 "ARMOR SKILL"
+7CB1  7D06  ; 08 "MELEE SKILL"
+7CB3  7D12  ; 09 "MISSILE SKILL"
+
+410f:
+set diskreq, rwflag
+(a1 absdisksect length)
+
+offs%@4f57+(offs/@4f57)*@4f5b+startpos -> screenpos
+
+ n1%2?01,0F:10,F0 n1/2+n2*20+$E0EA
+ 
+
+menu structure:
+initaddr
+row col/confirm* updest rtdest dndest lfdest actionaddr
+row col/confirm* updest rtdest dndest lfdest actionaddr
+...
+(*if col > 40 then "press button to confirm")
+actionaddr==70BE: exit menu
