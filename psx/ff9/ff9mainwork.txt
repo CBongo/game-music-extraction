@@ -1,0 +1,1255 @@
+12d28 - ResetGraph(x)
+12e9c - SetGraphDebug(x)
+12ef8 - SetGraphQue
+12fac - DrawSyncCallback
+1300c - SetDispMask
+130a4 - DrawSync
+1310c - (gfx commands mostly all call this)
+13228 - ClearImage
+132b8 - ClearImage2
+13350 - LoadImage
+133b0 - StoreImage
+13410 - MoveImage
+134c8 - ClearOTag
+13590 - ClearOTagR
+13698 - DrawOTag
+13708 - PutDrawEnv
+137c8 - DrawOTagEnv
+138d4 - PutDispEnv
+157c0 - LoadImage2
+
+15c58 - wait $a0 frames?
+	$s0 = gp1 gpu ctl/status
+	do
+	 $v0 = t1 count
+	 sp+10 = $v0
+	 $v1 = sp+10
+	 $v0 = t1 count
+        until $v1 == $v0
+	if $a0 < 0 then
+	 $v0 = Vcount
+	else
+	 if $a0 != 1 then
+	  if $a0 > 0 then
+	   $v0 = oldVcount - 1(u) + $a0
+          else
+	   $v0 = oldVcount
+	  $a1 = 0
+	  if $a0 > 0 then
+	   $a1 = $a0 - 1(u)
+	  $a0 = $v0
+	  call 15dd0
+	  $s0 = gp1 gpu ctl/status
+	  $a0 = Vcount + 1
+	  $a1 = 1
+	  call 15dd0
+	  $v0 = $s0 & 0x00400000   (isInterlaced?)
+	  if $v0 != 0 then
+	   $v0 = $s0 ^ gp1 gpu ctl/status
+	   if $v0 >= 0 then
+	    do
+	      NOP
+	    until ($s0 ^ gp1 gpu ctl/status) & 0x80000000 != 0
+	  667c0 = Vcount
+	  do
+	   667bc = t1 count
+	   $v1 = 667bc
+	   $v0 = t1 count
+	  until $v1 == $v0
+	 else ($a0 == 1)
+	  $v0 = (sp+10 - (667bc)) & 0xffff
+	   
+15dd0 - VSync: wait $a0 frames?
+15f08 - call ((678ac)+4)
+15f38 - call ((678ac)+0x14)(4,$a0)
+	
+15ffc - $v0 = (66826)
+1c6f8 - call 1c720
+1c720 - /* initialize set at 73c40 */
+	$a0 = 80073c40 + 0x3c
+	(73c40)H = 0
+	(73c42)H = 0
+	for ($a1 = 0xf; $a1 >= 0; $a1--)
+	 ($a0+4) = 0
+	 $a0 -= 4
+
+1c750 -	/* add elt to set */ (73c44 + (73c42)H++ << 2) = $a0; return 0
+1c784 - /* delete elt $a0 from set */
+	return -1 if (73c42)H - 1 < 0
+	$a1 = 73c40 + (73c42)H << 2
+	do 
+	 $v0 = ($a1+4)
+	 $v1--
+	 $a1 -= 4
+	 if $v0 == $a0
+	  ($a1+4) = (73c44 + ((73c42)H-- - 1) << 2)
+	  return 0
+	return -1
+
+1c7fc -
+	$s2 = $a0   /* e.g. 4, 5 */
+	$s4 = $a1   /* e.g. 90084 */
+	$s5 = $a2   /* e.g. 0 */
+	$a0 = 73c40
+	$s0 = (73c42)H - 1
+	if $s0 >= 0
+	 $s1 = 73c40 + $s0 << 2
+	 do
+	  $a0 = ($s1+4)
+	  $a1 = $s2
+	  $a2 = $s4
+	  $a3 = $s5
+	  call 1c8b0
+	  $v1 = $v0
+	  return $v0 if $v1 != -1
+	  $s0--
+	  $s1 -= 4
+	 loop while $s0 >= 0
+	return -1 if $v1 != -1
+	return 0 if $s2 & 1 == 0
+	return -1
+
+1c8b0 -
+	$v1 = $a2  /* e.g. 90084 */
+	$a2 = $a3  /* e.g. 0 */
+	return 0 if $a0 == 0
+	$t6 = $a0 + 4
+	$s0 = $v1 >> 16 & 0xff
+	$a3 = ($a0+1)B
+	return -1 if $a3 == 0
+	$v1 &= 0xffff
+	$t5 = 0x00ffffff
+	for ($t7 = 0; $t7 < $a3; $t7++, $t6 += 4)
+	 $t0 = ($t6)
+	 $t4 = ($t0 >> 24) & 0x7f
+	 next if $t4 != $s0
+	 $t0 = $t6 + ($t0 & 0xffffff)
+	 $t3 = ($t0+1)B
+	 return $t0 if $a1 == 0
+	 return $t3 if $a1 == 1
+	 $t2 = $t0 + 4
+	 $t1 = $t2 + $t3 << 1
+	 $v0 = $t1 & 3
+	 if $v0 != 0
+	  $t1 -= $v0 - 4
+	 if $a1 == 3
+	  return (($v1 << 1)+$t2)H | $t4 << 16
+	 if $a1 == 2
+	  $v1 = $v1 << 2 + $t1
+	  $v0 = ($v1) & 0xffffff
+	  return $v0 + $v1
+	 next if $t3 == 0
+	 for ($t0 = 0; $t0 < $t3; $t0++, $t1 += 4, $t2 += 2)
+	  next if ($t2)H != $v1
+	  return -1 if $t8 >= 8
+	  switch ($a1-4)          /* 10380 */
+	   case 0:
+	    return $t1 + (($t1) & 0xffffff)
+	   case 1:
+	    $v0 = ($t1+4) & 0xffffff
+	    $v1 = ($t1) & 0xffffff
+	    return ($v0 - $v1) + 4
+	   case 4:
+	    $a1 = 2
+	    $a3 = 0
+	    return call 1c8b0
+	   case 5:
+	    $a1 = 3
+	    $a3 = 0
+	    return call 1c8b0
+	   case 7:
+	    $a1 = 1
+	    $a3 = 0
+	    return call 1c8b0
+	   default:
+	    return -1
+
+1cb08 -
+	call 1cb78  /* initialize 67940 */
+	$s0 = (6794c)
+	call 1cbd0
+	$a0 = 0xe0
+	call 1cd04
+	call 1dcb8
+	call 1de50
+	call 23918
+	call 23a2c
+	($s0+4) = (67940)
+	
+1cb78 - initialize 67940
+1cbd0 -
+	
+
+1d268 - 
+	(67940) = ((6794c)+4)
+	call 1d32c
+	$s1 = ((6794c)+1c)
+	call 1d3c4
+	$a0 = ($s1+8)B * 10 + ((6794c)+c)
+	call 138d4  /* PutDispEnv */
+	call 21c60
+	call 1d768
+	call 1d610
+	call 1d67c
+	($s1+4) = (67940)
+
+1d32c -
+	$a1 = (67940)
+	$v1 = (67940) + 0x8e8
+	$a0 = (67940)
+	((6794c)+1c) = (67940)
+	for ($a2 = 0; $a2 < 2; $a2++, $a0 += 4)
+	 ($a0+10) = $v1 + 0x20
+	 $v1 += 0x4040
+	($a1+0x8d8) = $v1 + 0x558
+	($a1+0x8d4) = $v1
+	$v0 = $v1 + 0x60c
+	($a1+0x7e0) = $v0
+	$a0 = 80060000
+	$v0 += $v1
+	$v1 = $v0 + 0x120
+	(67940) = $v0
+	($a1+0x8c8) = $v0
+	$v0 += 0x6920
+	(67940) = $v1
+	($a1+0x814) = $v1
+	($a1+0x828) = $v0 + 0x2000
+	($a1+0x818) = $v0
+	($a1+0x82c) = $v0 + 0x2800
+	(67940) = $v0 + 0x3000
+
+1d3c4 -
+	
+
+1d610 - 
+	$a0 = 4
+	$a1 = 90084
+	$a2 = 0
+	call 1c7fc
+	$s1 = $v0
+	$a0 = 5
+	$a1 = 90084
+	$a2 = 0
+	call 1c7fc
+	$s0 = $v0
+	call 55df4  /* set 83158 bit 0; zero 8322c and $v0 */
+	$a0 = $s1
+	$a1 = $s0
+	$a2 = 1
+	call 55e14  /* send sample data? $a0 = songbase; $a1=ptr offsets */
+	return 0
+
+1dcb8 - 
+	$t3 = 800103f0  /* table of ptrs to SLUS filenames */
+	($sp+28) = ($t3)     /* "\SLUS_012.51;1" */
+	($sp+2c) = ($t3+4)   /* "\SLUS_012.95;1" */
+	($sp+30) = ($t3+8)   /* "\SLUS_012.96;1" */
+	($sp+34) = ($t3+c)   /* "\SLUS_012.97;1" */
+	((6794c)+b)B = -1
+	for ($s0 = 0, $s1 = sp+28; $s0 < 4; $s0++, $s1 += 4)
+	 CdSearchFile($sp+10, ($s1))
+	 if $v0 != 0    /* file found */
+	  $v0 = $s0
+	  if $s0 < 0
+	   $v0 = $s0 + 3
+	  ((6794c)+b)B = ($s0 - ($v0 >> 2 << 2)) << 1 /* current disc << 1 */
+	  break
+	$v1 = ((6794c)+b)B
+	return -1 if $v1 == -1
+	do
+	 call 22b18
+	until $v0 == 0
+	$s1 = 80060000
+	do
+	 $a0 = 10400   /* "\FF9.IMG;1" */
+	 searchfile(filename), returns frame offset of file
+	 ((6794c)+20) = $v0
+	 last if $v0 != -1
+	 call 22b18 until $v0 == 0
+	loop
+	call 22b18 until $v0 == 0
+	call 22b18 until $v0 == 0
+	$v0 = (6794c)
+	$a1 = 0x800
+	$a3 = 0
+	$s0 = $v0 + 0xe800
+	$a0 = ((6794c)+20)
+	$a2 = $s0
+	call 22c60
+	call 22b18 until $v0 == 0
+	$a1 = $s0 + 0x10
+	$v1 = (6794c)
+	$v0 = ($s0+8)
+	$a0 = ($v1+14)
+	$a2 = $v0 << 4
+	($v1+30) = $v0
+	call 1d0f8 
+	
+1e3c0 - CdSearchFile ($a0=dirent output, $a1=filename)
+	$s6 = $a0
+	$s3 = $a1
+	if (6823c) != (68264) then
+	 $v0 = call 1e6b8 (CD_newmedia)
+	 return 0 if $v0 == 0
+	 (6823c) = (68264)
+	return 0 if ($s3)B != '\'
+	sp+10 = 0
+	$a0 = 1
+	$s0 = $s3
+	$s5 = '\'
+	for ($s2 = 0; $s2 < 8; $s2++)
+	 $v0 = ($s0)B
+	 $v1 = ($s0)BU
+	 $s1 = sp+10
+	 if $v0 != '\'    /* copy this path segment to sp+10 */
+	  do
+	   next OUTER if $v1 = 0
+	   $s0++
+	   ($s1)B = $v1
+	   $v0 = ($s0)B
+	   $v1 = ($s0)BU
+	   $s1++
+	  loop while $v0 != '\'
+	  $v0 = ($s0)
+	 next if $v0 == 0
+	 $s0++
+	 ($s1) = 0
+	 $a1 = sp+10
+	 call 1e97c   /* search path table */
+	 $a0 = $v0
+	 sp+10 = 0, next if $a0 == -1
+	if $s2 >= 8
+	 if (68258) <= 0 then return 0
+	 printf("%s: path level (%d) error", $s3, $s2)
+	 return 0	
+	$v0 = (sp+10)
+	if $v0 == 0
+	 if (68258) <= 0 then return 0
+	 printf("%s: dir was not found", $s3)
+	 return 0
+	($s1) = 0
+	call 1ea20	/* CD_cachefile - cache directory $a0 at 73d10 */
+	if $v0 == 0
+	 if (68258) <= 0 then return 0
+	 printf("CdSearchFile: disc error")
+	 return 0
+	$s2 = 0
+	if (68528) >= 2
+	 printf("CdSearchFile: searching %s...", sp+10)
+	$s0 = 73d10
+	$s3 = 73d18
+	$s1 = 0
+	do
+	 last if (73d18+$s1)B == 0
+	 if strncmp($s3, $sp+10, 0xc) == 0
+	  if (68258) >= 2
+	   printf("%s: found", sp+10)
+	  memcpy($s6, $s0, 0x18)
+	  return $s0
+	 $s0 += 0x18
+	 $s3 += 0x18
+	 $s2++
+	 $s1 += 0x18
+	loop while $s2 < 0x40
+	if (68258) > 0
+	 printf("%s: not found", sp+10)
+	return 0
+	
+1e698 - 
+	call strncmp($a0, $a1, 0xc)
+	return ($v0 < 1)
+
+1e6b8 - CD_newmedia
+	$a0 = 1  /* count? */
+	$a1 = 0x10  (get CD primary volume descriptor)
+	$s0 = 75910  /* dest addr? */
+	$a2 = $s0
+	call 1ecbc   /* read CD PVD into 75910 */
+	$s1 = $v0
+	if $s1 != 1
+	 if  (68258) > 0
+	  printf("CD_newmedia: Read error in cd_read(PVD)"
+	 return 0
+	if strncmp($s0 + 1, "CD001", 5) != 0
+	 if (68258) > 0
+	  printf("CD_newmedia: Disc format error in cd_read(PVD)")
+	 return 0
+	(sp+18) = ($s0+0x8c) unaligned  /* CD frame of little-endian path table */
+	$a0 = 1
+	$a1 = (sp+18)
+	$a2 = $s0
+	call 1ecbc      /* read CD path table into 75910 */
+	if $v0 != 1
+	 if (68258) > 0
+	  printf("CD_newmedia: Read error (PT:%08x)", (sp+18))
+	 return 0
+	$s1 = $s0
+	if (68258) >= 2
+	 printf("CD_newmedia: sarching dir..")
+	$v1 = $s1 + 0x800
+	$a3 = 0
+	if $s1 < $v1
+	 $s4 = 74318
+	 $s6 = $s4 + 4
+	 $s5 = $v1
+	 do   /* foreach path table entry */
+	  last if ($s1)B == 0  /* identifier length */
+	  $s0 = $a3 * 0x2c
+	  ($s4+$s0) = ($s1+2) unaligned   /* location of extent */
+	  $s2 = $s6 + $s0
+	  $s3 = $a3 + 1
+	  (74310+$s0) = $s3
+	  (74314+$s0) = ($s1+6)B	/* parent directory number */
+	  memcpy($s2, $s1+8, ($s1)B)   /* copy identifier to 7431c+$a3*0x2c)
+	  ($s2 + ($s1)B) = 0  /* null terminate it */
+	  $s1 += ($s1)B + (($s1)B & 1) + 8
+	  if (68258) >= 2
+	   printf("\t%08x,%04x,%04x,%s", (74318+$s0), (74310+$s0), (74314+$s0), $s2)
+	  $a3 = $s3
+	  last if $a3 >= 0x80
+	 loop while $s1 < $s5
+	if $a3 < 0x80
+	 (74314+($a3*0x2c)) = 0
+	if (68258) >= 2
+	 printf("CD_newmedia: %d dir entries found", $a3)
+	return 1
+
+1e97c - (parent dir #, dirname)
+	$s3 = $a0
+	$s4 = $a1
+	for ($s1 = 0, $s2 = 7431c, $s0 = 0;
+	     $s0 < 0x80;
+	     $s1 += 0x2c, $s2 += 0x2c, $s0++)
+	 $v0 = (74314+$s1)
+	 return -1 if $v0 == 0
+	 if $v0 == $s3
+	  return $s0+1 if strcmp($s4, $s2) == 0
+	return -1
+
+1ea20 - CD_cachefile
+	$s6 = $a0
+	return 1 if (68238) == $s6
+	$a0 = 1
+	$a1 = (74318+($s6-1)*0x2c)   /* extent of directory */
+	$s0 = 75910
+	$a2 = $s0
+	call 1ecbc    /* read directory sector into 75910 */
+	if $v0 != 1
+	 if (68258) >= 0
+	  printf("CD_cachefile: dir not found")
+	 return -1
+	if (68258) >= 2
+	 printf("CD_cachefile: searching...")
+	$s2 = 0
+	if $s0 < $s0 + 0x800
+	 $s5 = 73d10
+	 $s3 = $s5 + 8
+	 $s1 = 0
+	 $s4 = $s5
+	 do
+	  last if ($s0)B != 0	/* entry length */
+	  (sp+18) = ($s0+2) unaligned  /* extent */
+	  frames2msf(frames in (sp+18) (+150) to BCD MSF at $s4)
+	  ($s5 + 4 + $s1) = ($s0+0xa) unaligned  /* data length */
+	  switch ($s2)
+	  case 0:
+	   ($s5+8)H = "."
+	   break
+	  case 1:
+	   ($s5+20) = ".."
+	   break
+	  default:
+	   memcpy($s3, $s0+21, ($s0+20)B)
+	   ($s3+($s0+20)B) = 0   /* null terminate */
+	  if (68258) >= 2
+	   printf("(%02x:%02x:%02x) %8d %s", (73d10), (73d11), (73d12), (73d14), $s3)
+	  $s3 += 0x18
+	  $s4 += 0x18
+	  $s1 += 0x18
+	  $s2++
+	  $s0 += ($s0)B  /* entry length */
+	  last if $s2 >= 0x40
+	 loop while $s0 < (76110)
+	(68238) = $s6
+	if $s2 < 0x40
+	 (73d18+$s2*0x18) = 0  /* terminate list */
+	if (68258) >= 2
+	 printf("CD_cachefile: %d files found", $s2)
+	return 1
+
+1ecbc - cd_read  (20ea0arg0==count?, $a1=frames, 20ea0arg1==destaddr)
+	$s1 = $a0
+	$a0 = $a1
+	$a1 = sp+10
+	$s0 = $a2
+	call 202d0 /* convert frames in $a0 (+150)
+		      to BCD MSF at ($a1)+0,1,2    */
+	$a0 = 2    /* cdlSetloc */
+	$a1 = sp+10
+	$a2 = 0
+	call 203e0 /* perform cdl command */
+	$a0 = $s1
+	$a1 = $s0
+	$a2 = 0x80
+	call 20ea0
+	$a0 = 0
+	$a1 = 0
+	call 2103c
+	return ($v0 < 1)
+
+1ed50 - get CD status
+	cdreg0 = 1  (read status request)
+	$v0 = sp+10
+	sp+10 = cdreg3 & 7  (CD IRQ status)
+	if $v0 == 0 then
+	 return $v0=0
+	$s1 = 0
+	while (1)
+	 $v0 = cdreg3 & 7
+	 last if $v0 == sp+10
+	 sp+10 = cdreg3 & 7
+	$a0 = sp+18
+	for ($s0 = 0; $s0 < 8; $s0++)
+	 if (cdreg0 & 0x20 == 0) then  /* result ready */
+	  break
+	 ($a0 + $s0) = cdreg1
+	if ($s0 < 8)
+	 $a0 = sp+18
+	 for ($v1 = $s0; $v1 < 8; $v1++)
+	  ($a0 + $v1) = 0
+	cdreg0 = 1
+	cdreg3 = 7
+	cdreg2 = 7    (clear CD IRQs)
+	if (sp+10 != 3 || (68414 + (6826d) (B) << 2) != 0) then
+	 if ((6825c) & 0x10 == 0 ) && (sp+18(B) & 0x10 != 0) then
+	  (68264)++
+	 $v0 = sp+18(B) & 0xff
+	 $v1 = sp+19(B)
+	 $s1 = $v0 & 0x1d
+	 (6825c) = $v0
+	 (68260) = $v1
+	if (sp+10(B) == 5) && (debugLevel >= 3) then
+	 /* CD IRQ status == DiskError */
+	 printf("DiskError: ")
+	 if (debugLevel >= 3) then
+	  printf("com=%s,code=(%02x:%02x)",
+		(cmdTextTbl(68274) + 6826d(B) << 2), 6825c, 68260)
+	switch (sp+10(B) - 1)
+	 case 2: 8001efb4  (Acknowledge)
+	  if ($s1 != 0) then
+	   (6852c) = 5
+	   copy 8 bytes at sp+18 to 76110
+	   $v0 = 2
+	   break
+	  else
+	   if (68314 + currentCdlCmd << 2) != 0 then
+	    (6852c) = 3
+	    copy 8 bytes at sp+18 to 76110
+	    $v0 = 1
+	    break
+	   else
+	    (6852c) = 2
+	    copy 8 bytes at sp+18 to 76110
+	    $v0 = 2
+	    break
+	 case 1: 8001f0b4  (Command Complete)
+	  if ($s1 != 0) then
+	   6852c(B) = 5
+	  else
+	   6852c(B) = 2
+	  copy 8 bytes at sp+18 to 76110
+	  $v0 = 2
+	  break
+	 case 0: 8001f100  (Data Ready)
+	  if ($s1 != 0 && $s0 == 1) then
+	   $s1 = 0
+	  if ($s1 != 0)
+	   6852c(B) = 5
+	  else
+	   6852c(B) = 2
+	  copy 8 bytes at sp+18 to 76110
+	  cdreg0 = 0
+	  cdreg3 = 0
+	  $v0 = 4
+	  break
+	 case 3: 8001f180  (End of Data)
+	  $v1 = (6852e)(B)
+	  (6852e)(B) = 4
+	  (6852d)(B) = $v1
+	  copy 8 bytes at sp+18 to 76120
+	  copy 8 bytes at sp+18 to 76118
+	  $v0 = 4
+	  break
+	 case 4: 8001f200  (Disk Error)
+	  $v1 = (6852d)(B)
+	  (6852d)(B) = 5
+	  (6825c)(B) = $v1
+	  copy 8 bytes at sp+18 to 76110
+	  copy 8 bytes at sp+18 to 76118
+	  $v0 = 6
+	  break
+	 case else: 8001f280
+	  puts("CDROM: unknown intr")
+	  printf("(%d)", sp+10)
+	  $v0 = 0
+	  break
+
+1f2b4 - CD_sync int CdSync(int mode, u_char *result) ;
+	$s6 = $a0  (repeat/retry/blocking flag?)
+	$s7 = $a1  (dest address for status readout)
+	$a0 = -1
+	call 15c58  (get Vcount in $v0)
+	$fp = 68274 (table of cd cmd text strings)
+	$s4 = 682f4 (table of cd status text strings)
+	$s2 = 6852c ("sync" status)
+	$s5 = 6852d ("ready" status)
+	$s3 = 2
+	76128 = $v0 + 3c0
+	7612c = 0
+	76130 = 107c0 ("CD_sync")
+	do
+	 $a0 = -1
+	 call 15c58  (get Vcount in $v0)
+	 if ($v0 > (76128)) || ((7612c)++ > 0x003c0000) then
+	  puts("CD Timeout: ")
+	  $a0 = (6852c) (B)
+	  $v0 = (6852d) (B)
+	  $a1 = (76130)
+	  sp+10 = ($v0 * 4 + $s4)  ready status text
+	  $a3 = ($a0 * 4 + $s4)  sync status text
+	  $a2 = ((6826d) (B) * 4 + $fp)   cmd text
+	  printf("%s:(%s) Sync=%s, Ready=%s")
+	  call 1fc90:  flush CD IRQs
+	  $v0 = -1
+	 else
+	  $v0 = 0
+	 if $v0 != 0 then
+	  $v0 = -1
+	  break
+	 call 15ffc:  $v0 = (66826)
+	 if $v0 != 0 then
+	  $s1 = cdreg0 & 3
+	  do
+	   call 1ed50   (get CD status)
+	   $s0 = $v0
+	   break if $s0 == 0
+	   if (($s0 & 4 != 0) && ((68254) != 0)) then
+	    $a0 = (6852d)(B)
+	    $a1 = 76118
+	    jal (68254)
+	   if (($s0 & 2 != 0) && ((68250) != 0)) then
+	    $a0 = (6852c)(B)
+	    $a1 = 76110
+	    jal (68250)
+	  cdreg0 = $s1
+	 $a2 = (6852c)(B) & 0xff
+	 if ($a2 == 2 || $a2 == 5) then
+	  (6852c)(B) = 2
+	  if ($s7 != 0) then
+	   copy 8 bytes from 76110 to $s7
+	  $v0 = $a2
+	  break
+	 $v0 = 0
+	loop while $s6 == 0
+	return $v0
+
+1f534 - CD_ready  int CdReady(int mode, u_char *result) ;
+
+1f7fc - CD_cw  perform lowlevel CD routine
+	       ($a0=cmd, $a1=ptr to args, $a2=dest for status,
+		$a3=return immediately if nonzero)
+	$v0 = debug flag
+	$s0 = $a1
+	$s6 = $a2
+	$s2 = $a3
+	$s1 = $a0
+	if (debugflag >= 2) then
+	 printf("%s...", cmdtext[$s1])
+	$v0 = cmdparamcount[$s1 & 0xff]
+	if ($v0 != 0 && $s0 == 0) then
+	 if (debugflag > 0) then
+	  printf("%s:no param", cmdtext[$s1 & 0xff])
+	  return -2
+	$a0 = 0
+	$a1 = 0	
+	call 1f2b4  (get cdr status)
+	if ($s1 & 0xff == 2)  /* setloc */
+	 $a0 = 0
+	 copy 4 bytes from $s0 to 68268
+	if ($s1 & 0xff == 0xe)  /* setmode */
+	 (6826c)(B) = ($s0)(B)
+	(6852c)(B) = 0
+	if (68394+4*($s1 & 0xff) != 0) then
+	 (6852d)(B) = 0
+	cdreg0 = 0
+	$a0 = 0
+	if (cdparamcount[$s1 & 0xff]) > 0 then
+	 send cdparamcount[$s1 & 0xff] bytes at $s0 to cdreg2
+	(6826d)(B) = $s1   /* current cdl cmd */
+	cdreg1 = $s1  /* send command */
+	if ($s2 != 0) then
+	 return 0
+	$a0 = -1
+	call 15c58  VSync(-1)
+	76128 = $v0 + 0x3c0
+	7612c = 0
+	$v1 = (6852c)(B)
+	76130 = 107ec  ("CD_cw")
+	if ((6852c)(B) == 0) then
+	 $s5 = 68274 (cdcmdtext base)
+	 $s3 = 682f4 (cdstatustext base)
+	 $s2 = 6852c (cd_sync status)
+	 $s4 = 6852d (cd_ready status)
+	 do
+	  $a0 = -1
+	  call 15c58   VSync(-1)
+	  if ($v0 > (76128)) || ((7612c)++ > 0x003c0000) then
+	   puts("CD Timeout: ")
+	   $a0 = (6852c) (B)
+	   $v0 = (6852d) (B)
+	   $a1 = (76130)
+	   sp+10 = ($v0 * 4 + $s3)  ready status text
+	   $a3 = ($a0 * 4 + $s3)  sync status text
+	   $a2 = ((6826d) (B) * 4 + $s5)   cmd text
+	   printf("%s:(%s) Sync=%s, Ready=%s")
+	   call 1fc90:  flush CD IRQs
+	   $v0 = -1
+	  else
+	   $v0 = 0
+	  if ($v0 != 0) then
+	   return -1
+	  call 15ffc:  $v0 = (66826)
+	  if $v0 != 0 then
+	   $s1 = cdreg0 & 3
+	   do
+	    call 1ed50   (get CD status)
+	    $s0 = $v0
+	    break if $s0 == 0
+	    if (($s0 & 4 != 0) && ((68254) != 0)) then
+	     $a0 = (6852d)(B)
+	     $a1 = 76118
+	     jal (68254)
+	    if (($s0 & 2 != 0) && ((68250) != 0)) then
+	     $a0 = (6852c)(B)
+	     $a1 = 76110
+	     jal (68250)
+	   cdreg0 = $s1
+	 loop while 6852c == 0
+	if ($s6 != 0) then
+	 copy 8 bytes from 76110 to $s6
+	$a0 = 0
+	$v0 = $a0
+	if ((6852c)(B) == 5) then
+	 $a0 = -1
+	 $v0 = $a0
+	return $v0
+	  
+
+1fc90 - FlushCDIRQs
+	cdreg0 = 1
+	while (cdreg3 & 7 != 0)
+	 cdreg0 = 1	 
+	 cdreg3 = 7
+	 cdreg2 = 7
+	6852e(B) = 0
+	6852d(B) = 0
+	6852c(B) = 2
+	cdreg0 = 0
+	cdreg3 = 0
+	com_delay = 0x1325
+	
+202d0 - convert frames in $a0 (+150) to BCD MSF at ($a1)+0,1,2
+203e0 - int CdControl(u_char com, u_char *param, u_char *result);
+	$s1 = $a1
+	$s2 = $a2
+	$s4 = $a0
+	$s3 = $a0 & 0xff
+	$s5 = (68250)  (save old CD_sync callback)
+	$v0 = $a0 & 0xff << 2
+	$s6 = 68558 + ($a0 & 0xff) << 2
+	$s7 = 0
+	for ($s0 = 3; $s0 != -1; $s0--)
+	 (68250) = 0  /* disable CD_sync callback */
+	 if ($s3 != 1 && ((6825c)(B) & 0x10 != 0)) then
+					/* shellOpen */
+	  $a0 = 1   /* cdlNop */
+	  $a1 = 0
+	  $a2 = 0
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	 if ($s1 != 0 && ($s6) != 0) then
+	  $a0 = 2   /* cdlSetloc */
+	  $a1 = $s1  /* args */
+	  $a2 = $s2  /* status */
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	  if ($v0 != 0) then
+	   continue
+	 (68250) = $s5  /* restore CD_sync callback */
+	 $a0 = $s4 & 0xff
+	 $a1 = $s1  /* args */
+	 $a2 = $s2  /* status */
+	 $a3 = 0
+	 call 1f7fc  (CD_cw)
+	 if ($v0 != 0)
+	  $v0 = $s7 + 1
+	  return
+	 $v0 = $s7 + 1
+	(68250) = $s5  /* restore CD_sync callback */
+	$v0 = 0
+	return $v0
+
+2051c -
+	$s1 = $a1
+	$s3 = $a0
+	$s2 = $a0 & 0xff
+	$s4 = (68250)  (save old CD_sync callback)
+	$s5 = 68558 + ($a0 & 0xff << 2)
+	$s6 = 0
+	for ($s0 = 3; $s0 != -1; $s0--)
+	 $at = 80070000
+	 if ($s2 != 1 && ((6825c)(B) & 0x10 != 0)) then
+	  $a0 = 1  /* cdlNop */
+	  $a1 = 0
+	  $a2 = 0
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	 if ($s1 != 0 && ($s5) != 0) then
+	  $a0 = 2  /* cdlSetloc */
+	  $a1 = $s1
+	  $a2 = 0
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	  if ($v0 != 0) then
+	   continue
+	 (68250) = $s4  (restore CD_sync callback)
+	 $a0 = $s3 & 0xff
+	 $a1 = $s1
+	 $a2 = 0
+	 $a3 = 1
+	 call 1f7fc  (CD_cw)
+	 if ($v0 == 0) then
+	  return 1
+	(68250) = $s4  (restore CD_sync callback)
+	return 0
+
+20650 - 
+	$s1 = $a1
+	$s2 = $a2
+	$s4 = $a0
+	$s3 = $a0 & 0xff
+	$s5 = (68250)  (save old CD_sync callback)
+	$s6 = 68558 + ($a0 & 0xff << 2)
+	$s7 = -1
+	$fp = 1
+	for ($s0 = 3; $s0 != -1; $s0--) 
+	 (68250) = 0  /* disable CD_sync callback */
+	 if ($s3 != 1 && ((6825c)(B) & 0x10 != 0)) then
+	  $a0 = 1  /* cdlNop */
+	  $a1 = 0
+	  $a2 = 0
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	 if ($s1 != 0 && ($s6) != 0) then
+	  $a0 = 2  /* cdlSetloc */
+	  $a1 = $s1
+	  $a2 = $s2
+	  $a3 = 0
+	  call 1f7fc  (CD_cw)
+	  if ($v0 != 0) then
+	   continue
+	 (68250) = $s5  /* restore CD_sync callback */
+	 $a0 = $s4 & 0xff
+	 $a1 = $s1
+	 $a2 = $s2
+	 $a3 = 0
+	 call 1f7fc (CD_cw)
+	 if ($v0 != 0)
+	  $v0 = 0
+	  goto 2074c
+	 $v0 = -1
+	(68250) = $s5  /* restore CD_sync callback */
+	/* 2074c */
+	$a0 = 0
+	if ($v0 == 0) then
+	 $a1 = $s2
+	 call 1f2b4   /* CD_sync(rpt/retry/block, status dest adr)
+	 $v0 ^= 2
+	 $v0 = ($v0 < 1)
+	else
+	 $v0 = 0
+
+207d4 - (CdRead)
+	$s1 = $a1
+	(685d8+34) = $s1
+	$v0 = -1
+	if ($a0 == 1) then
+	 
+20a48 -
+20b18 - (CdRead)
+	$s2 = $a0
+	$a0 = 0
+	call 21380    clear CD_sync  callback
+	$a0 = 0
+	call 213a0    clear CD_ready callback
+	if ((6861c) & 1 != 0) then
+	 $a0 = 0
+	 call 215f0  /* call ((678ac)+4)(3, $a0) */
+	call 21310    get 6825c(B) in $v0
+	if ($v0 & 0x10 != 0) then
+	 $a0 = -1
+	 call 15c58  VSync(-1)
+	 $a0 = 1  /* cdlNop */
+	 if ($v0 & 0x3f == 0) then
+	  puts("CdRead: Shell open...")
+	 $a1 = 0
+	 call 2051c
+	 $a0 = -1
+	 call 15c58  VSync(-1)
+	 (685f4) = $v0
+	 $v0 = (685ec)
+	 (685ec) = -1
+	 return $v0
+	if ($s2 != 0) then
+	 puts("CdRead: retry...")
+	 203e0(cdlPause, 0, 0)
+	 call 21330  /* get 68268 in $v0 */
+	 203e0(cdlSetloc, $v0(==68268), 0)
+	 if ($v0 == 0) then
+	  $v0 = (685ec)
+	  (685ec) = -1
+	  return $v0
+	call 21340   /* call 1fc90 (flush cd irqs) */
+	$s1 = 685e4
+	$s0 = (685e4)
+	sp+10(B) = $s0
+	$s0 &= 0xff
+	call 21320  /* get value of 6826c(B) in $v0 */
+	if ($s0 != $v0 || $s2 != 0) then
+	 203e0(cdlSetmode, sp+10, 0)
+	 if ($v0 == 0) then
+	  $v0 = (685ec)
+	  (685ec) = -1
+	  return $v0
+	call 21330  /* get 68268 in $v0 */
+	call 21290 /* convert msf at 68268 to frames in $v0 */
+	$a0 = 207d4
+	$s0 = 685d8
+	(685f8) = $v0
+	call 213a0  /* get/set CD_ready callback */
+	if ((6861c) & 1 != 0) then
+	 $a0 = 20a48
+	 call 215f0  /* call ((678ac)+4)(3, $a0) */
+	$a0 = 6  /* cdlReadN */
+	(685e0) = (685dc)
+	$a1 = 0
+	call 2051c
+	(685ec) = (685d8)
+	(685f0) = VSync(-1)
+	return (685ec)
+
+20ea0 - (count, destaddr)
+	$s4 = $a0
+	$s3 = $a1
+	$s0 = 685fc
+	$s2 = $a2
+	if ((685fc) != 0) then
+	 $a0 = -1
+	 call 15c58  VSync(-1)
+	 $s1 = $v0
+	 if ((685fc) != 0) then
+	  do
+	   $a0 = -1
+	   call 15c58  VSync(-1)
+	   $v0 -= $s1
+	   if ($v0 >= 79) then
+	    break
+	  loop while (685fc) != 0
+	else
+	/* 20f1c */
+	 $a0 = 685d8
+	 $v0 = (685e4)
+	 (685e4) = $s2
+	 $v1 = $v0 & 0x30
+	 if ($v1 == 0)
+	  goto 20f6c
+	 $v0 = 0x246
+	 if ($v1 == 0x20)
+	  goto 20f78
+	 goto 20f84
+	$s0 = 68600
+	$a0 = (68600)
+	$s0 = 685d8
+	call 21380   /* get/set CD_sync callback */
+	(685fc) = 0
+	goto 20f1c
+	/* 20f6c */
+	(685e8) = 0x200
+	goto 20f90
+	/* 20f78 */
+	(685e8) = 0x249
+	goto 20490
+	/* 20f84 */
+	(685e8) = 0x246
+	/* 20f90 */
+	$s0 = 685d8
+	(685e4) |= 0x20
+	$a0 = 0
+	(685dc) = $s3
+	(685d8) = $s4
+	call 21380   /* get/set CD_sync callback */
+	$a0 = 0
+	(68600) = $v0
+	call 213a0   /* get/set CD_ready callback */
+	(68604) = $v0
+	if ((6861c) & 1 != 0) then
+	 $a0 = 0
+	 call 215f0  /* call ((678ac)+4)(3, $a0) */
+	 (68608) = $v0
+	$a0 = -1
+	call 15c58  VSync(-1)
+	(685f4) = $v0
+	call 21310   /* get 6825c(B) in $v0 */
+	$a0 = 9
+	if ($v0 & 0xe0 != 0) then
+	 $a1 = 0
+	 $a2 = 0
+	 call 20650   /* CD_cw?  cdlPause cmd */
+	$a0 = 0
+	call 20b18
+	$v0 = (0 < $v0)
+
+21290 - convert MSF at $a0 to frames in $v0
+	$v1 = ($a0)(B)    /* mins */
+	$a2 = ($a0+1)(B)  /* secs */
+	$v0 = ($v1 / 16) * 10 + ($v1 & 0xf)   /* bcd -> bin */
+	$a1 = $v0 * 60    /* mins -> secs */
+	$a1 += ($a2 / 16) * 10 + ($a2 & 0xf)  /* bcd -> bin */
+	$v0 = $a1 * 75    /* secs -> frames */
+	$a1 = ($a0+2)(B)  /* frames */
+	$v0 += ($a1 / 16) * 10 + ($a1 & 0xf)  /* bcd -> bin */
+	$v0 -= 150
+
+21310 - get value of 6825c(B) in $v0
+21320 - get value of 6826c(B) in $v0
+21330 - get 68268 in $v0
+21340 - call 1fc90 (flush cd irqs)
+21360 - call 1f534 (CD_ready)
+21380 - get/set CD_sync  callback: $v0 = (68250), (68250) = $a0
+213a0 - get/set CD_ready callback: $v0 = (68254), (68254) = $a0
+213c0 - perform CDROM DMA: $a0=destaddr $a1=len; return $v0=1
+213e0 - perform CDROM DMA: $a0=destaddr $a1=len; return $v0=0
+	cdreg0 = 0
+	cdreg3 = 0x80   /* prepare buffer for transfer */
+	dv5_delay = 0x20943
+	com_delay = 0x1323
+	dmactrl(10f0) |= 0x8000  /* enable CDROM DMA */
+	CDROM DMA memaddr = $a0
+	CDROM DMA block count/size = $a1 | 0x10000
+	wait until cdreg0 & 0x40 != 0    /* dma ready */
+	CDROM DMA ctrl reg = 0x11000000  /* start DMA to mem */
+	wait until CDDMActrl & 0x01000000 == 0  /* DMA busy */
+	com_delay = 0x1325
+	$v0 = 0
+215f0 - call 15f08(3, $a0): call ((678ac)+4)(3, $a0)
+
+21938 -
+	$a1 = 0
+	$a2 = -1
+	$a3 = 0
+	sp+10 = 0
+	sp+14 = 0
+	sp+18 = -1
+	sp+1c = -1
+	call 21974
+
+21974 -	
+	($a0)H = 0
+	($a0+2)H = $a1
+	($a0+4) = $a2
+	($a0+8) = $a3
+	($a0+c) = 0
+	$v0 = sp+10
+	if $v0 < 0
+	 $v0 += 0x7ff
+	($a0+10) = ($v0 >> 11) << 11
+	($a0+14) = sp+14
+	($a0+18) = sp+18
+	($a0+1c) = sp+1c
+	($a0+20)H = 0
+	($a0+22)H = 0
+	($a0+24)H = 0
+	($a0+26)H = 0
+
+219d8 -
+	($a0+20)H = $a1
+	($a0+22)H = $a2
+	($a0+24)H = $a3
+	($a0+26)H = sp+10
+	($a0)H |= 0x20
+
+219fc - return $a0 == 0 ? 0 : (!($a0+4)) > 0	
+21a1c - return ($a0) & 1
+
+21c60 - 
+	$s2 = 5
+	$s1 = 0xcc
+	$s0 = (((6794c)+1c)+8c8)
+	($s0+1)B = 4
+	($s0)B = 0
+	($s0+2)B = 0
+	($s0+3)B = -1
+	do
+	 $a0 = $s0 + $s1
+	 call 21938
+	 $s1 -= 0x28
+	while --$s2 >= 0
+	$a0 = $s0 + 0xf4
+	call 21938
+	($s0+11c) = 0
+
+21cdc - $v0 = (((6794c)+1c)+8c8); ($v0+11c) = $a0; return $v0
+
+227c8 - 
+	$s1 = 0
+	if $a1 != 0
+	 (76b0c) = ($a1) unaligned
+	 (76b10) = ($a1+4) unaligned
+	$v1 = $a0 & 0xff
+	$v0 = 1
+	$a0 = sp+10
+	if $a0 & 0xff == 1
+	 do CDROM DMA: $a0=destaddr $a1=len; return $v0=1
+
+22ac4 - searchfile(filename), returns frame offset of file
+	$s0 = $a0
+	$a0 = sp+10
+	$a1 = $s0
+	CdSearchFile($a0=dirent output, $a1=filename)
+	if $v0 != 0
+	 $a0 = sp+10
+	 call 21290 - convert MSF at $a0 to frames in $v0
+	else
+	 printf("Cannot find file. (%s)", $s0)
+	 return -1
+
+22b18 - return (761d0)B
+22c60 - 
+	(76148) = 3
+	(7614c) = $a0
+	(76150) = $a1
+	(76154) = -1
+	(76158) = 231a0
+	(7615c) = 227c8
+	(76164) = $a1
+	(76168) = $a2
+	(76160) = $a3
+	$a0 = 76148
+	call 230b8
+	$v0 &= 0xff
+
+230b8 -
+	$v0 = 80070000
+	$v1 = (761d0)B
+	$a1 = $a0
+	sp+10 = $v1
+	$v1 = sp+10
+	$a0 = 761d0
+	(761d1)B = 0
+	if ($a1) & 4 != 0
+	 
+
+65388 - check if CD in drive by checking voldesc CD001?
+	203e0(cdlNop, 0, sp+818)
+	sp+820 = 0x80
+	$v0 = 0x10
+	if (sp+818 & 0x10 != 0) then /* shell open */
+	 return 0x10
+	sp+10 = Frames2MSF(0x10)
+	203e0(cdlSetmode, sp+820, 0)  /* 2x, 2048 blks */
+	VSync(3)
+	203e0(cdlReadS, sp+10, 0)  /* read 9660 vol descr */
+	for ($s0 = 0; $s0 < 10; $s0++)
+	 $v1 = CD_ready(0, sp+818)
+	 last if ($v1 == 1)
+	 203e0(cdlReadS, sp+10, 0)
+	if ($v1 != 1) then  /* too many retries? */
+	 if (sp+818 & 0x10 != 0) then  /* shell open */
+	  return 0x10
+	 if (sp+818 & 1 != 0 && sp+819 & 0x40 != 0) then
+		/* disk error, ?? */
+	  printf("Command Error: ")
+	  return 1
+	 return (sp+818 & 0x2 >= 0)  /* motor on? */
+	203e0(cdlPause, 0, 0)
+	perform CDROM DMA addr=sp+18 len=0x200
+	$v1 = strncmp(sp+19, "CD001", 5)
+	return $v1 == 0 ? 1 : 2
+
+667bc - hold for t1 count
+667c0 - old Vcount
+678ec - Vcount - inced during vblank irq
+68238 - current cached directory # at 73d18
+68250 - CD_sync callback
+68254 - CD_ready callback
+68258 - debug flag
+6825c - (B?)
+68268 - cd location (msf)
+6826d - (B) current Cdl command
+68274 - table of addresses for text strings of CD commands
+682f4 - table of addresses for text strings of CD statuses
+68314 - table of flags for CD commands (ack result map) ("nonblocking")
+	07,08,09,0a,12,15,16,1a
+68394 - table of flags for CD commands (also 0 ready status?)
+	3,4,5,6,15,16,1b
+68414 - table of flags for CD commands (always copy status?)
+	00-0f,12-1f
+68494 - table for CD commands: # of parameters for each command
+	02(setloc)=3(m,s,f), 0d(setfilter)=2(file,channel),
+	0e(setmode)=1(mode), 12(??)=1, 14(gettd)=1(track)
+68514 - const 1f80_1800  cdreg0
+68518 - const 1f80_1803  cdreg3
+6851c - const 1f80_1020  com_delay
+68520 - const 1f80_1801  cdreg1
+68524 - const 1f80_1802  cdreg2
+68528 - const 1f80_1c00  SPU base
+6852c - (B) status at CD_sync
+6852d - (B) status at CD_ready
+6852e - (B)
+68548 - const 1f80_10b8  CDROM DMA control reg
+68558 - table of flags for CD commands (do setloc before cmd)
+685e4 - 
+685fc - 
+68600 - save for old CD_sync callback
+68604 - save for old CD_ready callback
+68628 - const 1f80_1800  cdreg0
+6862c - const 1f80_1803  cdreg3
+68630 - const 1f80_1020  com_delay
+68634 - const 1f80_1018  dv5_delay
+68638 - const 1f80_10f0  DMA master control
+6863c - const 1f80_10b8  CDROM DMA control reg
+68640 - const 1f80_10b0  CDROM DMA mem addr
+68644 - const 1f80_10b4  CDROM DMA block count/size
+68648 - const 1f80_1800  cdreg0
+6864c - const 1f80_1803  cdreg3
+68650 - const 1f80_1020  com_delay
+68654 - const 1f80_1018  dv5_delay
+68658 - const 1f80_10f0  DMA master control
+6865c - const 1f80_10b8  CDROM DMA control reg
+68660 - const 1f80_10b0  CDROM DMA mem addr
+68664 - const 1f80_10b4  CDROM DMA block count/size
+
+73d10 - in-memory cache of current directory (width 0x18)
+  00 - (B) minutes
+  01 - (B) seconds
+  02 - (B) frames
+  04 - file length
+  08 - file name
+74310 - in-memory copy of path table (width 0x2c)
+  00 - directory number
+  04 - parent directory number
+  08 - extent
+  0c - identifier
+75910 - cd read buffer for PVD/path table/directory
+76110
+76128 - CD_sync timeout Vcount (cur+0x3c0)

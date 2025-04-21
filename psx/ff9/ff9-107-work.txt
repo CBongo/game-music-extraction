@@ -1,0 +1,422 @@
+80012ce8 - call InitHeap (a0-39)
+80012cf8 - call FlushCache (a0-44)
+80012d08 - call EnterCriticalSection (syscall a0=1)
+80012d18 - call ExitCriticalSection (syscall a0=2)
+80015c28 - memcpy() to $a0 from $a1 len $a2
+80015c38 - printf error message at $a0, args in $a1...
+80015c48 - call GPU_cw
+80015c58 - VSync?
+80015e70 - call puts($a0)
+80015e88 - call ChangeClearPad(int $a0)
+80015e98 - call ChangeClearRCnt
+80016568 - call setjmp (a0-13)
+80016598 - call ReturnFromException
+800165a8 - call ResetEntryInt
+800165b8 - call HookEntryInt
+80016ba0 - call bu_init
+80016ec0 - call OpenEvent(class $a0, spec $a1, mode $a2, func $a3)
+80016ed0 - call EnableEvent(event $a0)
+80017484 - _spu_t: SPU DMA; subfunc in $a0:
+           $a0=0 (1757c): (unused in 107)
+           $a0=1 (17510): enable SPU DMA write mode in 1f80_1daa
+           $a0=2 (174e4): set SPU DMA target address, 67a00 to $a1 >> 3 (67a10)
+           $a0=3 (175e4): perform SPU DMA; src addr in $a1 (67a3c); len $a2
+80017668 - set spu_delay reg to (spu_delay & 0xf0ffffff) | 0x20000000
+80017704 - _spu_Fw: perform SPU DMA from $a0 len $a1 to current SPU addr (67a00)
+80017a20 - call DeliverEvent(class $a0, event $a1)
+80018740 - call WaitEvent(event $a0)
+80018af0 - call InitPad
+80018b00 - call StartPad
+80018b10 - call PAD_init
+80018b20 - call SysEnqIntRP(int index $a0, long *queue $a1)
+80018b30 - call SysDeqIntRP(int index $a0, long *queue $a1)
+80018c50 - call InitCARD
+80018c60 - call StartCARD
+80018c70 - call StopCARD
+8001a878 - call bzero at $a0 len $a1
+8001d898 - call memset at $a0 fill $a1 len $a2
+8001e698 - call strncmp($a0, $a1, 12)
+8001ed30 - call strcmp($a0, $a1)
+8001ed40 - call strncmp($a0, $a1, $a2)
+8002eb64 - call SystemError
+8004bd2c - get timer $a0 value
+80055df4 - set 83158 bit 0; zero 8322c and $v0
+80055e14 - $a0 = songbase; $a1=vptr offsets
+8005652c - SpuSetTransferStartAddr: set dest SPU DMA addr to $s2 if OK
+800565dc - iff ($a0) = "AKAO" return 0
+80056644 - perform SPU DMA @$a0 len $a1 to cur SPU addr with 809e0 locking
+800566d0 - wait for SPU DMA lock at 809e0 to clear
+80056cac - call CloseEvent(event)
+80056cbc - call DisableEvent(event)
+80056ccc - call UnDeliverEvent(class, event)
+8005709c - SpuWrite: perform SPU DMA from $a0 len $a1 to cur SPU addr; zero 67a1c if 67a20 zero
+8005712c - SpuSetTransferCallback: set SPU DMA callback to $a0 if different
+800575b4 - set keyon vbits from $a0
+800575d0 - set keyoff vbits from $a0
+800575ec - set reverb vbits from $a0
+80057608 - set noise vbits from $a0
+80057624 - set FM mode vbits from $a0
+80057640 - set voice $a0 L/R volume to $a1/$a2 (mult by $a3 then >> 7 if $a3 nonzero)
+80057688 - set voice $a0 pitch.lo to $a1
+800576bc - set voice $a0 sample loop addr to $a1 (/8)
+800576f0 - set voice $a0 sustain/release to $a1
+800577ec - set phys voice $a0 settings from data block at $a1 w/volume mult $a2
+80057898 - 
+800579b4 - dec voice counters in vtbl at $a0
+80057d80 - calculate final pitch (?)
+800584c8 - 
+80058578 - find next avail phys voice after $a0/gblk+34, return in $v0, 0x18 if none
+800585e0 - 
+80058830 - foreach vblk @$a0, if vblk+118==a1 then set vblk+118 to 0x18
+800588b0 - find avail phys voices? - read all voices' ADSR vols, call 58830
+800589f0 - perform keyons (converting logical to physical voices)
+80058f34 - map vbits to phys vbits; vblk $a0, vbits in $a2; output ($a1); mask $a3 
+80058f94 - perform keyoffs
+80059140 - map vbits in $a2 to phys vbits in ($a0)
+	$a0 = 80083238
+	$a1 = (fx_gblk+40)
+	$a2 = (gblk+40)
+	$a3 = (80080a90)
+8005931c - SpuGetVoiceEnvelope: read current ADSR volume of voice $a0 into ($a1)
+8005933c - SpuSetReverbModeDepth: set reverb vol L/R and 67990/2 from $a0/$a1
+8005ce04 - Copy quadwords at $a0 to $a1 len $a2
+8005d384 - process vcmds/dec counters/etc
+8005d6bc - irq handler for sound code
+8005db40 - readahead?
+8005dd7c - set sample data for voice?
+8005dfe0 - calculate pitch value for notenum $a1 sample @ $a0, put in $a3
+8005e3fc - read, dispatch vcmds?  (vptr addr in $a0)
+    e464 - dispatch vcmd 0xfe
+    e488 - dispatch vcmd >= 0xf0 and < 0xfe
+	   note/tie/rest with specific duration in op1
+	   (low nybble * 0xb == note vcmd)
+    e4f0 - dispatch vcmd >= 0xa0 and < 0xf0
+    e50c - dispatch vcmd < 0xa0: note, dur is durtbl[note % b]
+           0x00-0x83: note
+           0x84-0x8e: tie?  (5ea50)
+           0x8f-0x99: rest
+8005eda0 - vcmd FE 00: op1/2 << 16 -> gtbl+20; zero gtbl+68
+8005ee8c - vcmd FE 02: set reverb volume to op1/2 << 12; zero gblk+66
+8005ef7c - vcmd FE 06: Branch Relative  add op1/2 to vptr
+8005f044 - vcmd A3: set bits 0,1 of vblk+11c; op1 << 8 -> vblk+b2
+8005f0f0 - vcmd A8: set vblk+78 to op1 << 23; zero vblk+b8/ba
+8005f264 - vcmd AA: zero vblk+c0, set vblk+be to op1 + 40 & ff << 8
+8005f324 - vcmd A5: Set Octave  set vblk+c4 from op1
+8005f340 - vcmd A6: Inc Octave  inc vblk+c4 mod 0xf
+8005f358 - vcmd A7: Dec Octave  dec vblk+c4 mod 0xf
+8005f4a0 - vcmd FE 14:
+8005f654 - vcmd D8: set pitch multiplier?
+8005f718 - vcmd B4: set bit 0 of vblk+34, op1 -> vblk+ce, op2 << 12 -> vblk+3c
+8005f834 - vcmd B5: (uses gblk+2c: calculated pitch)
+8005feb4 - vcmd C2: Enable Reverb  set vbits in gblk+40, set bit 8 of 83158+8
+8005ff74 - vcmd CC: set bit 1 of vblk+cc
+8005ff80 - vcmd CD: no-op
+800600f0 - vcmd B1: Set Sustain Rate  to op1
+800602a4 - vcmd C8: 
+800602f4 - vcmd C9: 
+80060534 - vcmd FE 04:
+80060584 - vcmd FE 15: op1 -> gblk+74(H), op2 -> gblk+70(H), 0 -> gblk+76,72(H)
+800605bc - vcmd FE 16: op1/2 -> gblk+78(H)  [op1 -> lo byte, op2 -> hi byte]
+80062b3c - call rand()
+80063108 - call strcat($a0, $a1)
+800637c0 - call exit($a0)
+80063864 - call bcopy from $a0 to $a1 len $a2
+80064524 - call strlen($a0)
+80064534 - call memchr($a0, $a1, $a2)
+80065208 - call TestEvent
+80065218 - call _card_info
+80065228 - call _card_wait
+80065238 - call strcpy to $a0 from $a1
+80065e60 - call open(name, access)
+80065e70 - call lseek(fd, pos, type)
+80065e80 - call read(fd, buf, len)
+80065e90 - call write(fd, buf, len)
+80065ea0 - call close(fd)
+80065eb0 - call nextfile
+80066160 - call firstfile
+80066170 - call _card_load
+800661c0 - call _card_write
+800661d0 - call _new_card
+800665a0 - call _card_read
+800665b0 - call _card_status
+
+800667b4 - const 1f80_1814 (gp1 gpu ctl/status)
+800667b8 - const 1f80_1110 (t1 count)
+800678b0 - const 1f80_1070 (irq reg)
+800678b4 - const 1f80_1074 (irq mask)
+800678b8 - const 1f80_10f0 (dma channel enable)
+800678f0 - const 1f80_1114 (t1 mode)
+800678fc - const 1f80_10f4 (dma irq control)
+800679e8 - const 1f80_1c00 (spu regs base addr)
+800679ec - const 1f80_10c0 (spu dma address)
+800679f0 - const 1f80_10c4 (spu dma block count/size)
+800679f4 - const 1f80_10c8 (spu dma control)
+800679f8 - const 1f80_10f0 (dma channel enable)
+800679fc - const 1f80_1014 (spu delay)
+80067a00 - current SPU dest addr?
+80067a10 - amount to shift SPU dest addrs right (3)
+80067a20 - addr of cleanup callback after DMA finished
+80067a38 - SPU DMA direction: 0=to SPU 1=from SPU (unused in 107,209)
+80067a3c - SPU DMA source address
+80067a40 - SPU DMA block count (size >> 6; blocksize = 0x10 words)
+80068258 - console debug level (unused in production copy?)
+8006e65c - const 1f80_1070 (irq reg)
+8006e660 - const 1f80_1100 (t0 count)
+8006f31c - sum of timer counts from 6f324-30
+8006f320 - (H,upctr) inc @5d79c
+8006f324 - elapsed timer 2 counts during 3rd previous irq service
+8006f328 - elapsed timer 2 counts during 2nd previous irq service
+8006f32c - elapsed timer 2 counts during previous irq service
+8006f330 - elapsed timer 2 counts during this irq service
+8006f374 - vcmd len table (-0xa0)?
+8006f3f4 - table for note mod 11 (width 2)
+8006f410 - pitch table
+8006f540 - table (width 2)
+8006fb40 - table for B4 vcmd -> vblk+1c (width 4)
+8006fb60 - vcmd dispatch table (-0xa0)
+8006fce0 - vcmd dispatch table for FE
+
+8007bd48 - per-voice state, blocklen 0x134. (thru 7e3c4)
+  000 - vptr
+  014 - return address for subroutine call FE 0E/FE 0F
+  018 - set by FE 14 to ptr to data after song data?  Sample ptr?
+  01c - (addr) called on update to 044; set from table at 6fb40 by vcmd B4 op3
+  020 - (addr) called on update to 054
+  024 - (addr) called on update to 064
+  02c - (H) calculated pitch value from notenum/sample data
+  030 - zeroed by noteplay
+  032 - (H) zeroed by noteplay
+  034 - set by FE 14, bit 0 set by vcmd B4; bit 6: legato (noteoff == dur)
+	bit 4 - vibrato; bit 5 - tremolo
+  03c - set by vcmd B4 to op2 << 12
+  044 - counter
+  048 - delta for 044; set by vcmd B4
+  054 - counter
+  058 - delta for 054
+  064 - counter
+  068 - delta for 064
+  078 - set by vcmd A8 to op1 << 23 default 3FFF0000
+  07a - (H) velocity (hi)
+  084 - (H) calculated notenum value for sample/notenum?
+  094 - (H,unused in 107?) if not zero, skip keyoff on rest
+  096 - (H,ctr) cur dur? (dec @5d470), set by vcmds F0-FD op1, or notecmd%b->tbl
+  098 - (H,ctr) keyoff dur ctr.  set from 096 if 034 bit 6 set (dec @5d480), noteplay sets to 096-2
+  09a - (H) index of current sample in sample table
+  0a0 - (H,upctr) counts number of vcmds executed?
+  0b2 - (H) voice volume; set by vcmd A3, default 7f00
+  0b4 - (H,ctr,unused in 107) voice volume fade steps
+  0b8 - (H,ctr,unused in 107) velocity fade steps; zeroed by vcmd A8
+  0ba - (H,unused in 107?) velocity fade counter; zeroed by vcmd A8
+  0be - (H) pan; set to ((op1+0x40)&0xff) << 8 by vcmd AA
+  0c0 - (H,ctr,unused in 107) pan fade steps; set to zero by vcmd AA
+  0c2 - (H,ctr,unused in 107) zeroed by noteplay?
+  0c4 - (H) octave. set from vcmd A5 op1, vcmd A6 incs % f, vcmd A7 decs % f
+  0c8 - (H) set from 10a on noteplay
+  0ca - (H,unused in 107?) cleared on rest
+  0cc - (H) bits 0/1 unused in 107; set by vcmd CC to 1; keyoff after full
+	    note dur if bits 0 or 2 set; set by vcmd D0 to 4
+  0ce - (H) set by vcmd B4 op1
+  0d0 - (H,ctr) set to vblk+ce by vcmd B4
+  0d2 - (H,unused in 107?) zeroed by vcmd B4
+  0d4 - (H) set by vcmds B4,B5
+  0d6 - (H) set by vcmd B5 to op1 << 8
+  0d8 - (H,ctr,unused in 107)
+  0de - (H,ctr)
+  0e0 - (H,unused in 107)
+  0e4 - (H,ctr,unused in 107)
+  0e8 - (H,unused in 107)
+  0ec - (H,ctr,unused in 107)
+  0f0 - (H,ctr,unused in 107)
+  0f2 - (H,ctr,unused in 107)  
+  0f4 - (H) repeat depth
+  0f6 - (H,unused in 107)
+  0f8 - (H) set from 096
+  0fa - (H) signed/unsigned (unused in 107?) (override all notedurs?)
+  100 - (H) default 0x4000
+  106 - (H) added to cur notenum before notenum->pitch calc - per-voice transpose?
+  108 - (H) mult factor for pitch calculations? set (signed) by vcmd D8 op1
+  10a - (H) set to 0x00ff by vcmd FE 14 - current base notenum?
+  10c - (H)
+  10e - (H) set from 106 on noteplay
+  110 - (H) zeroed by noteplay or 8f-99, added to pitch 084 - vibrato ctr?
+  112 - (H) zeroed by noteplay or 8f-99, added to volume - tremolo ctr?
+  114 - (H)
+  ---
+  118 - current assigned phys voice
+  11c - bits 0,1 set by vcmds A3,A8,AA; noteplay ORs 0x13; vcmd B1 ORs 0x2200
+  120 - sample start addr
+  124 - sample loop point
+  128 - (H) final pitch after modifiers
+  12a - (H) attack/decay/suslvl shadow; set to [vptr+18]+3 << 8 or sample+0c/d
+  12c - (H) susrel/release shadow; init from sample+0e/f or 801045b0
+  12e - (H) volume multiplier; set from 801045b0(+7) post-sample data 
+  130 - (H) voice volume left
+  132 - (H) voice volume right
+8007e3c8 - 
+8007e3d0 - (upctr) inc @5d788
+8007f790 - (unused in 107) - sound effects in progress?
+8007f798 - physical voice status table (width 8)
+  04 - (H) current adsr volume
+8007f858 - global song state
+  00 - 
+  04 - vbits: skip voice processing if vbit clear
+  08 - vbits from songbase+24
+  0c - vbits
+  10 - vbits
+  14 - keyon shadow?
+  18 - keyoff shadow?
+  20 - tempo set by FE 00 op1/2 << 16
+  22 - (H) tempo (hi)
+  24 - tempo fade step value
+  28 - (upctr) inc @5d408 by gblk+22
+  2c - ptr to start of song data
+  30 - ptr to end of song data?  (from songbase+0x30)
+  34 - ptr to end of instr table?  (from songbase+0x34)
+  38 - default/next avail phys voice?
+  3c - noise enable vbits
+  40 - reverb enable vbits; set by vcmd C2
+  44 - FM enable vbits
+  48 - reverb vol (bits 12-27, 0vvvv000) args of FE 02 vcmd
+  4c - reverb vol fade step value
+  52 - (H) global volume multiplier (00-7F)
+  5e - (H) global pan addition
+  66 - (H?,ctr,unused in 107) reverb vol fade steps; zeroed by FE 02
+  68 - (H,ctr,unused in 107) tempo fade steps; zeroed by FE 00
+  6e - (H) noise clock
+  70 - (H> value for 72 to count up to; set by FE 15 op2
+  72 - (H,upctr) inc when 76 ctr triggers; zeroed by FE 15
+  74 - (H) value for 76 to count up to; set by FE 15 op1
+  76 - (H,upctr) zeroed by FE 15; inc @5d570
+  78 - (H,upctr) inc when 72 ctr triggers; set by FE 16 op1/2
+8007f970 - currently loaded samples table, recsize 0x10
+  00 - sample addr
+  04 - loop point
+  08 - (H) pitch correction factor (fixed point xxx.x)
+  0a - (H) notenum of actual pitch (subtracted from notenum to be played)
+  0c - (H) attack/decay/suslvl reg value (00ff)
+  0e - (H) susrel/release reg value (5fc7)
+800809b8 - repeat sound main loop if nonzero
+800809e0 - "lock" for SPU DMA (1=locked)
+80080a10 - address of global song state (8007f858)
+80080a2c - CD volume fade steps
+80080a30-6f - copy of beginning of song data
+80080a70 - (always 0 for 107?)
+80080a78 - 
+80080a7c - additional keyoff vbits
+80080a80 - 
+80080a8c - related to noise vbits
+80080a90 - related to reverb vbits
+80080a94 - related to FM vbits
+80080ac0 - CD volume shadow (fixed-point H/H)
+80080ac4 - 
+80083150 - 
+80083156 - (B,unused in 107) tempo multiplier
+80083158 - ??
+  08 - bit 7: dirty reverb vol from gblk+48, bit 8: dirty vbit flags (C2 sets)
+8008315c - bit 1: set if mono, clear if stereo
+80083174 - 
+800831c4 -
+800831c8 - table (width 4)
+80083228 - ptr to copy of song sample table
+8008322c - set from songbase+0x10
+80083230 - set from songbase+0x14
+80083234 - set from songbase+0x1c << 4
+80083238 - reverb enable phys vbits
+8008323c - noise enable phys vbits
+80083240 - FM mode enable phys vbits
+
+80100000 - sequence data
+    0000 - "AKAO"
+    0020 - 0fffffff   vbits for used voices
+    0030 - length of song relative to 0030
+    0034 - length of song + itbl relative to 0034
+    0040 - initial vptrs (relative to self)
+
+80120000 - sound data:
+    0000 - "AKAO"
+    0010 - 3100   dest addr of data in SPU
+    0014 - 56640
+    0018 - 0
+    001c - 60     count of entries in table
+
+55290 - called with $a0=80100000 (song data?)
+	(80aa0) = $a0
+	$a0 = 0x10
+	call 5c8bc
+5c8bc - $s0 = $a0; $s1 = 0
+	$a0 = (6f318)
+	call 56cbc - call DisableEvent(event)
+	$s0 &= 0xff
+	$a3 = 8008000
+	
+
+123bc - for ($s0=80120000; ($s0)=="AKAO"; $s0 += $s2)
+          $s2 = ($s0+14)
+	  $s3 = ($s0+1c) << 4 + 0x40  ; (1c=count of samples)
+	  $s2 += $s3  ; sizeof descr table
+          $a0 = $s0
+          $a1 = $s0 + $s3
+	  $a1 = 1
+
+  17830 - $a2 = $a0
+	  if (67a0c) != 0 then
+	   $a0 = (67a14)
+	   if $a1 % $a0 != 0 then
+	    $a1 += $a0
+	    $a1 &= ~(67a18)
+	  $a3 = $a1 >> (67a10)
+	  return $a1 if $a2 == -2
+	  return $a3 & 0xffff if $a2 == -1
+	  $v0 = $a1
+	  $a0 = const 1f80_1c00 (spu regs base addr)
+	  $v1 = $a2 << 1 + $a0
+	  ($v1)H = $a3
+  56028 ->
+  55d80 - $s0 = $a0; $s1 = $a1
+	  do
+            $a0 = $s0; $a1 = $s1
+	    call 56700
+	  while $v0 == 1
+  5658c - $t0 = $a1 + 0xc
+	  $v1 = $a0 + 0xc
+	  do
+	   ($a1) = ($a0) + $a2
+	   ($t0-8) = ($v1-8) + $a2
+	   ($t0-4) = ($v1-4)
+	   ($t0) = ($v1)
+	   $a0 += 0x10
+	   $a1 += 0x10
+	   $v1 += 0x10
+	   $t0 += 0x10
+	   $a3--
+	  until $a3 == 0
+  56700 - $s0 = $a0; $s1 = $a1
+	  return -1 if ($a0) != "AKAO"
+          $a0 = $s0; $a1 = $s1; $a2 = ($a0+18); $a3 = ($a0+10)
+	  call 56750
+	  return 0
+  56750 - $s0=$a0; $s4=$a1; $s3=$a2 (sample table idx); $s2=$a3
+	  call 566d0  ; wait for SPU DMA lock to clear
+	  return ($s0) if ($s0) != "AKAO"
+	  $s1=$s0; $a0=$s2
+	  call 5652c - set dest SPU DMA addr to $s2 if OK
+	  $s0 += 0x40
+	  $a0 = ($s1+1c) << 4 + $s0  ; DMA src
+	  $a1 = ($s1+14)	     ; DMA len
+	  call 56644 - perform SPU DMA from $a0 len $a1 to cur SPU addr
+	  $a0 = $s0
+	  $a1 = 8007f970 + $s3 << 4
+	  $a3 = ($s1+1c)
+	  $a2 = $s2
+	  call 5658c
+	  return $v0 if $s4 == 0
+	  $v0 = 0
+	  call 566d0 - wait for SPU DMA lock to clear
+	  return 0
+
+Call: 0x8005963C(0x80100000,0xFFFFFFFF,0x00003100,0x80080000) 		(ra=0x8005A6B0,sp=0x801FFF80)
+Call: 0x8005A658(0x80080970,0x00000001,0x00003100,0x80080000) 		(ra=0x8005CBE0,sp=0x801FFF98)
+Call: 0x8005C8BC(0x00000010,0x00000001,0x00003100,0x00000000) 		(ra=0x800552A8,sp=0x801FFFC0)
+Call: 0x80055290(0x80100000,0x00000001,0x00003100,0x00000000) 		(ra=0x80012410,sp=0x801FFFD8)
+Call: 0x800123BC(0x00000000,0x00004000,0x01000201,0x40000000) 		(ra=0x800127D4,sp=0x801FFFD8)
+Call: 0x800127A0(0x80083FB4,0x0017A048,0x00006CB8,0xA000E1F4) 		(ra=0x80012C0C,sp=0x801FFFF8)
