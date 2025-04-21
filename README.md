@@ -3,6 +3,9 @@ Scripts etc. used for extracting music sequence data from console and home compu
 
 Organized by system.
 
+The scripts are pretty much all in Perl, and make extensive use of the perl-midi package to handle
+reading/writing MIDI files.
+
 If I've analyzed a game enough, I'll have a file named `<game>mus.pl` that when run reads a ROM or disk image
 and generates a set of General MIDI files (in the mid/ directory) that attempt to represent the original sequenced
 music for the game.  In some cases it also generates a set of text files (in the txt/ directory) that are
@@ -28,4 +31,5 @@ that game composers and sound designers have used to make the music that I have 
 That, and I can't help but want to take things apart to see how they work :)
 
 Feedback or assistance is welcomed.  I'm not hard to find.
- - Bongo
+
+ -- Bongo
