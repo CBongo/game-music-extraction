@@ -1,0 +1,254 @@
+7000 copy 73ee-73ef to 0100  (457a)
+	 copy 0100-0101 to 702b
+	 eor/rol across 7000-7074 -> 702b (=4e)
+	 rol 702c (=8a)
+	8a4e sei
+		8ab4 - copy intr vector table to fffa (all 8ab3 = RTI)
+		8ac0 sei; turn off kernal (basic on)			
+		 8/9,a/b= e000, 1ffa
+		8ad4 rol/eor (08) -> c/d
+		 c/d -> 29f/2a0
+		 8/9,a/b= e000, 1ff9
+		8af3 rol/eor (08) -> .a/C
+		 .a->29d, C->29e
+		8aca turn on kernel (basic off); cli
+		 cli
+		 29f/2a0 ^= #$04e7
+		 029d ^= #$55
+	 copy dcfd-dd04 to 9ffa
+	 sei
+	8a2c shuffle 0100/0101, 029f/02a0, 029d, 07 around
+		PHX, PHY
+		8a00
+			07 = 0100 + 029f + 029d + 1
+			029d = 029f
+			029f = 02a0
+			02a0 = 0101
+			0101 = 0100
+			0100 = 07
+		.X = .A & 3 + 1
+		do .X times:
+			8a00
+			.Y = .A & 7 + 1
+			8a00 x .Y
+		PLY, PLX
+		return .A = 07
+		
+	 copy 73e5-73ee to cff0 - minimal IRQ handler
+7043 d011 = 0  - blank screen
+	 7000 = 0
+704b zero 7001-704f
+7054 73e4 = (0104 ? 0 : 1)
+705f fe/ff = #$d800
+	 save IRQ vector 0314/5 to cffe/f
+7073 set color RAM to #$08
+708c c890/1 = #$1388
+	 set border color to black (0)
+	 set bgcolor0 to red (2)
+70a0 set bgcolor1 to yellow (7)
+	 set bgcolor2 to dark gray (8)
+	 d016 |= #$10  - enable multicolor mode
+	 set VIC bank 2 ($4000-$7FFF)
+	 d015 = 0  - sprites off
+70c1 sei
+	 d018 = #$de  - char/color @7400, chars@7800, bmap@6000
+	 dc03 = 0 (DDRB)
+	 9d (MSGFLG) = 0 - suppress error msgs
+	 dc02/3 = 0 (DDRA/B)
+70d6 copy 8700-89ff to a800
+	 copy 8000-86ff to 9000
+70e8 LOAD "NTAB.O",8,1		(9800)
+710a LOAD "F.OVLY.1.O",8,1	(aa3e)
+--show title page until joy button pressed
+if 73e4 == 0 (fastload enabled) then:
+  717b LOAD "F",8,1			(cc00)
+  719d 
+	  cc00  init fastloader
+71a0 LOAD "B.SMALL",8,1		(0cc0)
+71c2 LOAD "T.DEMO",8,1		(c400)
+71e4 LOAD "C.SMALL",8,1		(8000)->f800
+7206 LOAD "VV.ONE",8,1		(c845)
+7228 copy 8000-87ff to f800
+725c LOAD "GPII",8  @e400
+7282 turn off basic + kernel + IO
+	 copy e400-f7ff to d000-e3ff
+	 turn on kernel (basic off)
+7299 LOAD "F.OVLY.2.O",8,1	(aa3e)
+72bb set vars in c8xx:
+	 c844 = 1
+	 c87d/e = 0100
+	 c87c = 0
+	 c88c/d = 0000
+	 c88e = 1
+	 c880 = ff
+	 c884 = ff
+	 c888 = ff
+	 c841 = 9
+72e6 push ret addr 6100 on stack
+     LOAD "MAINMENU",8,1	(6100)
+
+737e copy mem at (JSR+0 - JSR+2) to (JSR+4)
+
+===============================================
+rdsloader - a800
+
+3f/40 - voice 1 cmd ptr
+41/42 - voice 2 cmd ptr
+43/44 - voice 3 cmd ptr
+
+9800/1,y - table of freqs
+
+a929 - get next voice command byte?
+a96c - zero shadow regs (a9d7-aa35) and sid (d400-d418)
+a9c1 - STOP: set a9d7 to ff, set volume to 0
+a9cc - START: set a9d7 to 00, set volume to 12
+
+a9d7 - 00 = playing, ff = stopped
+a9d8/9,x - shadow d400/1 (freq)
+a9dc,x - shadow d404 (waveform/gate)
+a9ee - shadow d416 (filter cutoff freq - hi)
+a9f0/1,x - delta for freq
+aa06 - a9ee/d416 filter cutoff freq delta
+aa20,x - ticks until next event?
+aa21,x - ticks until gate cleared
+aa36 - current voice # (0-2)
+aa37 - temp storage for .X (0,7,14)
+aa3e/f,x - voice cmd ptr table?
+aa46,y - table for aa06/aa32 index stored  aa35
+
+================================================
+F (cc00)  fast load routine?
+
+cc00 - init (JMP ce63)
+cc03 - LOAD
+	store .A in $93 (load/verify flag)
+	if (len(filename) = 0 or > 16
+		or device < 8 or > 11 
+		then JMP to kernel LOAD routine
+	set status ($90) to 0
+	if filename starts with "$"
+		then JMP to kernal LOAD routine
+	cd53
+		remove "@...:" at beginning of filename
+	save stack ptr in cc93
+	fill cf07-cf16 with #$a0 padding
+	copy filename into cf07-cf16  (on drive: 0589)
+	copy 02-06 to ccaf-ccb3
+	set ccae to 0
+	set ce5d to 0
+	copy secondary addr ($b9) to $06
+	if SA = 0
+	  then copy c3/c4 to cdc0/c1  (load addr from .X/.Y)
+	cdf5
+		ccb8 LISTEN on SA 15
+		send "I" to serial bus, then send UNLISTEN
+		set ce27/8 to #$ce7e
+		set ce5d to 0
+		set ce5c to 5
+		do 11 times:
+			ccb8  LISTEN on SA 15
+			send ce5b-60 (rev) to serial bus
+				"M-W" 00 05 21 (mem write $0500 len 33)
+			do 33 times:
+				send ce7e to serial bus
+				inc ce5d/c  (M-W addr)
+				inc ce27/8 (ce7e)
+			send UNLISTEN
+		ccb8 LISTEN on SA 15
+		send ce56-5a (rev) to serial bus
+			"M-E" 00 05  (mem exec $0500)
+		send UNLISTEN
+	.A = #$02
+	cd05 - send a byte in .A via fast protocol
+		$04 = .A
+		do 8 times
+			cd3f set CLK high, DATA low
+			cd36 read dd00 until settled, until DATA low
+			cd48 set CLK and DATA low
+			cd36 read dd00 until settled, while DATA high
+			set CLK high
+			LSR $04
+			if bit 0 of $04 was set then set DATA high
+			delay 7 loops
+			cd48 set CLK and DATA low
+	cca0 - receive a byte via fast protocol into $02; die if #$77
+		ccc6
+		if .A not #$77 then
+			$02 = .A
+		else fall back to slow LOAD
+	ccc6 - receive a byte via fast protocol into .A
+		set $04 to #$80 (marker at end of byte)
+		set CLK high
+		set ccec to "set CLK high"
+		wait for DATA low
+		set CLK low
+		set .Y to "set CLK low"
+		wait for DATA high
+		do 8 times
+			set CLK high
+			delay 5 loops
+			shift DATA state into $04 (lsb first, msb last)
+			set CLK low
+		return .A = $04 XOR #$FF
+	$03 = .A
+	if $02 == 0 then
+		ccae = #$09
+		send 0 via fast proto
+	else
+		cd7a
+			send 1 via fast proto
+			send $02 via fast proto
+			send $03 via fast proto
+			receive byte via fast proto in $02; die if 77
+			receive byte via fast proto in $03
+			if SA == 0 then
+				throw away next two bytes from fast proto
+			else
+				receive byte via fp in cdc0
+				receive byte via fp in cdc1
+			for ($05 = #252; $05 > 0; $05--) 
+				get byte from FP
+				if $02 not 0 then
+					.X = .A
+					if ($03 XOR #$FF) < $05 then
+						.A = .X
+						store .A in (cdc0++)
+				inc cdc0/1
+			if $02 == 0 then
+				send 0 via fp
+				RTS
+			send 1 via fp
+			send $02 via fp
+			send $03 via fp
+			receive byte via fp in $02; die if 77
+			receive byte via fp in $03
+			goto for loop (start $05 at #254 this time)			
+			
+cc87 restore 02-06 from ccae
+	ror ccae
+	restore stack ptr
+	restore x/y from cdc0/1
+	if carry clear then
+		RTS
+	else
+		fall back to slow LOAD
+
+		
+ce63 - init
+	if LOAD vec not pointing to $CCxx then
+	  set LOAD vec to #$cc03
+
+ce7e-cfe7 - code sent to drive at $0500
+============================================
+mainmenu (6100)
+
+6100 e0/1 = #$6200  (decrypt start)
+	 e2/3 = #$7c80  (decrypt end)
+	 e4/5 = #$6100  (decrypt dest)
+	 60/1 = #$6134 
+	 62/3 = #$9000
+	 copy 6134-6233 to 9000
+	 jmp 9000
+9000 copy 904f-914e to 8000
+	 a000 = 0
+	 

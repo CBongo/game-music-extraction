@@ -1,0 +1,37 @@
+alphanum.prg    8000
+b.small.prg     0cc0
+bluecar.prg     8000
+c.small.prg     8000
+cards.prg       8c00
+cbm.prg         8000
+ccons.prg       6200
+cons.prg        6200
+conscards.prg   8000
+consv.prg       6200
+corv.prg        8000
+ea.prg          02a7
+ea_.prg         c000
+f.ovly.1.o.prg  aa3e
+f.ovly.2.o.prg  aa3e
+f.ovly.3.o.prg  aa3e
+f.prg           cc00
+fast ea.prg     02a8
+gpi.prg         8000
+gpii.prg        8000
+himem.prg       b000
+jeep.prg        8000
+lomem.prg       6a00
+mainmenu.prg    6100
+midmem.prg      a000
+moonrover.prg   8000
+motorcycle.prg  8000
+ntab.o.prg      9800
+pickup.prg      8000
+rdsloader.prg   7000
+slower ea.prg   02a8
+sp1.prg         7600
+sp2.prg         b000
+v.canam.prg     c846
+vv.one.prg      c845
+vw.prg          8000
+t.demo.prg      c400
