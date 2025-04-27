@@ -84,3 +84,10 @@ b21f 00 06 b0 80  90 90 af 90  ad 80 8d 8d  af 90 f2 05
 b22f 38 01 01 02  00 03 3f 07  af 10 21 f9  f9 09
 
 b353 02 22 80 00
+
+
+=================================================
+working directly on the ines file:
+sound code in bank 0xC
+0x8000:  update
+0x8003:  play
