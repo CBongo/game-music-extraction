@@ -1,0 +1,368 @@
+game: "Chrono Cross"
+format: "akao_newstyle"
+console_type: "psx"
+
+# ROM table locations (PSX RAM addresses)
+# The script will automatically convert these to file offsets
+duration_table:
+  address: 0x8006B5BC
+  size: 11
+  type: "ushort"
+
+opcode_table:
+  address: 0x8006B53C
+  size: 96
+  type: "byte"
+
+fe_opcode_table:
+  address: 0x8006B59C
+  size: 32
+  type: "byte"
+
+# Default state values
+default_tempo: 255
+default_octave: 4
+default_velocity: 100
+tempo_factor: 13107200000  # timer2 period: 0.2362us * 96 ticks * 65536
+
+# Songs - sector offsets from CD-ROM image
+songs:
+  - id: 0x02
+    title: "217 Previously Lost Hopes"
+    sector: 0x01d15c
+    length: 0x9c0
+  
+  - id: 0x03
+    title: "310 Frozen Flame"
+    sector: 0x01d21f
+    length: 0x1650
+  
+  - id: 0x04
+    title: "901 The Brink of Death (Variation)"
+    sector: 0x01d2e2
+    length: 0x3f78
+  
+  - id: 0x05
+    title: "115 Viper Manor"
+    sector: 0x01d349
+    length: 0x2570
+  
+  - id: 0x06
+    title: "103 Home Village Arni"
+    sector: 0x01d3cc
+    length: 0x1838
+  
+  - id: 0x07
+    title: "112 Another Termina"
+    sector: 0x01d44b
+    length: 0x2978
+  
+  - id: 0x08
+    title: "206 Home Guldove"
+    sector: 0x01d4c6
+    length: 0x1f00
+  
+  - id: 0x09
+    title: "106 Reminiscence - Feelings Not Erased"
+    sector: 0x01d54b
+    length: 0xb78
+  
+  - id: 0x0a
+    title: "219 Gaia's Navel"
+    sector: 0x01d5e9
+    length: 0x2ba8
+  
+  - id: 0x0b
+    title: "210 Nap"
+    sector: 0x01d689
+    length: 0x398
+  
+  - id: 0x0c
+    title: "104 Time's Grasslands - Home World"
+    sector: 0x01d6da
+    length: 0x1270
+  
+  - id: 0x0d
+    title: "105 Dancing the Tokage"
+    sector: 0x01d772
+    length: 0x13a8
+  
+  - id: 0x0e
+    title: "307 Time of the Dreamwatch"
+    sector: 0x01d7d3
+    length: 0x31d0
+  
+  - id: 0x0f
+    title: "215 Dead Sea - Tower of Ruin"
+    sector: 0x01d89a
+    length: 0x2410
+  
+  - id: 0x10
+    title: "107 Dream of the Shore Bordering Another World"
+    sector: 0x01d926
+    length: 0x1218
+  
+  - id: 0x11
+    title: "316 Dream's Creation"
+    sector: 0x01d9a8
+    length: 0x5a0
+  
+  - id: 0x12
+    title: "214 Isle of the Damned"
+    sector: 0x01d9b6
+    length: 0x32c8
+  
+  - id: 0x13
+    title: "204 Dragonrider"
+    sector: 0x01da5c
+    length: 0x2660
+  
+  - id: 0x14
+    title: "904 Birds Ambience"
+    sector: 0x01db1e
+    length: 0x660
+  
+  - id: 0x15
+    title: "906 Cave Ambience 2"
+    sector: 0x01db63
+    length: 0x670
+  
+  - id: 0x16
+    title: "220 Gale"
+    sector: 0x01db9d
+    length: 0x3fd8
+  
+  - id: 0x17
+    title: "306 The Star-Stealing Girl"
+    sector: 0x01dc29
+    length: 0x1db0
+  
+  - id: 0x18
+    title: "116 Victory - Spring's Gift"
+    sector: 0x01dcee
+    length: 0xb80
+  
+  - id: 0x19
+    title: "221 Victory - Summer's Cry"
+    sector: 0x01dd4d
+    length: 0x1100
+  
+  - id: 0x44
+    title: "226B Magical Dreamers - The Wind, Stars, and Waves (Main)"
+    sector: 0x01ddac
+    length: 0x23b8
+  
+  - id: 0x1b
+    title: "110 Lost Fragments"
+    sector: 0x01de52
+    length: 0x15e8
+  
+  - id: 0x45
+    title: "903 Magical Dreamers - The Wind, Stars, and Waves (Variation)"
+    sector: 0x01def1
+    length: 0x1528
+  
+  - id: 0x1d
+    title: "113 Leaving the Body"
+    sector: 0x01df95
+    length: 0x18f0
+  
+  - id: 0x1e
+    title: "203 Home Termina"
+    sector: 0x01e021
+    length: 0x28a0
+  
+  - id: 0x1f
+    title: "902 Home Termina (Variation)"
+    sector: 0x01e0aa
+    length: 0x25a8
+  
+  - id: 0x49
+    title: "303 Fates - Gods of Destiny"
+    sector: 0x01e132
+    length: 0x1a00
+  
+  - id: 0x21
+    title: "202 Cleft of Dimension"
+    sector: 0x01e1d7
+    length: 0xe60
+  
+  - id: 0x22
+    title: "213 Optimism"
+    sector: 0x01e251
+    length: 0x1e08
+  
+  - id: 0x23
+    title: "123 Death Volcano"
+    sector: 0x01e2e6
+    length: 0x3458
+  
+  - id: 0x24
+    title: "212 Predicament"
+    sector: 0x01e38d
+    length: 0x1e58
+  
+  - id: 0x28
+    title: "905 Cave Ambience"
+    sector: 0x01e431
+    length: 0x658
+  
+  - id: 0x29
+    title: "209 The Big Admirable Mysterious Sleight of Hand Group"
+    sector: 0x01e46e
+    length: 0xe80
+  
+  - id: 0x25
+    title: "211 Chrono Main Theme"
+    sector: 0x01e50a
+    length: 0x2218
+  
+  - id: 0x26
+    title: "122 Phantom Ship"
+    sector: 0x01e5cf
+    length: 0x1650
+  
+  - id: 0x27
+    title: "111 Drowning Valley"
+    sector: 0x01e670
+    length: 0x1c48
+  
+  - id: 0x2a
+    title: "301 Garden of the Gods"
+    sector: 0x01e715
+    length: 0x10e0
+  
+  - id: 0x2b
+    title: "304 Jellyfish Sea"
+    sector: 0x01e7b8
+    length: 0x880
+  
+  - id: 0x2c
+    title: "205 Voyage - Home World"
+    sector: 0x01e856
+    length: 0x3588
+  
+  - id: 0x2d
+    title: "117 Lost Child of Time"
+    sector: 0x01e8fc
+    length: 0x1710
+  
+  - id: 0x2e
+    title: "114 Shadow Forest"
+    sector: 0x01e99f
+    length: 0xaf8
+  
+  - id: 0x2f
+    title: "208 Zelbess"
+    sector: 0x01ea2b
+    length: 0x1188
+  
+  - id: 0x30
+    title: "109 He Sang of Feeling"
+    sector: 0x01eac5
+    length: 0xa88
+  
+  - id: 0x31
+    title: "305 Orphan of Flame"
+    sector: 0x01eb2b
+    length: 0x16e0
+  
+  - id: 0x32
+    title: "216 People Seized with Life"
+    sector: 0x01ebce
+    length: 0x1a40
+  
+  - id: 0x33
+    title: "102 The Brink of Death"
+    sector: 0x01ec72
+    length: 0x3b80
+  
+  - id: 0x34
+    title: "119 Hydra Marshes"
+    sector: 0x01ed03
+    length: 0x2a50
+  
+  - id: 0x35
+    title: "207 Home Marbule"
+    sector: 0x01edaa
+    length: 0x18e8
+  
+  - id: 0x36
+    title: "121 Voyage - Another World"
+    sector: 0x01ee4e
+    length: 0xe60
+  
+  - id: 0x37
+    title: "309 Tower of Stars"
+    sector: 0x01eeef
+    length: 0x1428
+  
+  - id: 0x38
+    title: "222 Another Marbule"
+    sector: 0x01ef91
+    length: 0xfc8
+  
+  - id: 0x39
+    title: "108 Another Arni Village"
+    sector: 0x01f033
+    length: 0x10e8
+  
+  - id: 0x3a
+    title: "118 Another Guldove"
+    sector: 0x01f0d4
+    length: 0xd00
+  
+  - id: 0x3b
+    title: "302 Chronopolis"
+    sector: 0x01f173
+    length: 0x1260
+  
+  - id: 0x3c
+    title: "218 Earth Dragon's Island"
+    sector: 0x01f215
+    length: 0x1240
+  
+  - id: 0x40
+    title: "313 Life - Faraway Promise"
+    sector: 0x01f2b4
+    length: 0x3d78
+  
+  - id: 0x41
+    title: "224 Etude 1"
+    sector: 0x01f37c
+    length: 0x158
+  
+  - id: 0x42
+    title: "225 Etude 2"
+    sector: 0x01f41d
+    length: 0x1d0
+  
+  - id: 0x43
+    title: "226A Magical Dreamers - The Wind, Stars, and Waves (Intro)"
+    sector: 0x01f4be
+    length: 0xdb8
+  
+  - id: 0x3e
+    title: "124 Ancient Dragon's Fort"
+    sector: 0x01f560
+    length: 0x1ee8
+  
+  - id: 0x3f
+    title: "308 Dragon's Prayer"
+    sector: 0x01f5fe
+    length: 0x36f0
+  
+  - id: 0x46
+    title: "312 Into a Time of Darkness"
+    sector: 0x01f6a6
+    length: 0xa10
+  
+  - id: 0x47
+    title: "311 Dragon God"
+    sector: 0x01f748
+    length: 0x1d40
+  
+  - id: 0x48
+    title: "223 Fairies Make Way for Magic"
+    sector: 0x01f7ec
+    length: 0x238

@@ -1,0 +1,36 @@
+game: "Final Fantasy IX"
+format: "akao_newstyle"
+console_type: "psx"
+
+# Default source file (can be overridden per-song)
+default_source_file: "/FF9.IMG"
+
+# ROM table locations (PSX RAM addresses)
+duration_table:
+  address: 0x8006F3F4
+  size: 11
+  type: "ushort"
+
+opcode_table:
+  address: 0x8006F374
+  size: 96
+  type: "byte"
+
+fe_opcode_table:
+  address: 0x8006F3D4
+  size: 32
+  type: "byte"
+
+# Default state values
+default_tempo: 255
+default_octave: 4
+default_velocity: 64
+tempo_factor: 13107200000
+
+# Songs - using file offsets instead of sectors
+songs:
+  - id: 0x22
+    title: "101 The Place I'll Return To Someday"
+    file_path: "/FF9.IMG"
+    offset: 0x48881C
+    length: 0x1288
