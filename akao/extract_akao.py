@@ -15,11 +15,99 @@ from midiutil import MIDIFile
 import re
 import pycdlib.pycdlib as pycdlib_module
 import io
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 
 # Global constants
 NOTE_NAMES = ["C ", "C#", "D ", "D#", "E ", "F ", "F#",
               "G ", "G#", "A ", "A#", "B "]
+
+# General MIDI instrument names for reference
+GM_INSTRUMENTS = [
+    "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano", "Honky-tonk Piano",
+    "Electric Piano 1", "Electric Piano 2", "Harpsichord", "Clavi",
+    "Celesta", "Glockenspiel", "Music Box", "Vibraphone",
+    "Marimba", "Xylophone", "Tubular Bells", "Dulcimer",
+    "Drawbar Organ", "Percussive Organ", "Rock Organ", "Church Organ",
+    "Reed Organ", "Accordion", "Harmonica", "Tango Accordion",
+    "Acoustic Guitar (nylon)", "Acoustic Guitar (steel)", "Electric Guitar (jazz)", "Electric Guitar (clean)",
+    "Electric Guitar (muted)", "Overdriven Guitar", "Distortion Guitar", "Guitar harmonics",
+    "Acoustic Bass", "Electric Bass (finger)", "Electric Bass (pick)", "Fretless Bass",
+    "Slap Bass 1", "Slap Bass 2", "Synth Bass 1", "Synth Bass 2",
+    "Violin", "Viola", "Cello", "Contrabass",
+    "Tremolo Strings", "Pizzicato Strings", "Orchestral Harp", "Timpani",
+    "String Ensemble 1", "String Ensemble 2", "SynthStrings 1", "SynthStrings 2",
+    "Choir Aahs", "Voice Oohs", "Synth Voice", "Orchestra Hit",
+    "Trumpet", "Trombone", "Tuba", "Muted Trumpet",
+    "French Horn", "Brass Section", "SynthBrass 1", "SynthBrass 2",
+    "Soprano Sax", "Alto Sax", "Tenor Sax", "Baritone Sax",
+    "Oboe", "English Horn", "Bassoon", "Clarinet",
+    "Piccolo", "Flute", "Recorder", "Pan Flute",
+    "Blown Bottle", "Shakuhachi", "Whistle", "Ocarina",
+    "Lead 1 (square)", "Lead 2 (sawtooth)", "Lead 3 (calliope)", "Lead 4 (chiff)",
+    "Lead 5 (charang)", "Lead 6 (voice)", "Lead 7 (fifths)", "Lead 8 (bass + lead)",
+    "Pad 1 (new age)", "Pad 2 (warm)", "Pad 3 (polysynth)", "Pad 4 (choir)",
+    "Pad 5 (bowed)", "Pad 6 (metallic)", "Pad 7 (halo)", "Pad 8 (sweep)",
+    "FX 1 (rain)", "FX 2 (soundtrack)", "FX 3 (crystal)", "FX 4 (atmosphere)",
+    "FX 5 (brightness)", "FX 6 (goblins)", "FX 7 (echoes)", "FX 8 (sci-fi)",
+    "Sitar", "Banjo", "Shamisen", "Koto",
+    "Kalimba", "Bag pipe", "Fiddle", "Shanai",
+    "Tinkle Bell", "Agogo", "Steel Drums", "Woodblock",
+    "Taiko Drum", "Melodic Tom", "Synth Drum", "Reverse Cymbal",
+    "Guitar Fret Noise", "Breath Noise", "Seashore", "Bird Tweet",
+    "Telephone Ring", "Helicopter", "Applause", "Gunshot"
+]
+
+
+@dataclass
+class PatchInfo:
+    """Information about an instrument patch."""
+    gm_patch: int  # General MIDI patch number (0-127, or negative for percussion)
+    transpose: int = 0  # Semitones to transpose
+    name: Optional[str] = None  # Human-readable instrument name
+
+    def is_percussion(self) -> bool:
+        """Check if this patch represents percussion."""
+        return self.gm_patch < 0
+
+
+class PatchMapper:
+    """Maps game-specific patch numbers to General MIDI patches."""
+
+    def __init__(self, patch_map: Optional[Dict] = None):
+        """Initialize with optional patch mapping configuration."""
+        self.patch_map: Dict[int, PatchInfo] = {}
+
+        if patch_map:
+            for patch_num, info in patch_map.items():
+                if isinstance(info, dict):
+                    self.patch_map[patch_num] = PatchInfo(
+                        gm_patch=info.get('gm_patch', 0),
+                        transpose=info.get('transpose', 0),
+                        name=info.get('name')
+                    )
+                elif isinstance(info, int):
+                    # Simple mapping: just GM patch number
+                    self.patch_map[patch_num] = PatchInfo(gm_patch=info)
+
+    def get_patch_info(self, patch_num: int) -> PatchInfo:
+        """Get patch info for a given patch number, with default fallback."""
+        if patch_num in self.patch_map:
+            return self.patch_map[patch_num]
+        # Default: use piano (patch 0) with no transposition
+        return PatchInfo(gm_patch=0, name="Acoustic Grand Piano")
+
+    def get_instrument_name(self, patch_num: int) -> str:
+        """Get human-readable instrument name for a patch."""
+        info = self.get_patch_info(patch_num)
+        if info.name:
+            return info.name
+        if info.is_percussion():
+            return f"Percussion (GM {-info.gm_patch})"
+        if 0 <= info.gm_patch < len(GM_INSTRUMENTS):
+            return GM_INSTRUMENTS[info.gm_patch]
+        return f"Unknown Instrument ({info.gm_patch})"
 
 
 class Raw2352FileWrapper(io.BufferedIOBase):
@@ -392,12 +480,13 @@ class AKAONewStyle(SequenceFormat):
         """Parse a single track's event data."""
         disasm = []
         midi_events = []
-        
+
         # Track state (use config defaults)
         octave = self.default_octave
         velocity = self.default_velocity
         total_time = 0
         tempo = self.default_tempo
+        current_patch = 0  # Current instrument patch
         
         # Repeat loop state (separate for disasm and MIDI)
         repeat_stack = []  # Stack for MIDI processing
@@ -458,7 +547,8 @@ class AKAONewStyle(SequenceFormat):
                         'time': total_time,
                         'duration': note_duration,
                         'note': midi_note,
-                        'velocity': velocity
+                        'velocity': velocity,
+                        'patch': current_patch  # Track which patch plays this note
                     })
                 elif notenum == 12:
                     # Tie - extend the last note's duration
@@ -512,6 +602,14 @@ class AKAONewStyle(SequenceFormat):
                 elif op1 == 0x06:
                     # Goto - end of track
                     break
+                elif op1 == 0x14 and len(operands) >= 1:
+                    # Program Change (FE 14)
+                    current_patch = operands[0]
+                    midi_events.append({
+                        'type': 'program_change',
+                        'time': total_time,
+                        'patch': current_patch
+                    })
                 elif op1 == 0x15 and len(operands) >= 2:
                     # Time signature
                     denom_val = 0xC0 / operands[0] if operands[0] != 0 else 0
@@ -535,7 +633,15 @@ class AKAONewStyle(SequenceFormat):
                 line += self.OPCODE_NAMES.get(cmd, f"OP_{cmd:02X}")
                 
                 # Handle state-changing opcodes
-                if cmd == 0xA5 and operands:
+                if cmd == 0xA1 and operands:
+                    # Program Change (A1)
+                    current_patch = operands[0]
+                    midi_events.append({
+                        'type': 'program_change',
+                        'time': total_time,
+                        'patch': current_patch
+                    })
+                elif cmd == 0xA5 and operands:
                     octave = operands[0]
                 elif cmd == 0xA6:
                     octave += 1
@@ -573,15 +679,20 @@ class AKAONewStyle(SequenceFormat):
 
 class SequenceExtractor:
     """Main extractor class."""
-    
-    def __init__(self, config_path: str, source_file: str):
+
+    def __init__(self, config_path: str, source_file: str, patch_based_tracks: bool = False):
         """Initialize with YAML config file and source ISO/ROM file."""
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
-        
+
         self.source_file = source_file
         self.console_type = self.config.get('console_type', 'psx')
         self.output_dir = Path(self.config.get('output_dir', 'output'))
+        self.patch_based_tracks = patch_based_tracks  # Organize by patch instead of sequence track
+
+        # Initialize patch mapper
+        patch_map_config = self.config.get('patch_map', {})
+        self.patch_mapper = PatchMapper(patch_map_config)
         
         # Detect sector size if not specified
         if 'sector_size' in self.config:
@@ -822,17 +933,16 @@ class SequenceExtractor:
         return '\n'.join(output)
     
     def generate_midi(self, song: SongMetadata, data: bytes, output_path: Path):
-        """Generate MIDI file from sequence."""
+        """Generate MIDI file from sequence with patch mapping support."""
         try:
             header = self.format_handler.parse_header(data)
             track_offsets = self.format_handler.get_track_offsets(data, header)
-            
-            # Parse all tracks first to count non-empty ones
+
+            # Parse all tracks
             parsed_tracks = []
             for voice_num, offset in enumerate(track_offsets):
                 try:
                     _, midi_events = self.format_handler.parse_track(data, offset, voice_num)
-                    # Only include tracks that have actual note events
                     has_notes = any(e['type'] == 'note' for e in midi_events)
                     parsed_tracks.append({
                         'voice_num': voice_num,
@@ -841,66 +951,390 @@ class SequenceExtractor:
                     })
                 except Exception as e:
                     raise Exception(f"Failed parsing track {voice_num} at offset {offset:04X}: {e}") from e
-            
-            # Count non-empty tracks
-            non_empty_tracks = [t for t in parsed_tracks if t['has_notes']]
-            
-            # Create MIDI file (format 1, multiple tracks)
-            num_tracks = len(non_empty_tracks) + 1  # +1 for conductor track
+
+            if self.patch_based_tracks:
+                # Organize by patch
+                tracks_to_write, conductor_events = self._organize_by_patch(parsed_tracks)
+            else:
+                # Organize by sequence voice
+                tracks_to_write = [t for t in parsed_tracks if t['has_notes']]
+                # Extract conductor events from voice-based tracks
+                conductor_events = []
+                for track in parsed_tracks:
+                    conductor_events.extend([e for e in track['events'] if e['type'] == 'tempo'])
+
+            # Create MIDI file
+            num_tracks = len(tracks_to_write) + 1  # +1 for conductor track
             midi = MIDIFile(num_tracks, file_format=1)
-            
-            # Conductor track (tempo changes, etc.)
+
+            # Conductor track
             midi.addTrackName(0, 0, "Conductor")
-            midi.addTempo(0, 0, 120)  # Default tempo
-            
-            # Add only non-empty tracks
-            for track_idx, track_info in enumerate(non_empty_tracks):
-                midi_track = track_idx + 1
-                voice_num = track_info['voice_num']
-                midi_events = track_info['events']
-                
-                midi.addTrackName(midi_track, 0, f"Voice {voice_num:02X}")
-                
-                # Convert to MIDI events
-                # Map voice numbers to MIDI channels, skipping channel 9 (percussion)
-                channel = voice_num
-                if channel >= 9:
-                    channel += 1  # Skip channel 9
-                channel = channel % 16  # Wrap to 0-15 range
-                
-                for event in midi_events:
-                    try:
-                        time_beats = event['time'] / 48.0  # Convert ticks to beats
-                        
-                        if event['type'] == 'note':
-                            duration_beats = event['duration'] / 48.0
-                            # Skip notes with non-positive duration (midiutil can't handle them)
-                            if duration_beats > 0:
-                                midi.addNote(midi_track, channel, event['note'], 
-                                           time_beats, duration_beats, event['velocity'])
-                        elif event['type'] == 'tempo':
-                            # Convert AKAO tempo to BPM
-                            bpm = event['tempo'] / 218
-                            midi.addTempo(0, time_beats, bpm)  # Add to conductor track
-                    except Exception as e:
-                        raise Exception(f"Failed adding MIDI event {event} on track {voice_num}: {e}") from e
-            
-            # Write MIDI file
+            midi.addTempo(0, 0, 120)
+
+            # Add conductor events (tempo changes)
+            for event in conductor_events:
+                time_beats = event['time'] / 48.0
+                bpm = event['tempo'] / 218
+                midi.addTempo(0, time_beats, bpm)
+
+            # Add tracks
+            for track_idx, track_info in enumerate(tracks_to_write):
+                self._write_midi_track(midi, track_idx + 1, track_info)
+
+            # Write file
             with open(output_path, 'wb') as f:
                 midi.writeFile(f)
         except Exception as e:
             import traceback
             raise Exception(f"MIDI generation failed: {e}\n{traceback.format_exc()}") from e
-    
+
+    def _organize_by_patch(self, parsed_tracks: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        """Reorganize events by patch instead of voice.
+
+        Returns:
+            Tuple of (patch_tracks, conductor_events) where conductor_events are tempo changes
+        """
+        # Collect all events across all voices
+        patch_events: Dict[int, List] = {}
+        conductor_events = []
+
+        for track in parsed_tracks:
+            for event in track['events']:
+                if event['type'] == 'note':
+                    patch = event.get('patch', 0)
+                    if patch not in patch_events:
+                        patch_events[patch] = []
+                    patch_events[patch].append(event)
+                elif event['type'] == 'tempo':
+                    # Collect tempo events separately - they go on conductor track
+                    conductor_events.append(event)
+
+        # Create track info for each patch
+        result = []
+        for patch_num in sorted(patch_events.keys()):
+            result.append({
+                'patch': patch_num,
+                'events': patch_events[patch_num],
+                'has_notes': True,
+                'is_patch_based': True
+            })
+
+        return result, conductor_events
+
+    def _write_midi_track(self, midi: MIDIFile, track_num: int, track_info: Dict):
+        """Write a single track to MIDI file."""
+        is_patch_based = track_info.get('is_patch_based', False)
+
+        if is_patch_based:
+            # Patch-based track
+            patch_num = track_info['patch']
+            patch_info = self.patch_mapper.get_patch_info(patch_num)
+            instrument_name = self.patch_mapper.get_instrument_name(patch_num)
+
+            midi.addTrackName(track_num, 0, f"{patch_num:02X} {instrument_name}")
+
+            # Determine channel based on track number, not patch number
+            if patch_info.is_percussion():
+                channel = 9  # GM percussion channel
+            else:
+                # Use channel based on track position (skip channel 9 for percussion)
+                # track_num is 1-based (0 is conductor), so subtract 1 for 0-based channel
+                channel = track_num - 1
+                if channel >= 9:
+                    channel += 1  # Skip channel 9 by mapping tracks 10+ to channels 10+
+
+            # Set program
+            if not patch_info.is_percussion():
+                midi.addProgramChange(track_num, channel, 0, patch_info.gm_patch)
+
+            # Add notes - need to handle overlapping notes on same pitch
+            # Sort by time and collect only note events
+            note_events = [e for e in track_info['events'] if e['type'] == 'note']
+            note_events.sort(key=lambda e: (e['time'], e['note']))
+
+            # Track active notes to prevent overlaps
+            # Key: (note_number), Value: end_time
+            active_notes = {}
+
+            for event in note_events:
+                time_beats = event['time'] / 48.0
+                duration_beats = event['duration'] / 48.0
+
+                if duration_beats <= 0:
+                    continue
+
+                # Apply transposition
+                note = event['note'] + patch_info.transpose
+
+                # For percussion, use GM percussion note if specified
+                if patch_info.is_percussion():
+                    note = -patch_info.gm_patch  # Use the percussion note number
+
+                note = max(0, min(127, note))  # Clamp to valid range
+
+                # Check if there's already an active note at this pitch
+                current_time = event['time']
+                note_end = current_time + event['duration']
+
+                if note in active_notes:
+                    # There's already a note playing - we need to end it before starting new one
+                    active_end = active_notes[note]
+                    if current_time < active_end:
+                        # Notes would overlap - shorten the current note to end before the overlap
+                        # Leave at least a small gap
+                        max_duration = max(1, active_end - current_time - 1)  # At least 1 tick gap
+                        note_end = current_time + max_duration
+                        duration_beats = max_duration / 48.0
+
+                # Add the note
+                if duration_beats > 0:
+                    midi.addNote(track_num, channel, note,
+                               time_beats, duration_beats, event['velocity'])
+                    # Track this note as active
+                    active_notes[note] = note_end
+        else:
+            # Voice-based track
+            voice_num = track_info['voice_num']
+            midi.addTrackName(track_num, 0, f"Voice {voice_num:02X}")
+
+            # Map voice to channel (skip channel 9 for percussion)
+            channel = voice_num
+            if channel >= 9:
+                channel += 1
+            channel = channel % 16
+
+            # Track current patch for this voice
+            current_patch = 0
+
+            for event in track_info['events']:
+                time_beats = event['time'] / 48.0
+
+                if event['type'] == 'program_change':
+                    # Handle program change
+                    current_patch = event['patch']
+                    patch_info = self.patch_mapper.get_patch_info(current_patch)
+
+                    if not patch_info.is_percussion():
+                        midi.addProgramChange(track_num, channel, time_beats, patch_info.gm_patch)
+
+                elif event['type'] == 'note':
+                    duration_beats = event['duration'] / 48.0
+                    if duration_beats > 0:
+                        # Get patch info for this note
+                        note_patch = event.get('patch', current_patch)
+                        patch_info = self.patch_mapper.get_patch_info(note_patch)
+
+                        # Apply transposition
+                        note = event['note'] + patch_info.transpose
+                        note = max(0, min(127, note))
+
+                        midi.addNote(track_num, channel, note,
+                                   time_beats, duration_beats, event['velocity'])
+
+                # Tempo events are now handled on conductor track, not here
+
+    def generate_musicxml(self, song: SongMetadata, data: bytes, output_path: Path):
+        """Generate MusicXML from sequence data."""
+        # Parse tracks using same logic as MIDI generation
+        header = self.format_handler.parse_header(data)
+        track_offsets = self.format_handler.get_track_offsets(data, header)
+
+        # Parse all tracks
+        parsed_tracks = []
+        for voice_num, offset in enumerate(track_offsets):
+            _, midi_events = self.format_handler.parse_track(data, offset, voice_num)
+            has_notes = any(e['type'] == 'note' for e in midi_events)
+            parsed_tracks.append({
+                'voice_num': voice_num,
+                'events': midi_events,
+                'has_notes': has_notes
+            })
+
+        # Organize tracks
+        if self.patch_based_tracks:
+            tracks_to_write, _ = self._organize_by_patch(parsed_tracks)
+        else:
+            tracks_to_write = [t for t in parsed_tracks if t['has_notes']]
+
+        # Create MusicXML document
+        root = ET.Element('score-partwise', version='3.1')
+
+        # Add work title
+        work = ET.SubElement(root, 'work')
+        work_title = ET.SubElement(work, 'work-title')
+        work_title.text = song.title if hasattr(song, 'title') and song.title else f"AKAO_{song.id:02X}"
+
+        # Create part list
+        part_list = ET.SubElement(root, 'part-list')
+
+        for track_idx, track_info in enumerate(tracks_to_write):
+            part_id = f"P{track_idx + 1}"
+            score_part = ET.SubElement(part_list, 'score-part', id=part_id)
+            part_name = ET.SubElement(score_part, 'part-name')
+
+            if track_info.get('is_patch_based'):
+                patch_num = track_info['patch']
+                instrument_name = self.patch_mapper.get_instrument_name(patch_num)
+                part_name.text = f"{patch_num:02X} {instrument_name}"
+            else:
+                part_name.text = f"Voice {track_info['voice_num'] + 1}"
+
+        # Create parts
+        for track_idx, track_info in enumerate(tracks_to_write):
+            part_id = f"P{track_idx + 1}"
+            part = ET.SubElement(root, 'part', id=part_id)
+
+            # Get sorted events
+            events = sorted([e for e in track_info['events'] if e['type'] == 'note'],
+                          key=lambda e: e.get('time', 0))
+
+            if not events:
+                # Empty part - add one empty measure
+                measure = ET.SubElement(part, 'measure', number='1')
+                attributes = ET.SubElement(measure, 'attributes')
+                divisions = ET.SubElement(attributes, 'divisions')
+                divisions.text = '48'
+                continue
+
+            # Calculate measure breaks (4/4 time, 48 ticks per quarter = 192 ticks per measure)
+            divisions_per_quarter = 48
+            divisions_per_measure = divisions_per_quarter * 4
+
+            # Find max time
+            max_time = max(e['time'] + e['duration'] for e in events)
+            num_measures = (max_time + divisions_per_measure - 1) // divisions_per_measure
+
+            # Create measures
+            for measure_num in range(1, int(num_measures) + 1):
+                measure = ET.SubElement(part, 'measure', number=str(measure_num))
+
+                # Add attributes to first measure
+                if measure_num == 1:
+                    attributes = ET.SubElement(measure, 'attributes')
+                    divisions = ET.SubElement(attributes, 'divisions')
+                    divisions.text = str(divisions_per_quarter)
+
+                    time_elem = ET.SubElement(attributes, 'time')
+                    beats = ET.SubElement(time_elem, 'beats')
+                    beats.text = '4'
+                    beat_type = ET.SubElement(time_elem, 'beat-type')
+                    beat_type.text = '4'
+
+                    clef = ET.SubElement(attributes, 'clef')
+                    sign = ET.SubElement(clef, 'sign')
+                    sign.text = 'G'
+                    line = ET.SubElement(clef, 'line')
+                    line.text = '2'
+
+                # Find events in this measure
+                measure_start = (measure_num - 1) * divisions_per_measure
+                measure_end = measure_num * divisions_per_measure
+                measure_events = [e for e in events
+                                if measure_start <= e['time'] < measure_end]
+
+                current_position = measure_start
+
+                for event in measure_events:
+                    # Add forward if needed to advance time
+                    if event['time'] > current_position:
+                        gap = event['time'] - current_position
+                        forward = ET.SubElement(measure, 'forward')
+                        duration_elem = ET.SubElement(forward, 'duration')
+                        duration_elem.text = str(gap)
+                        current_position = event['time']
+
+                    # Calculate note duration, clamping to measure boundary
+                    note_duration = event['duration']
+                    note_end_time = event['time'] + note_duration
+
+                    # If note extends past measure end, clamp it
+                    if note_end_time > measure_end:
+                        note_duration = measure_end - event['time']
+
+                    if note_duration <= 0:
+                        continue
+
+                    # Add note
+                    note_elem = ET.SubElement(measure, 'note')
+
+                    # Pitch
+                    pitch = ET.SubElement(note_elem, 'pitch')
+                    midi_note = event['note']
+
+                    # Apply transposition if patch-based
+                    if track_info.get('is_patch_based'):
+                        patch_num = track_info['patch']
+                        patch_info = self.patch_mapper.get_patch_info(patch_num)
+                        midi_note += patch_info.transpose
+
+                    # Convert MIDI note to pitch notation
+                    note_names = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B']
+                    alterations = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0]
+                    octave = (midi_note // 12) - 1
+                    note_class = midi_note % 12
+
+                    step = ET.SubElement(pitch, 'step')
+                    step.text = note_names[note_class]
+
+                    if alterations[note_class] != 0:
+                        alter = ET.SubElement(pitch, 'alter')
+                        alter.text = str(alterations[note_class])
+
+                    octave_elem = ET.SubElement(pitch, 'octave')
+                    octave_elem.text = str(octave)
+
+                    # Duration (clamped to measure boundary)
+                    duration_elem = ET.SubElement(note_elem, 'duration')
+                    duration_elem.text = str(note_duration)
+
+                    # Type (approximate based on duration)
+                    if note_duration >= divisions_per_quarter * 4:
+                        note_type_text = 'whole'
+                    elif note_duration >= divisions_per_quarter * 2:
+                        note_type_text = 'half'
+                    elif note_duration >= divisions_per_quarter:
+                        note_type_text = 'quarter'
+                    elif note_duration >= divisions_per_quarter // 2:
+                        note_type_text = 'eighth'
+                    elif note_duration >= divisions_per_quarter // 4:
+                        note_type_text = '16th'
+                    else:
+                        note_type_text = '32nd'
+
+                    note_type = ET.SubElement(note_elem, 'type')
+                    note_type.text = note_type_text
+
+                    current_position += note_duration
+
+                # Fill remainder of measure with a forward/rest if needed
+                if current_position < measure_end:
+                    remaining = measure_end - current_position
+                    forward = ET.SubElement(measure, 'forward')
+                    duration_elem = ET.SubElement(forward, 'duration')
+                    duration_elem.text = str(remaining)
+
+        # Format and write XML
+        xml_str = ET.tostring(root, encoding='unicode')
+        dom = minidom.parseString(xml_str)
+        pretty_xml = dom.toprettyxml(indent='  ')
+
+        # Remove extra blank lines
+        lines = [line for line in pretty_xml.split('\n') if line.strip()]
+        pretty_xml = '\n'.join(lines)
+
+        output_path.write_text(pretty_xml, encoding='utf-8')
+
     def extract_all(self):
         """Extract all songs defined in config."""
         songs = [SongMetadata(**s) for s in self.config.get('songs', [])]
-        
+
         # Create output directories
         text_dir = Path('txt')
         midi_dir = Path('mid')
+        xml_dir = Path('xml')
         text_dir.mkdir(exist_ok=True)
         midi_dir.mkdir(exist_ok=True)
+        xml_dir.mkdir(exist_ok=True)
         
         for song in songs:
             # Use title if provided, otherwise fall back to AKAO ID
@@ -915,12 +1349,16 @@ class SequenceExtractor:
                 text_output = self.disassemble_to_text(song, data)
                 text_file = text_dir / f"{song.id:02X} {display_name}.txt"
                 text_file.write_text(text_output)
-                
+
                 # Generate MIDI
                 midi_file = midi_dir / f"{song.id:02X} {display_name}.mid"
                 self.generate_midi(song, data, midi_file)
-                
-                print(f"  ✓ Generated {text_file.name} and {midi_file.name}")
+
+                # Generate MusicXML
+                xml_file = xml_dir / f"{song.id:02X} {display_name}.musicxml"
+                self.generate_musicxml(song, data, xml_file)
+
+                print(f"  ✓ Generated {text_file.name}, {midi_file.name}, and {xml_file.name}")
             
             except Exception as e:
                 print(f"  ✗ Error: {e}")
@@ -940,23 +1378,35 @@ def main():
     """Main entry point."""
     import sys
     import traceback
-    
-    if len(sys.argv) < 3:
-        print("Usage: python vgm_extractor.py <config.yaml> <source_file>")
+
+    # Parse command-line arguments
+    patch_based_tracks = False
+    args = []
+
+    for arg in sys.argv[1:]:
+        if arg == '--patch-based-tracks':
+            patch_based_tracks = True
+        else:
+            args.append(arg)
+
+    if len(args) < 2:
+        print("Usage: python extract_akao.py <config.yaml> <source_file> [--patch-based-tracks]")
         print()
         print("Arguments:")
-        print("  config.yaml   - Game metadata configuration file")
-        print("  source_file   - ISO/ROM file containing the game data")
+        print("  config.yaml             - Game metadata configuration file")
+        print("  source_file             - ISO/ROM file containing the game data")
+        print("  --patch-based-tracks    - Organize MIDI tracks by instrument/patch instead of sequence")
         print()
-        print("Example:")
-        print("  python vgm_extractor.py chrono_cross.yaml chronocross.bin")
+        print("Examples:")
+        print("  python extract_akao.py ff9.yaml ff9.iso")
+        print("  python extract_akao.py ff8.yaml ff8.iso --patch-based-tracks")
         sys.exit(1)
-    
-    config_file = sys.argv[1]
-    source_file = sys.argv[2]
-    
+
+    config_file = args[0]
+    source_file = args[1]
+
     try:
-        extractor = SequenceExtractor(config_file, source_file)
+        extractor = SequenceExtractor(config_file, source_file, patch_based_tracks=patch_based_tracks)
         extractor.extract_all()
     except Exception as e:
         print(f"\nError: {e}")
