@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from midiutil import MIDIFile
 import re
-import pycdlib
+import pycdlib.pycdlib as pycdlib_module
 import io
 
 
@@ -40,9 +40,9 @@ class Raw2352FileWrapper(io.BufferedIOBase):
         self.file.seek(0)
         self.current_pos = 0
     
-    def read(self, size: int = -1) -> bytes:
+    def read(self, size: Optional[int] = -1) -> bytes:  # type: ignore[override]
         """Read and translate data from raw CD format."""
-        if size == -1:
+        if size is None or size == -1:
             size = self.logical_size - self.current_pos
         
         if size <= 0 or self.current_pos >= self.logical_size:
@@ -121,9 +121,9 @@ class ROMTable:
 class SongMetadata:
     """Metadata for a single song."""
     id: int
-    title: str
+    title: Optional[str] = None
     sector: Optional[int] = None
-    length: Optional[int] = None
+    length: int = 0
     offset: Optional[int] = None
     file_path: Optional[str] = None  # ISO path or default_source_file path
 
@@ -199,10 +199,11 @@ class AKAONewStyle(SequenceFormat):
     }
     
     # Override specific lengths
-    def __init__(self, config: Dict, rom_data: Optional[bytes] = None):
-        """Initialize with game-specific config and optional ROM data."""
+    def __init__(self, config: Dict, rom_data: bytes, exe_iso_reader=None):
+        """Initialize with game-specific config and ROM data."""
         self.config = config
-        self.rom_data = rom_data
+        self.rom_data: bytes = rom_data
+        self.exe_iso_reader = exe_iso_reader  # Optional: SequenceExtractor instance for reading from ISO
         
         # Read duration table from ROM if specified
         if 'duration_table' in config:
@@ -283,13 +284,15 @@ class AKAONewStyle(SequenceFormat):
     
     def _read_rom_table(self, address: int, size: int, data_type: str) -> List[int]:
         """Read a table from the ROM image."""
-        if not self.rom_data:
+        if not self.rom_data and not self.exe_iso_reader:
             raise ValueError("ROM data not provided for reading tables")
-        
+
         # For PSX, handle RAM addresses and convert to file offsets
         if self.config.get('console_type') == 'psx':
-            address = self._psx_ram_to_file_offset(address)
-        
+            file_offset = self._psx_ram_to_file_offset(address)
+        else:
+            file_offset = address
+
         # Convert single char types to full names for clarity
         type_map = {
             'byte': 'B', 'B': 'B',
@@ -298,9 +301,17 @@ class AKAONewStyle(SequenceFormat):
             'int': 'I', 'I': 'I', 'uint': 'I'
         }
         format_char = type_map.get(data_type, data_type)
-        
+
         item_size = struct.calcsize(format_char)
-        data = self.rom_data[address:address + size * item_size]
+        bytes_to_read = size * item_size
+
+        # Read from ISO if we have an ISO reader (more efficient than loading whole executable)
+        if self.exe_iso_reader:
+            data = self.exe_iso_reader._read_executable_bytes(file_offset, bytes_to_read)
+        else:
+            # Fall back to in-memory data if available
+            data = self.rom_data[file_offset:file_offset + bytes_to_read]
+
         return list(struct.unpack(f'{size}{format_char}', data))
     
     def _psx_ram_to_file_offset(self, ram_address: int) -> int:
@@ -583,7 +594,7 @@ class SequenceExtractor:
         self.raw_sector_size = self.sector_size
         
         # Open the ISO with pycdlib
-        self.iso = pycdlib.PyCdlib()
+        self.iso = pycdlib_module.PyCdlib()
         
         if self.sector_size == 2352:
             # Use our wrapper for on-the-fly conversion
@@ -594,17 +605,22 @@ class SequenceExtractor:
             # Standard 2048-byte ISO
             self.iso.open(source_file)
         
+        # Initialize file handle cache first
+        self._exe_file_handle = None  # Will hold open file handle for executable
+        self._img_file_cache = {}  # Cache of open file handles for large IMG files
+
         # Find and load the executable ROM
-        self.rom_data = self._load_executable()
-        
+        # This will set _exe_file_handle as a side effect
+        self.rom_data: bytes = self._load_executable()
+
         # Create format handler with ROM data
         format_name = self.config.get('format', 'akao_newstyle')
         if format_name == 'akao_newstyle':
-            self.format_handler = AKAONewStyle(self.config, self.rom_data)
+            self.format_handler = AKAONewStyle(self.config, self.rom_data, exe_iso_reader=self)
         else:
             raise ValueError(f"Unknown format: {format_name}")
     
-    def _load_executable(self) -> Optional[bytes]:
+    def _load_executable(self) -> bytes:
         """Load the console executable from the disc image."""
         if self.console_type == 'psx':
             return self._load_psx_executable()
@@ -649,23 +665,34 @@ class SequenceExtractor:
         if ';' not in exe_iso_path:
             exe_iso_path += ';1'
         
-        try:
-            exe_data = self._read_file_from_iso(exe_iso_path)
-        except Exception as e:
-            raise ValueError(f"Could not read executable {exe_path}: {e}")
-        
-        print(f"Loaded PSX executable: {len(exe_data)} bytes")
-        return exe_data
+        # Just read the header for now - we'll open the file for table reads later
+        from io import BytesIO
+        output = BytesIO()
+
+        # Read from ISO
+        iso_path_upper = exe_iso_path.upper()
+        if ';' not in iso_path_upper:
+            iso_path_upper += ';1'
+
+        self.iso.get_file_from_iso_fp(output, iso_path=iso_path_upper)
+        exe_data = output.getvalue()
+        print(f"Found PSX executable: {len(exe_data)} bytes")
+
+        # Keep the full executable in a BytesIO for efficient seeking
+        self._exe_file_handle = BytesIO(exe_data)
+
+        # Only return the header for ROM address conversion
+        return exe_data[:0x800]
     
     def _read_file_from_iso(self, iso_path: str) -> bytes:
         """Read a file from the ISO image using pycdlib."""
         # pycdlib expects paths in uppercase with version numbers
         iso_path_upper = iso_path.upper()
-        
+
         # Ensure version number
         if ';' not in iso_path_upper:
             iso_path_upper += ';1'
-        
+
         # Read file into memory
         from io import BytesIO
         output = BytesIO()
@@ -674,29 +701,56 @@ class SequenceExtractor:
             return output.getvalue()
         except Exception as e:
             raise ValueError(f"Could not find path {iso_path_upper} in ISO: {e}")
+
+    def _read_executable_bytes(self, offset: int, length: int) -> bytes:
+        """Read bytes from the executable file at the given offset."""
+        if not self._exe_file_handle:
+            raise ValueError("Executable file handle not available")
+
+        # Seek to the offset and read the requested bytes
+        self._exe_file_handle.seek(offset)
+        return self._exe_file_handle.read(length)
+
+    def _read_file_chunk_from_iso(self, iso_path: str, offset: int, length: int) -> bytes:
+        """Read a chunk from a file in the ISO without loading the whole file."""
+        # Normalize the ISO path
+        if not iso_path.startswith('/'):
+            iso_path = '/' + iso_path
+        iso_path_upper = iso_path.upper()
+        if ';' not in iso_path_upper:
+            iso_path_upper += ';1'
+
+        # Check if we have this file cached
+        if iso_path_upper not in self._img_file_cache:
+            # Read the file once and cache it as a BytesIO
+            from io import BytesIO
+            output = BytesIO()
+            self.iso.get_file_from_iso_fp(output, iso_path=iso_path_upper)
+            self._img_file_cache[iso_path_upper] = output
+
+        # Use the cached file handle to seek and read
+        file_handle = self._img_file_cache[iso_path_upper]
+        file_handle.seek(offset)
+        return file_handle.read(length)
     
     def extract_sequence_data(self, song: SongMetadata) -> bytes:
         """Extract raw sequence data from source file."""
         # Check if song specifies a file path with offset
-        if hasattr(song, 'file_path') and song.file_path:
+        if song.file_path:
             # Read from a specific file in the ISO
-            if hasattr(song, 'offset') and song.offset is not None:
+            if song.offset is not None:
                 # Direct file offset (like FF9.IMG)
-                file_path = song.file_path
-                if not file_path.startswith('/'):
-                    file_path = '/' + file_path
-                
-                # Read the file from ISO
-                file_data = self._read_file_from_iso(file_path.upper())
-                
-                # Extract the specific portion at the offset
-                return file_data[song.offset:song.offset + song.length]
+                # Use seek/read to avoid loading the entire large file
+                return self._read_file_chunk_from_iso(song.file_path, song.offset, song.length)
             else:
-                # Just read the entire file from ISO
+                # Just read the entire file from ISO (for small files)
                 return self._read_file_from_iso(song.file_path)
         
         # Otherwise read from raw sectors (for embedded sequences like Chrono Cross)
         # Use the original raw image, not the converted one
+        if song.sector is None:
+            raise ValueError(f"Song {song.id:02X} has no sector or file_path specified")
+        
         with open(self.source_file, 'rb') as f:
             # The sector numbers in metadata are LOGICAL 2048-byte sectors
             # For raw 2352-byte images, we need to:
@@ -849,7 +903,9 @@ class SequenceExtractor:
         midi_dir.mkdir(exist_ok=True)
         
         for song in songs:
-            print(f"Processing: {song.title}")
+            # Use title if provided, otherwise fall back to AKAO ID
+            display_name = song.title if hasattr(song, 'title') and song.title else f"AKAO_{song.id:02X}"
+            print(f"Processing: {display_name}")
             
             try:
                 # Extract data
@@ -857,11 +913,11 @@ class SequenceExtractor:
                 
                 # Generate text disassembly
                 text_output = self.disassemble_to_text(song, data)
-                text_file = text_dir / f"{song.id:02X} {song.title}.txt"
+                text_file = text_dir / f"{song.id:02X} {display_name}.txt"
                 text_file.write_text(text_output)
                 
                 # Generate MIDI
-                midi_file = midi_dir / f"{song.id:02X} {song.title}.mid"
+                midi_file = midi_dir / f"{song.id:02X} {display_name}.mid"
                 self.generate_midi(song, data, midi_file)
                 
                 print(f"  ✓ Generated {text_file.name} and {midi_file.name}")
@@ -873,6 +929,11 @@ class SequenceExtractor:
         self.iso.close()
         if hasattr(self, '_raw_wrapper'):
             self._raw_wrapper.close()
+        if self._exe_file_handle:
+            self._exe_file_handle.close()
+        # Close all cached IMG file handles
+        for handle in self._img_file_cache.values():
+            handle.close()
 
 
 def main():
