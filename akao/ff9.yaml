@@ -1,24 +1,24 @@
-game: "Final Fantasy VIII"
+game: "Final Fantasy IX"
 format: "akao_newstyle"
 console_type: "psx"
 
 # Default source file within the ISO
-default_source_file: "/FF8DISC1.IMG"
+default_source_file: "/FF9.IMG"
 
-# ROM table locations (PSX RAM addresses) - FF8 specific
+# ROM table locations (PSX RAM addresses)
 duration_table:
-  address: 0x800517D8
+  address: 0x8006F3F4
   size: 11
   type: "ushort"
 
 opcode_table:
-  address: 0x800516F8
+  address: 0x8006F374
   size: 96
   type: "byte"
 
 fe_opcode_table:
-  address: 0x80051758
-  size: 128
+  address: 0x8006F3D4
+  size: 32
   type: "byte"
 
 # Default state values
@@ -27,502 +27,670 @@ default_octave: 4
 default_velocity: 64
 tempo_factor: 13107200000
 
-# Songs - using file offsets in FF8DISC1.IMG
+# Songs - using file offsets in FF9.IMG
 songs:
   - id: 0x01
-    title: "111 The Loser"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xA99C814
-    length: 0x1110
+    title: "119 Fanfare"
+    file_path: "/FF9.IMG"
+    offset: 0x4E80E0
+    length: 0x1088
 
   - id: 0x02
-    title: "105 The Winner"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xA9DA814
-    length: 0x10B8
+    title: "122 Game Over"
+    file_path: "/FF9.IMG"
+    offset: 0xAC93018
+    length: 0x978
 
   - id: 0x03
-    title: "901 The Landing (Alternate)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xA9FA814
-    length: 0x1C80
+    title: "127 Frontier Village Dali"
+    file_path: "/FF9.IMG"
+    offset: 0xABDD018
+    length: 0x1FE8
+
+  - id: 0x04
+    title: "117 Awakened Forest"
+    file_path: "/FF9.IMG"
+    offset: 0xAC20018
+    length: 0x23B0
 
   - id: 0x05
-    title: "112 Never Look Back"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAA37014
-    length: 0xD90
+    title: "410 Passing Sorrow"
+    file_path: "/FF9.IMG"
+    offset: 0xAFCC818
+    length: 0x638
 
   - id: 0x06
-    title: "104 Don't Be Afraid"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAA58014
-    length: 0x2238
+    title: "312 Amarant's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB101018
+    length: 0x2168
+
+  - id: 0x07
+    title: "118 Battle 1"
+    file_path: "/FF9.IMG"
+    offset: 0xAB9C818
+    length: 0x2220
 
   - id: 0x08
-    title: "113 Dead End"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAA96814
-    length: 0x1770
+    title: "110 Steiner's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xAD15818
+    length: 0x1530
 
   - id: 0x09
-    title: "109 Starting Up"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAAB4814
-    length: 0xDE8
+    title: "105 Vivi's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xACD4018
+    length: 0xF00
 
   - id: 0x0A
-    title: "213 Intruders"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAAD2814
-    length: 0x9E8
+    title: "207 Quina's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xAD8E018
+    length: 0xBC8
+
+  - id: 0x0B
+    title: "220 Garnet's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB3EE018
+    length: 0xF78
+
+  - id: 0x0C
+    title: "210 Freya's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB00D018
+    length: 0xD18
 
   - id: 0x0D
-    title: "906 Don't Be Afraid (Variation)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAB0D014
-    length: 0x24A0
+    title: "208 Aloha de Chocobo"
+    file_path: "/FF9.IMG"
+    offset: 0xAEEA018
+    length: 0x3B0
 
   - id: 0x0E
-    title: "110 Force Your Way"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAB2F014
-    length: 0x1B98
+    title: "108 Decisive Action ~ Search for the Princess ~"
+    file_path: "/FF9.IMG"
+    offset: 0xAD54018
+    length: 0x6E8
 
   - id: 0x0F
-    title: "907 Fithos Lusec Wecos Vinosec (Variation)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAB4E814
-    length: 0x20F8
+    title: "112 Stolen Eyes"
+    file_path: "/FF9.IMG"
+    offset: 0xAE70818
+    length: 0xBE8
 
   - id: 0x10
-    title: "208 Unrest"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAB90814
-    length: 0x918
+    title: "107 Vamo' Alla Flamenco"
+    file_path: "/FF9.IMG"
+    offset: 0xAEC8818
+    length: 0x4990
 
   - id: 0x11
-    title: "210 The Stage Is Set"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xABA9814
-    length: 0xF20
+    title: "113 Tonight"
+    file_path: "/FF9.IMG"
+    offset: 0xADEC818
+    length: 0x9B8
 
   - id: 0x12
-    title: "108 The Landing"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xABC9814
-    length: 0x3498
+    title: "106 Feel My Blade"
+    file_path: "/FF9.IMG"
+    offset: 0xAE2E018
+    length: 0x1DF8
 
   - id: 0x13
-    title: "313 Love Grows"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xABEC814
-    length: 0x1348
-
-  - id: 0x14
-    title: "116 Waltz For the Moon"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAC2D014
-    length: 0x1FC0
+    title: "103 Battle Strategy Conference"
+    file_path: "/FF9.IMG"
+    offset: 0xAD54018
+    length: 0x6E8
 
   - id: 0x15
-    title: "219 Ami"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAC6C014
-    length: 0xC78
+    title: "116 Queen of the Abyss"
+    file_path: "/FF9.IMG"
+    offset: 0xAFCC818
+    length: 0x638
 
   - id: 0x16
-    title: "106 Find Your Way"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xACA4014
-    length: 0xCD8
+    title: "114 Your Warmth"
+    file_path: "/FF9.IMG"
+    offset: 0xB065018
+    length: 0x2E0
 
   - id: 0x17
-    title: "120 Julia"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xACC4814
-    length: 0x8B8
+    title: "115 Mistaken Love"
+    file_path: "/FF9.IMG"
+    offset: 0xAF49818
+    length: 0x1F28
 
   - id: 0x18
-    title: "212 FITHOS LUSEC WECOS VINOSEC"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAD04014
-    length: 0x2048
+    title: "131 Zidane's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB0BD018
+    length: 0x3CF0
 
   - id: 0x19
-    title: "107 SeeD"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAD46014
-    length: 0xDA8
+    title: "121 Battle 2"
+    file_path: "/FF9.IMG"
+    offset: 0xB101018
+    length: 0x2168
 
   - id: 0x1A
-    title: "117 Tell Me"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAD81814
-    length: 0x980
+    title: "320 Oeilvert"
+    file_path: "/FF9.IMG"
+    offset: 0xB5B1018
+    length: 0x4988
 
   - id: 0x1B
-    title: "102 Balamb Garden"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xADB9014
-    length: 0xB90
+    title: "218 Theme of the Tantalus"
+    file_path: "/FF9.IMG"
+    offset: 0xAF8C018
+    length: 0x1080
 
   - id: 0x1C
-    title: "118 Fear"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xADF9814
-    length: 0x970
+    title: "202 One Danger Put Behind Us"
+    file_path: "/FF9.IMG"
+    offset: 0xB185018
+    length: 0x19A0
 
   - id: 0x1D
-    title: "317 Dance with the Balamb-Fish"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAE3A814
-    length: 0x39C0
+    title: "409 You're Not Alone!"
+    file_path: "/FF9.IMG"
+    offset: 0xB42F018
+    length: 0x22D0
 
   - id: 0x1E
-    title: "204 Cactus Jack (Galbadian Anthem)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAE7C814
-    length: 0xBE8
+    title: "214 A Face Unforgotten"
+    file_path: "/FF9.IMG"
+    offset: 0xB1C6818
+    length: 0xB50
 
   - id: 0x1F
-    title: "908 Bass Chant"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAE9C814
-    length: 0x340
+    title: "120 Memories of that Day"
+    file_path: "/FF9.IMG"
+    offset: 0xB2CE818
+    length: 0x870
 
   - id: 0x20
-    title: "909 Male Chant"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAED5814
-    length: 0x2C0
+    title: "126 Ice Caverns"
+    file_path: "/FF9.IMG"
+    offset: 0xB30E818
+    length: 0xF30
 
   - id: 0x21
-    title: "910 Alto Chant"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAF0E014
-    length: 0x2C0
+    title: "206 Qu's Marsh"
+    file_path: "/FF9.IMG"
+    offset: 0xB28D018
+    length: 0xCD8
 
   - id: 0x22
-    title: "911 Female Chant"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAF3D814
-    length: 0x2C8
-
-  - id: 0x23
-    title: "912 Choir Chant"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAF6D014
-    length: 0x268
-
-  - id: 0x24
-    title: "202 The Mission"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAFA2814
-    length: 0x2D70
+    title: "101 The Place I'll Return To Someday"
+    file_path: "/FF9.IMG"
+    offset: 0x48881C
+    length: 0x1288
 
   - id: 0x25
-    title: "206 Succession of Witches"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xAFC5814
-    length: 0xB98
+    title: "123 Run!"
+    file_path: "/FF9.IMG"
+    offset: 0xB208018
+    length: 0x2100
+
+  - id: 0x26
+    title: "109 Jesters of the Moon"
+    file_path: "/FF9.IMG"
+    offset: 0xB24A818
+    length: 0x1998
+
+  - id: 0x27
+    title: "212 Fairy Battle"
+    file_path: "/FF9.IMG"
+    offset: 0xB350018
+    length: 0x1718
+
+  - id: 0x28
+    title: "129 Reckless Steiner"
+    file_path: "/FF9.IMG"
+    offset: 0xB38C818
+    length: 0xA60
 
   - id: 0x2A
-    title: "103 Blue Fields"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB054814
-    length: 0xB60
+    title: "111 Prima Vista Band"
+    file_path: "/FF9.IMG"
+    offset: 0xB3EE018
+    length: 0xF78
 
   - id: 0x2B
-    title: "114 Breezy"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB075814
-    length: 0x388
+    title: "321 Tetra Master"
+    file_path: "/FF9.IMG"
+    offset: 0x43B498
+    length: 0xCE0
 
   - id: 0x2C
-    title: "917 Celebration Jig"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB096014
-    length: 0x30F8
+    title: "128 Far Away in the Twilight"
+    file_path: "/FF9.IMG"
+    offset: 0xB42F018
+    length: 0x22D0
+
+  - id: 0x2D
+    title: "213 Burmecian Kingdom"
+    file_path: "/FF9.IMG"
+    offset: 0xB46F818
+    length: 0xC78
+
+  - id: 0x2E
+    title: "125 Crossing Those Hills"
+    file_path: "/FF9.IMG"
+    offset: 0xB4B0818
+    length: 0x1E50
 
   - id: 0x2F
-    title: "123 Timber Owls"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB0F7814
-    length: 0x880
+    title: "316 Moogle's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB8AC018
+    length: 0x70
 
   - id: 0x30
-    title: "216 Fragments of Memories"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB134814
-    length: 0x5B8
+    title: "203 Lindblum"
+    file_path: "/FF9.IMG"
+    offset: 0xB4F2018
+    length: 0x1040
 
   - id: 0x31
-    title: "307 Fisherman's Horizon"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB16C014
-    length: 0x898
+    title: "303 Fossil Roo"
+    file_path: "/FF9.IMG"
+    offset: 0xB7EB018
+    length: 0x2E0
 
   - id: 0x32
-    title: "306 Heresy"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB1AB014
-    length: 0x768
+    title: "223 Cleyra Settlement"
+    file_path: "/FF9.IMG"
+    offset: 0xB5CA818
+    length: 0x1088
+
+  - id: 0x33
+    title: "310 Walls of the Sacred Beasts"
+    file_path: "/FF9.IMG"
+    offset: 0xB28D018
+    length: 0xCD8
 
   - id: 0x34
-    title: "201 My Mind"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB1F7814
-    length: 0x838
+    title: "306 Unfathomed Reminiscence"
+    file_path: "/FF9.IMG"
+    offset: 0xB60B018
+    length: 0x668
 
   - id: 0x35
-    title: "309 Where I Belong"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB238014
-    length: 0xA20
+    title: "901 Rufus' Welcoming Ceremony"
+    file_path: "/FF9.IMG"
+    offset: 0xB534018
+    length: 0x1190
 
   - id: 0x36
-    title: "921 Starting Up (Variation)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB26D814
-    length: 0xDF8
+    title: "130 Limited Time"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
 
   - id: 0x37
-    title: "403 Truth"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB28B814
-    length: 0x728
+    title: "305 Black Mage's Village"
+    file_path: "/FF9.IMG"
+    offset: 0xB64C018
+    length: 0x888
 
   - id: 0x38
-    title: "315 Trust Me"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB2CB814
-    length: 0x560
+    title: "224 Eternal Harvest"
+    file_path: "/FF9.IMG"
+    offset: 0xB82C018
+    length: 0xAD0
 
   - id: 0x39
-    title: "207 Galbadia Garden"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB306014
-    length: 0x12A0
+    title: "408 Pandemonium, the Castle Frozen in Time"
+    file_path: "/FF9.IMG"
+    offset: 0xB46F818
+    length: 0xC78
 
   - id: 0x3A
-    title: "203 Martial Law"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB347814
-    length: 0xEA0
+    title: "217 Sleepless City Treno"
+    file_path: "/FF9.IMG"
+    offset: 0xB42F018
+    length: 0x22D0
 
   - id: 0x3B
-    title: "209 Under Her Control"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB366814
-    length: 0xCB0
+    title: "323 The Sneaky Frog and the Scoundrel"
+    file_path: "/FF9.IMG"
+    offset: 0xB8A2018
+    length: 0x1050
 
   - id: 0x3C
-    title: "205 Only a Plank Between One and Perdition"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB387814
-    length: 0xC88
+    title: "407 Bran Bal, the Soulless Village"
+    file_path: "/FF9.IMG"
+    offset: 0xB669018
+    length: 0x1578
 
   - id: 0x3D
-    title: "122 Junction"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB3A8814
-    length: 0x4A0
+    title: "308 Eiko's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xAF8C018
+    length: 0x1080
 
   - id: 0x3E
-    title: "121 Roses And Wine"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB3C4014
-    length: 0x4E8
+    title: "225 Grieve for the Skies"
+    file_path: "/FF9.IMG"
+    offset: 0xB208018
+    length: 0x2100
 
   - id: 0x3F
-    title: "119 The Man With the Machine Gun"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB3DF014
-    length: 0x13E8
+    title: "304 Mountain Pass - Conde Petie"
+    file_path: "/FF9.IMG"
+    offset: 0xB30E818
+    length: 0xF30
 
   - id: 0x40
-    title: "211 A Sacrifice"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB400014
-    length: 0xBD8
+    title: "221 Gargan Roo"
+    file_path: "/FF9.IMG"
+    offset: 0xB6A4818
+    length: 0x488
 
   - id: 0x41
-    title: "308 Odeka ke Chocobo"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB421014
-    length: 0x248
+    title: "222 Cleyra's Trunk"
+    file_path: "/FF9.IMG"
+    offset: 0xB860818
+    length: 0x1900
 
   - id: 0x42
-    title: "305 Drifting"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB42B814
-    length: 0x470
+    title: "322 A Transient Past"
+    file_path: "/FF9.IMG"
+    offset: 0xB5CA818
+    length: 0x1088
 
   - id: 0x43
-    title: "215 Wounded"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB44B014
-    length: 0x550
+    title: "215 Kuja's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB60B018
+    length: 0x668
 
   - id: 0x44
-    title: "217 Jailed"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB48C014
-    length: 0x7F8
+    title: "902 Kuja's Theme (Variation)"
+    file_path: "/FF9.IMG"
+    offset: 0xB64C018
+    length: 0x888
 
   - id: 0x45
-    title: "302 Retaliation"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB4AD014
-    length: 0xA70
+    title: "219 Immoral Melody"
+    file_path: "/FF9.IMG"
+    offset: 0xB208018
+    length: 0x2100
 
   - id: 0x46
-    title: "310 The Oath"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB4EC014
-    length: 0x5F0
+    title: "313 Footsteps of Desire"
+    file_path: "/FF9.IMG"
+    offset: 0xB860818
+    length: 0x1900
 
   - id: 0x47
-    title: "115 Shuffle Or Boogie"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB509814
-    length: 0x940
+    title: "301 Ambush Attack"
+    file_path: "/FF9.IMG"
+    offset: 0xB46F818
+    length: 0xC78
 
   - id: 0x48
-    title: "218 Rivals"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB529814
-    length: 0x5D0
+    title: "307 Ceremony for the Gods"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
 
   - id: 0x49
-    title: "304 Blue Sky"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB54A014
-    length: 0xDE8
+    title: "209 Ukulele de Chocobo"
+    file_path: "/FF9.IMG"
+    offset: 0x4076C0
+    length: 0x1578
 
   - id: 0x4A
-    title: "214 Premonition"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB58A014
-    length: 0x1D40
+    title: "404 The Four Medallions"
+    file_path: "/FF9.IMG"
+    offset: 0xB1C6818
+    length: 0xB50
 
   - id: 0x4C
-    title: "923 Galbadia Garden (Variation)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB5BA814
-    length: 0x1AB8
-
-  - id: 0x4D
-    title: "408 Maybe I'm a Lion"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB5FC814
-    length: 0x1208
+    title: "403 Ipsen's Heritage"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
 
   - id: 0x4E
-    title: "406 The Castle"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB61E014
-    length: 0xFD0
+    title: "322 A Transient Past"
+    file_path: "/FF9.IMG"
+    offset: 0xB5CA818
+    length: 0x1088
 
   - id: 0x4F
-    title: "303 Movin'"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB63B014
-    length: 0x2328
+    title: "905 Song of Memories (Alternate)"
+    file_path: "/FF9.IMG"
+    offset: 0xB82C018
+    length: 0xAD0
 
   - id: 0x50
-    title: "412 Overture"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB67D814
-    length: 0x1640
+    title: "211 At the South Gate Border"
+    file_path: "/FF9.IMG"
+    offset: 0xB6A4818
+    length: 0x488
 
   - id: 0x51
-    title: "301 The Spy"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB6BF014
-    length: 0x848
+    title: "311 Iifa Tree"
+    file_path: "/FF9.IMG"
+    offset: 0xB82C018
+    length: 0xAD0
 
   - id: 0x52
-    title: "401 Mods de Chocobo"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB6DE014
-    length: 0xBF8
+    title: "325 Gurugu Volcano"
+    file_path: "/FF9.IMG"
+    offset: 0xB6E5818
+    length: 0x2AC8
 
   - id: 0x53
-    title: "314 The Salt Flats"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB719814
-    length: 0xBE8
+    title: "205 Hunter's Chance"
+    file_path: "/FF9.IMG"
+    offset: 0xB6E5818
+    length: 0x2AC8
 
   - id: 0x54
-    title: "319 Residents"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB73A014
-    length: 0xBB0
+    title: "401 The Airship, Hildagarde"
+    file_path: "/FF9.IMG"
+    offset: 0xB728818
+    length: 0x3060
 
   - id: 0x55
-    title: "404 Lunatic Pandora"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB75B014
-    length: 0xD88
+    title: "204 Song of Memories"
+    file_path: "/FF9.IMG"
+    offset: 0xB78B018
+    length: 0x900
 
   - id: 0x56
-    title: "316 Silence and Motion"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB77B014
-    length: 0xF60
+    title: "903 Garnet's Song"
+    file_path: "/FF9.IMG"
+    offset: 0xB7EB018
+    length: 0x2E0
 
-  - id: 0x57
-    title: "318 Tears of the Moon"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB79B814
-    length: 0x960
+  - id: 0x58
+    title: "414 Crystal World"
+    file_path: "/FF9.IMG"
+    offset: 0xB82C018
+    length: 0xAD0
 
   - id: 0x59
-    title: "925 Tears of the Moon (Variation)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB7DE014
-    length: 0x9E8
+    title: "318 The Chosen Summoner"
+    file_path: "/FF9.IMG"
+    offset: 0xAF8C018
+    length: 0x1080
 
   - id: 0x5A
-    title: "402 Ride On"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB819014
-    length: 0x12D8
+    title: "317 Protecting my Devotion"
+    file_path: "/FF9.IMG"
+    offset: 0xB185018
+    length: 0x19A0
 
   - id: 0x5B
-    title: "407 The Legendary Beast"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB848014
-    length: 0x2920
+    title: "302 Loss of Me"
+    file_path: "/FF9.IMG"
+    offset: 0xB8A2018
+    length: 0x1050
 
   - id: 0x5C
-    title: "311 Slide Show Part 1"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB86A814
-    length: 0x540
+    title: "216 The Sword of Doubt"
+    file_path: "/FF9.IMG"
+    offset: 0xB82C018
+    length: 0xAD0
 
   - id: 0x5D
-    title: "312 Slide Show Part 2"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB89E014
-    length: 0x918
+    title: "319 Keeper of Time"
+    file_path: "/FF9.IMG"
+    offset: 0xB860818
+    length: 0x1900
 
   - id: 0x5E
-    title: "409 The Extreme (no effects)"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB8C6814
-    length: 0x1B00
+    title: "402 Secret Library Daguerreo"
+    file_path: "/FF9.IMG"
+    offset: 0xB28D018
+    length: 0xCD8
+
+  - id: 0x5F
+    title: "309 Ruins of Madain Sari"
+    file_path: "/FF9.IMG"
+    offset: 0xB860818
+    length: 0x1900
+
+  - id: 0x60
+    title: "406 Terra"
+    file_path: "/FF9.IMG"
+    offset: 0xB30E818
+    length: 0xF30
 
   - id: 0x61
-    title: "410 The Successor"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB91B014
-    length: 0xA88
+    title: "413 Place of Memory"
+    file_path: "/FF9.IMG"
+    offset: 0xB8A2018
+    length: 0x1050
 
   - id: 0x62
-    title: "405 Compression of Time"
-    file_path: "/FF8DISC1.IMG"
-    offset: 0xB95B014
-    length: 0x568
+    title: "201 Cid's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB8A2018
+    length: 0x1050
+
+  - id: 0x63
+    title: "415 Dark Messenger"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
+
+  - id: 0x67
+    title: "904 Garnet's Song 2"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
+
+  - id: 0x68
+    title: "316 Moogle's Theme"
+    file_path: "/FF9.IMG"
+    offset: 0xB8AC018
+    length: 0x70
+
+  - id: 0x69
+    title: "408 Pandemonium, the Castle Frozen in Time"
+    file_path: "/FF9.IMG"
+    offset: 0xB907818
+    length: 0x1530
+
+  - id: 0x6B
+    title: "314 We Are Thieves!"
+    file_path: "/FF9.IMG"
+    offset: 0xB93C818
+    length: 0xA68
+
+  - id: 0x6D
+    title: "226 Extraction"
+    file_path: "/FF9.IMG"
+    offset: 0xB185018
+    length: 0x19A0
+
+  - id: 0x6E
+    title: "132 Black Waltz"
+    file_path: "/FF9.IMG"
+    offset: 0xB97A818
+    length: 0x710
+
+  - id: 0x6F
+    title: "417 Bittersweet Romance"
+    file_path: "/FF9.IMG"
+    offset: 0xB860818
+    length: 0x1900
+
+  - id: 0x70
+    title: "419 I Want to Be Your Canary"
+    file_path: "/FF9.IMG"
+    offset: 0xB185018
+    length: 0x19A0
+
+  - id: 0x71
+    title: "420 Two Hearts Not Captured"
+    file_path: "/FF9.IMG"
+    offset: 0xB28D018
+    length: 0xCD8
+
+  - id: 0x72
+    title: "324 Esto Gaza"
+    file_path: "/FF9.IMG"
+    offset: 0xB42F018
+    length: 0x22D0
+
+  - id: 0x73
+    title: "326 The Heart of Melting Magic"
+    file_path: "/FF9.IMG"
+    offset: 0xB208018
+    length: 0x2100
+
+  - id: 0x74
+    title: "418 Hidden Lips"
+    file_path: "/FF9.IMG"
+    offset: 0xB350018
+    length: 0x1718
+
+  - id: 0x75
+    title: "315 Slew of Love Letters"
+    file_path: "/FF9.IMG"
+    offset: 0xB24A818
+    length: 0x1998
+
+  - id: 0x76
+    title: "411 The Evil Mist's Rebirth"
+    file_path: "/FF9.IMG"
+    offset: 0xB144018
+    length: 0x1458
+
+  - id: 0x77
+    title: "405 Successive Battles"
+    file_path: "/FF9.IMG"
+    offset: 0xB30E818
+    length: 0xF30
+
+  - id: 0x78
+    title: "423 Prelude"
+    file_path: "/FF9.IMG"
+    offset: 0xB5B1018
+    length: 0x4988
+
+  - id: 0x79
+    title: "423 Prelude"
+    file_path: "/FF9.IMG"
+    offset: 0xB570018
+    length: 0x448
+
+  - id: 0x7A
+    title: "908 Doga and Une"
+    file_path: "/FF9.IMG"
+    offset: 0xB208018
+    length: 0x2100
+
+  - id: 0x7B
+    title: "412 Assault of the White Dragons"
+    file_path: "/FF9.IMG"
+    offset: 0xAF8C018
+    length: 0x1080
