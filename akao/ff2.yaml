@@ -1,0 +1,209 @@
+game: "Final Fantasy II US (SNES)"
+format: "snes_ff2"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "ff2.smc"
+
+# Base address for song data (SNES address 04/C000)
+base_address: 0x04C000
+
+# Song pointer table location (SNES address)
+# The first 3-byte pointer at base_address points to the song table
+song_table_address: 0x04C000
+
+# Tempo factor for BPM calculation
+tempo_factor: 55296000  # timer0 period 4.5ms * 96/2 ticks * 256
+
+# Default state values
+default_tempo: 255
+default_octave: 4
+default_velocity: 64
+
+# Duration table (SNES address 04/9738)
+duration_table:
+  address: 0x049738
+  size: 15
+  type: "byte"
+
+# Music opcode lengths (SNES address 04/96D0)
+opcode_table:
+  address: 0x0496D0
+  size: 46
+  type: "byte"
+
+# Pitch table (SNES address 04/96EA)
+pitch_table:
+  address: 0x0496EA
+  size: 13
+  type: "ushort"
+
+# Patch mapping: SNES instrument -> General MIDI patch
+# Negative values indicate percussion (GM drum key number)
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x01: {gm_patch: 48, transpose: 1, name: "String Ensemble 1"}
+  0x02: {gm_patch: 46, transpose: 1, name: "Orchestral Harp"}
+  0x03: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x04: {gm_patch: 0, transpose: 1, name: "Acoustic Grand Piano"}
+  0x05: {gm_patch: 19, transpose: 2, name: "Church Organ"}
+  0x06: {gm_patch: 56, transpose: 0, name: "Trumpet"}
+  0x07: {gm_patch: 73, transpose: 1, name: "Piccolo"}
+  0x08: {gm_patch: 13, transpose: 0, name: "Xylophone"}
+  0x09: {gm_patch: 34, transpose: -2, name: "Electric Bass (finger)"}
+  0x0A: {gm_patch: 47, transpose: -1, name: "Timpani"}
+  0x0B: {gm_patch: 43, transpose: -1, name: "Contrabass"}
+  0x0C: {gm_patch: -40, transpose: 0, name: "Snare Drum"}        # Percussion
+  0x0D: {gm_patch: -36, transpose: 0, name: "Bass Drum"}         # Percussion
+  0x0E: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}    # Percussion
+  0x0F: {gm_patch: -35, transpose: 0, name: "Acoustic Bass Drum"} # Percussion
+  0x10: {gm_patch: -49, transpose: 0, name: "Crash Cymbal"}      # Percussion
+  0x11: {gm_patch: -42, transpose: 0, name: "Closed Hi-Hat"}     # Percussion
+  0x12: {gm_patch: 113, transpose: 0, name: "Agogo"}
+  0x13: {gm_patch: -69, transpose: 0, name: "Cabasa"}            # Percussion
+  0x14: {gm_patch: 85, transpose: 0, name: "Lead 6 (voice)"}
+  0x15: {gm_patch: 117, transpose: 1, name: "Melodic Tom"}
+  0x16: {gm_patch: -72, transpose: 0, name: "Long Whistle"}      # Percussion
+
+# Song list
+songs:
+  - id: 0x00
+    title: "(dummy)"
+  - id: 0x01
+    title: "Overture"
+  - id: 0x02
+    title: "Elder"
+  - id: 0x03
+    title: "Short Fanfare"
+  - id: 0x04
+    title: "Chocobo"
+  - id: 0x05
+    title: "Mambo de Chocobo"
+  - id: 0x06
+    title: "Underworld"
+  - id: 0x07
+    title: "Zeromus"
+  - id: 0x08
+    title: "Victory"
+  - id: 0x09
+    title: "Town"
+  - id: 0x0A
+    title: "Rydia's Theme"
+  - id: 0x0B
+    title: "Battle with Fiends"
+  - id: 0x0C
+    title: "Mountain"
+  - id: 0x0D
+    title: "Overworld"
+  - id: 0x0E
+    title: "Big Whale"
+  - id: 0x0F
+    title: "Sadness"
+  - id: 0x10
+    title: "Take a Nap"
+  - id: 0x11
+    title: "Golbez's Theme"
+  - id: 0x12
+    title: "Edward's Theme"
+  - id: 0x13
+    title: "Rosa's Theme"
+  - id: 0x14
+    title: "Baron"
+  - id: 0x15
+    title: "Prelude"
+  - id: 0x16
+    title: "Evil Golbez"
+  - id: 0x17
+    title: "Tower of Babil"
+  - id: 0x18
+    title: "Airship"
+  - id: 0x19
+    title: "Fiends' Theme"
+  - id: 0x1A
+    title: "Boss"
+  - id: 0x1B
+    title: "Giant of Babil"
+  - id: 0x1C
+    title: "Illusionary World"
+  - id: 0x1D
+    title: "Ring of Bombs"
+  - id: 0x1E
+    title: "Lunar Cave"
+  - id: 0x1F
+    title: "Surprise"
+  - id: 0x20
+    title: "Dwarf Castle"
+  - id: 0x21
+    title: "Palom and Porom"
+  - id: 0x22
+    title: "Calbrena"
+  - id: 0x23
+    title: "Run!!"
+  - id: 0x24
+    title: "Cid's Theme"
+  - id: 0x25
+    title: "Cave"
+  - id: 0x26
+    title: "Dance"
+  - id: 0x27
+    title: "Battle"
+  - id: 0x28
+    title: "Damcyan"
+  - id: 0x29
+    title: "Fanfare"
+  - id: 0x2A
+    title: "Sorrow"
+  - id: 0x2B
+    title: "Chocobo Forest"
+  - id: 0x2C
+    title: "Red Wings"
+  - id: 0x2D
+    title: "Suspicion"
+  - id: 0x2E
+    title: "Fabul"
+  - id: 0x2F
+    title: "Cecil becomes a Paladin"
+  - id: 0x30
+    title: "Big Chocobo"
+  - id: 0x31
+    title: "Moon"
+  - id: 0x32
+    title: "Toroia Castle"
+  - id: 0x33
+    title: "Mysidia"
+  - id: 0x34
+    title: "Castle - Red Wings 2"
+  - id: 0x35
+    title: "Ending"
+  - id: 0x36
+    title: "Epilogue"
+  - id: 0x37
+    title: "Credits"
+  - id: 0x38
+    title: "(dummy)"
+  - id: 0x39
+    title: "(dummy)"
+  - id: 0x3A
+    title: "(dummy)"
+  - id: 0x3B
+    title: "(dummy)"
+  - id: 0x3C
+    title: "(dummy)"
+  - id: 0x3D
+    title: "(dummy)"
+  - id: 0x3E  
+    title: "??"
+  - id: 0x3F  
+    title: "Gongs and Foghorn?"
+  - id: 0x40  
+    title: "Door open?"
+  - id: 0x41  
+    title: "Door open?"
+  - id: 0x42  
+    title: "Earthquake"
+  - id: 0x43  
+    title: "Fall Down"
+  - id: 0x44  
+    title: "Leviathan Rises"
+  - id: 0x45  
+    title: "(dummy)"

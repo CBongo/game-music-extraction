@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
