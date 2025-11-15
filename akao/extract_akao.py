@@ -1028,7 +1028,8 @@ class SNESFF2(SequenceFormat):
         return offsets
 
     def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
-                    instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
+                    instrument_table: Optional[List[int]] = None,
+                    target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> Tuple[List, List]:
         """Parse a single SNES voice's event data using a two-pass approach.
 
         Pass 1: Parse opcodes linearly, generate disassembly, build intermediate representation (IR)
@@ -1040,6 +1041,8 @@ class SNESFF2(SequenceFormat):
             track_num: Track/voice number (0-7)
             song_id: Song ID for looking up instruments
             instrument_table: List of instrument IDs for this song
+            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
+            loop_info: Loop analysis info from _analyze_track_loops()
 
         Returns:
             Tuple of (disassembly_lines, midi_events)
@@ -1051,7 +1054,7 @@ class SNESFF2(SequenceFormat):
         disasm, ir_events = self._parse_track_pass1(data, offset, track_num, instrument_table)
 
         # Pass 2: Expand IR and generate MIDI
-        midi_events = self._parse_track_pass2(ir_events, track_num)
+        midi_events = self._parse_track_pass2(ir_events, track_num, target_loop_time, loop_info)
 
         return disasm, midi_events
 
@@ -1106,8 +1109,9 @@ class SNESFF2(SequenceFormat):
                     # Regular note - create IR event
                     event = make_note(p, note_num, dur)
                     # Store current state in event for pass 2
+                    # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
+                    # because loops can modify octave during execution
                     event.metadata = {
-                        'octave': octave,
                         'velocity': velocity,
                         'patch': current_patch,
                         'perc_key': perc_key,
@@ -1121,21 +1125,21 @@ class SNESFF2(SequenceFormat):
                     # Format: "4E            Note F  (05) Dur 48"
                     note_name = NOTE_NAMES[note_num]
                     if perc_key:
-                        line += f"            Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
                     else:
-                        line += f"            Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
 
                 elif note_num == 12:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
-                    line += f"            Rest     Dur {raw_dur}"
+                    line += f"           Rest         Dur {raw_dur}"
 
                 else:
                     # Tie - create IR event
                     event = make_tie(p, dur)
                     ir_events.append(event)
-                    line += f"            Tie      Dur {raw_dur}"
+                    line += f"           Tie          Dur {raw_dur}"
 
                 p += 1
                 disasm.append(line)
@@ -1290,7 +1294,167 @@ class SNESFF2(SequenceFormat):
 
         return disasm, ir_events
 
-    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int) -> List[Dict]:
+    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
+        """Analyze track for backwards GOTO loops and calculate timing.
+
+        This is a simplified analysis pass that detects loop patterns and measures
+        timing without generating MIDI events.
+
+        Args:
+            ir_events: List of IR events from pass 1
+
+        Returns:
+            Dict with keys:
+                'has_backwards_goto': bool - True if track ends with backwards GOTO
+                'intro_time': int - Time units before loop starts (0 if no loop)
+                'loop_time': int - Time units for one loop iteration (0 if no loop)
+                'goto_target_idx': int - Index of GOTO target event (None if no loop)
+        """
+        total_time = 0
+        loop_stack = []
+
+        # Find the last GOTO event
+        last_goto_event = None
+        last_goto_idx = None
+        for i, event in enumerate(ir_events):
+            if event.type == IREventType.GOTO:
+                last_goto_event = event
+                last_goto_idx = i
+
+        # Check if it's a backwards GOTO
+        if last_goto_event is None:
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None
+            }
+
+        # Find target event index
+        target_idx = None
+        for j, e in enumerate(ir_events):
+            if e.offset == last_goto_event.target_offset:
+                target_idx = j
+                break
+
+        # DEBUG
+        # if target_idx is not None and last_goto_idx is not None:
+        #     print(f"    Found backwards GOTO: last_goto_idx={last_goto_idx}, target_idx={target_idx}")
+
+        # Check if backwards (target comes before GOTO)
+        assert last_goto_idx is not None, "last_goto_idx should not be None here"
+        if target_idx is None or target_idx >= last_goto_idx:
+            # Forward GOTO or target not found - not a loop
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None
+            }
+
+        # It's a backwards GOTO - calculate intro and loop times
+        # Intro time = time from start (index 0) to GOTO target (target_idx)
+        # Loop time = time from GOTO target to GOTO itself
+
+        # Measure intro time: execute from 0 to target_idx
+        intro_time = 0
+        loop_stack_intro = []
+        i = 0
+        while i < target_idx:
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE or event.type == IREventType.REST or event.type == IREventType.TIE:
+                assert event.duration is not None
+                intro_time += event.duration
+                i += 1
+            elif event.type == IREventType.LOOP_START:
+                loop_stack_intro.append({'start_idx': i + 1, 'count': event.loop_count, 'iteration': 0})
+                i += 1
+            elif event.type == IREventType.LOOP_END:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['count'] -= 1
+                    if loop['count'] >= 0:
+                        i = loop['start_idx']
+                    else:
+                        loop_stack_intro.pop()
+                        i += 1
+                else:
+                    i += 1
+            elif event.type == IREventType.LOOP_BREAK:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['iteration'] += 1
+                    if loop['iteration'] == event.condition:
+                        for j, e in enumerate(ir_events):
+                            if e.offset == event.target_offset:
+                                i = j
+                                break
+                        loop_stack_intro.pop()
+                    else:
+                        i += 1
+                else:
+                    i += 1
+            else:
+                i += 1
+
+        # Measure loop time: execute from target_idx to last_goto_idx
+        loop_time = 0
+        assert target_idx is not None, "target_idx should not be None for backwards GOTO"
+        assert last_goto_idx is not None, "last_goto_idx should not be None for backwards GOTO"
+        loop_stack_loop = []
+        j = target_idx
+
+        while j < last_goto_idx:
+            e = ir_events[j]
+
+            if e.type == IREventType.NOTE or e.type == IREventType.REST or e.type == IREventType.TIE:
+                assert e.duration is not None
+                loop_time += e.duration
+                j += 1
+            elif e.type == IREventType.LOOP_START:
+                loop_stack_loop.append({'start_idx': j + 1, 'count': e.loop_count, 'iteration': 0})
+                j += 1
+            elif e.type == IREventType.LOOP_END:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['count'] -= 1
+                    if lp['count'] >= 0:
+                        j = lp['start_idx']
+                    else:
+                        loop_stack_loop.pop()
+                        j += 1
+                else:
+                    j += 1
+            elif e.type == IREventType.LOOP_BREAK:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['iteration'] += 1
+                    if lp['iteration'] == e.condition:
+                        for k, ev in enumerate(ir_events):
+                            if ev.offset == e.target_offset:
+                                j = k
+                                break
+                        loop_stack_loop.pop()
+                    else:
+                        j += 1
+                else:
+                    j += 1
+            else:
+                j += 1
+
+        # DEBUG
+        # print(f"      Analysis: intro_time={intro_time}, loop_time={loop_time}, target_idx={target_idx}, last_goto_idx={last_goto_idx}")
+
+        return {
+            'has_backwards_goto': True,
+            'intro_time': intro_time,
+            'loop_time': loop_time,
+            'goto_target_idx': target_idx
+        }
+
+    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
+                          target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> List[Dict]:
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
 
         This pass takes the linear IR event stream and executes it, expanding loops
@@ -1299,6 +1463,8 @@ class SNESFF2(SequenceFormat):
         Args:
             ir_events: List of IR events from pass 1
             track_num: Track/voice number (0-7)
+            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
+            loop_info: Loop analysis info from _analyze_track_loops()
 
         Returns:
             List of MIDI event dictionaries
@@ -1322,6 +1488,12 @@ class SNESFF2(SequenceFormat):
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
 
+        # Calculate target time for loop termination
+        target_total_time = 0
+        if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
+            intro_time = loop_info['intro_time']
+            target_total_time = intro_time + target_loop_time
+
         # Event pointer for execution
         i = 0
         # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
@@ -1331,6 +1503,10 @@ class SNESFF2(SequenceFormat):
 
         while i < len(ir_events) and iteration_count < max_iterations:
             iteration_count += 1
+
+            # Check if we've reached target playthrough time
+            if target_total_time > 0 and total_time >= target_total_time:
+                break
 
             # Emergency brakes (only warn, not error - looping is normal)
             if time.time() - start_time > max_time_seconds:
@@ -1347,7 +1523,7 @@ class SNESFF2(SequenceFormat):
 
             if event.type == IREventType.NOTE:
                 # Extract state from metadata (stored in pass 1)
-                octave = event.metadata['octave']
+                # NOTE: octave is tracked as state variable, not in metadata
                 velocity = event.metadata['velocity']
                 perc_key = event.metadata['perc_key']
                 transpose_octaves = event.metadata['transpose']
@@ -1453,9 +1629,9 @@ class SNESFF2(SequenceFormat):
                 # End of loop body - decide if we repeat
                 if loop_stack:
                     loop = loop_stack[-1]
-                    loop['iteration'] += 1
+                    loop['count'] -= 1
 
-                    if loop['iteration'] < loop['count']:
+                    if loop['count'] >= 0:
                         # Repeat: jump back to loop start
                         i = loop['start_idx']
                     else:
@@ -1496,17 +1672,18 @@ class SNESFF2(SequenceFormat):
                     i += 1
 
             elif event.type == IREventType.GOTO:
-                # Jump to target address
-                target_idx = None
-                for j, e in enumerate(ir_events):
-                    if e.offset == event.target_offset:
-                        target_idx = j
+                # Phase 2: Smart GOTO handling for looping music
+                if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
+                    # This is a backwards GOTO loop - jump to target
+                    # Time check happens at top of while loop
+                    target_idx = loop_info['goto_target_idx']
+                    if target_idx is not None:
+                        i = target_idx
+                    else:
+                        # Target not found, halt
                         break
-
-                if target_idx is not None:
-                    i = target_idx
                 else:
-                    # Target not found, halt
+                    # Forward GOTO or no loop info - treat as HALT
                     break
 
             elif event.type == IREventType.HALT:
@@ -1906,12 +2083,40 @@ class SequenceExtractor:
             if isinstance(self.format_handler, SNESFF2):
                 instrument_table = self.format_handler._read_song_instrument_table(song.id)
 
-            # Parse all tracks
-            parsed_tracks = []
+            # Phase 2 loop handling: Analyze all tracks first to find longest loop
+            track_loop_infos = []
             for voice_num, offset in enumerate(track_offsets):
+                # Do Pass 1 to get IR events
+                disasm, ir_events = self.format_handler._parse_track_pass1(  # type: ignore[attr-defined]
+                    data, offset, voice_num, instrument_table or []
+                )
+                # Analyze for loops
+                loop_info = self.format_handler._analyze_track_loops(ir_events)  # type: ignore[attr-defined]
+                track_loop_infos.append({
+                    'ir_events': ir_events,
+                    'loop_info': loop_info
+                })
+
+            # Find longest loop time among all tracks with backwards GOTOs
+            longest_loop_time = 0
+            for i, info in enumerate(track_loop_infos):
+                if info['loop_info']['has_backwards_goto']:
+                    loop_time = info['loop_info']['loop_time']
+                    if loop_time > longest_loop_time:
+                        longest_loop_time = loop_time
+
+            # Calculate target playthrough time: intro + (2× longest loop)
+            target_loop_time = 2 * longest_loop_time
+            # DEBUG
+            # print(f"  Loop timing: longest_loop={longest_loop_time}, target={target_loop_time}")
+
+            # Parse all tracks with loop info
+            parsed_tracks = []
+            for voice_num, info in enumerate(track_loop_infos):
                 try:
-                    _, midi_events = self.format_handler.parse_track(
-                        data, offset, voice_num, song.id, instrument_table
+                    # Pass 2 only - we already have IR events from analysis
+                    midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
+                        info['ir_events'], voice_num, target_loop_time, info['loop_info']
                     )
                     has_notes = any(e['type'] == 'note' for e in midi_events)
                     parsed_tracks.append({
@@ -1920,7 +2125,7 @@ class SequenceExtractor:
                         'has_notes': has_notes
                     })
                 except Exception as e:
-                    raise Exception(f"Failed parsing track {voice_num} at offset {offset:04X}: {e}") from e
+                    raise Exception(f"Failed parsing track {voice_num}: {e}") from e
 
             if self.patch_based_tracks:
                 # Organize by patch
