@@ -1,0 +1,213 @@
+game: "Final Fantasy III US / VI JP (SNES)"
+format: "snes_ff3"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "f_fan3.fig"
+
+# Base address for song data (SNES address C5/0000 - HiROM)
+base_address: 0xC50000
+
+# Tempo factor for BPM calculation
+tempo_factor: 59904000  # timer0 period 4.875ms * 96/2 ticks * 256
+
+# Default state values
+default_tempo: 120
+default_octave: 4
+default_velocity: 100
+
+# Note encoding: note_num = cmd / 14, duration_idx = cmd % 14
+note_divisor: 14
+
+# Duration table - 14 entries (vs 15 for FF2)
+duration_table:
+  address: 0xC51CE1  # spcbase + 0x17d1 where spcbase = C5/0510
+  size: 14
+  type: "byte"
+
+# Music opcode lengths - 60 opcodes starting from 0xC4
+opcode_table:
+  address: 0xC51E09  # spcbase + 0x18f9 where spcbase = C5/0510
+  size: 60
+  type: "byte"
+
+# First opcode value (0xC4 vs 0xD2 for FF2)
+first_opcode: 0xC4
+
+# Pitch table
+pitch_table:
+  address: 0xC51C9F  # spcbase + 0x178f where spcbase = C5/0510
+  size: 13
+  type: "ushort"
+
+# Patch mapping: instrument_id -> General MIDI patch
+# Negative values indicate percussion (GM drum key number)
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x01: {gm_patch: 24, transpose: 0, name: "Acoustic Guitar (nylon)"}
+  0x02: {gm_patch: 33, transpose: -3, name: "Acoustic Bass"}
+  0x03: {gm_patch: 75, transpose: 1, name: "Pan Flute"}
+  0x04: {gm_patch: 105, transpose: -1, name: "Banjo"}
+  0x05: {gm_patch: 42, transpose: -1, name: "Cello"}
+  0x06: {gm_patch: 52, transpose: 0, name: "Choir Aahs"}
+  0x07: {gm_patch: 73, transpose: 1, name: "Piccolo"}
+  0x08: {gm_patch: 60, transpose: 0, name: "French Horn"}
+  0x09: {gm_patch: 80, transpose: 0, name: "Square Lead"}
+  0x0A: {gm_patch: 68, transpose: 0, name: "Oboe"}
+  0x0B: {gm_patch: 17, transpose: 0, name: "Drawbar Organ"}
+  0x0C: {gm_patch: 1, transpose: 0, name: "Bright Acoustic Piano"}
+  0x0D: {gm_patch: 48, transpose: 0, name: "String Ensemble 1"}
+  0x0E: {gm_patch: 56, transpose: -1, name: "Trumpet"}
+  0x0F: {gm_patch: -42, transpose: 0, name: "Closed Hi-Hat"}  # Percussion
+  0x10: {gm_patch: 104, transpose: 0, name: "Sitar"}
+  0x11: {gm_patch: -46, transpose: 0, name: "Open Hi-Hat"}  # Percussion
+  0x12: {gm_patch: -49, transpose: 0, name: "Crash Cymbal 1"}  # Percussion
+  0x13: {gm_patch: 121, transpose: 0, name: "Breath Noise"}
+  0x14: {gm_patch: -40, transpose: 0, name: "Snare Drum"}  # Percussion
+  0x15: {gm_patch: -39, transpose: 0, name: "Hand Clap"}  # Percussion
+  0x16: {gm_patch: 47, transpose: 0, name: "Timpani"}
+  0x17: {gm_patch: 117, transpose: 0, name: "Melodic Tom"}
+  0x18: {gm_patch: 32, transpose: -2, name: "Acoustic Bass"}
+  0x19: {gm_patch: 45, transpose: 1, name: "Pizzicato Strings"}
+  0x1A: {gm_patch: 58, transpose: -2, name: "Trombone"}
+  0x1B: {gm_patch: 46, transpose: 0, name: "Orchestral Harp"}
+  0x1C: {gm_patch: 34, transpose: -2, name: "Electric Bass (pick)"}
+  0x1D: {gm_patch: 27, transpose: -1, name: "Electric Guitar (clean)"}
+  0x1E: {gm_patch: 30, transpose: 0, name: "Distortion Guitar"}
+  0x1F: {gm_patch: 78, transpose: 1, name: "Whistle"}
+  0x20: {gm_patch: 11, transpose: 0, name: "Vibraphone"}
+  0x21: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}  # Percussion
+  0x22: {gm_patch: -35, transpose: 0, name: "Acoustic Bass Drum"}  # Percussion
+  0x23: {gm_patch: -56, transpose: 0, name: "Cowbell"}  # Percussion
+  0x24: {gm_patch: 14, transpose: -1, name: "Tubular Bells"}
+  0x25: {gm_patch: 19, transpose: 0, name: "Church Organ"}
+  0x26: {gm_patch: -78, transpose: 0, name: "Cuica"}  # Percussion (alternating 78/79)
+  0x27: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x28: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x29: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x2A: {gm_patch: -39, transpose: 0, name: "Hand Clap"}  # Percussion
+  0x2B: {gm_patch: -37, transpose: 0, name: "Side Stick"}  # Percussion
+  0x2C: {gm_patch: 43, transpose: -3, name: "Contrabass"}
+  0x2D: {gm_patch: -74, transpose: 0, name: "Long Guiro"}  # Percussion
+  0x2E: {gm_patch: 116, transpose: 3, name: "Taiko Drum"}
+  0x2F: {gm_patch: -69, transpose: 0, name: "Cabasa"}  # Percussion
+  0x30: {gm_patch: 115, transpose: 3, name: "Woodblock"}
+  0x31: {gm_patch: 1, transpose: 1, name: "Bright Acoustic Piano"}
+  0x32: {gm_patch: 25, transpose: 0, name: "Acoustic Guitar (steel)"}
+  0x33: {gm_patch: 109, transpose: 0, name: "Bagpipe"}
+  0x34: {gm_patch: 77, transpose: 1, name: "Shakuhachi"}
+  0x35: {gm_patch: 64, transpose: -1, name: "Soprano Sax"}
+  0x36: {gm_patch: 64, transpose: 0, name: "Soprano Sax"}
+  0x37: {gm_patch: -53, transpose: 0, name: "Ride Bell"}  # Percussion
+  0x38: {gm_patch: 52, transpose: -1, name: "Choir Aahs"}
+  0x39: {gm_patch: 52, transpose: -2, name: "Choir Aahs"}
+  0x3A: {gm_patch: 52, transpose: 1, name: "Choir Aahs"}
+  0x3B: {gm_patch: 19, transpose: 0, name: "Church Organ"}
+  0x3C: {gm_patch: -65, transpose: 0, name: "Timbale"}  # Percussion
+  0x3D: {gm_patch: -66, transpose: 0, name: "Low Timbale"}  # Percussion
+  0x3E: {gm_patch: 13, transpose: 0, name: "Xylophone"}
+  0x3F: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x40: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x41: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x42: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x43: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x44: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+
+# Low patch variants (patches 0x00-0x1F when accessed directly)
+patch_map_low:
+  0x00: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x01: {gm_patch: 6, transpose: 0, name: "Harpsichord"}
+  0x02: {gm_patch: 59, transpose: 0, name: "Muted Trumpet"}
+  0x03: {gm_patch: 26, transpose: 0, name: "Electric Guitar (jazz)"}
+  0x04: {gm_patch: 127, transpose: 3, name: "Gunshot"}
+  0x05: {gm_patch: 98, transpose: 0, name: "FX 3 (crystal)"}
+  0x06: {gm_patch: 33, transpose: 1, name: "Acoustic Bass"}
+  0x07: {gm_patch: 122, transpose: 0, name: "Seashore"}
+
+# Songs list
+songs:
+  - {id: 0x00, title: "00"}
+  - {id: 0x01, title: "Prelude"}
+  - {id: 0x02, title: "Opening Theme 1"}
+  - {id: 0x03, title: "Opening Theme 2"}
+  - {id: 0x04, title: "Opening Theme 3"}
+  - {id: 0x05, title: "Awakening"}
+  - {id: 0x06, title: "Terra"}
+  - {id: 0x07, title: "Shadow"}
+  - {id: 0x08, title: "Strago"}
+  - {id: 0x09, title: "Gau"}
+  - {id: 0x0A, title: "Edgar and Sabin"}
+  - {id: 0x0B, title: "Coin Song"}
+  - {id: 0x0C, title: "Cyan"}
+  - {id: 0x0D, title: "Locke"}
+  - {id: 0x0E, title: "Forever Rachel"}
+  - {id: 0x0F, title: "Relm"}
+  - {id: 0x10, title: "Setzer"}
+  - {id: 0x11, title: "Epitaph"}
+  - {id: 0x12, title: "Celes"}
+  - {id: 0x13, title: "Techno de Chocobo"}
+  - {id: 0x14, title: "Decisive Battle"}
+  - {id: 0x15, title: "Johnny C Bad"}
+  - {id: 0x16, title: "Kefka"}
+  - {id: 0x17, title: "Narshe"}
+  - {id: 0x18, title: "Phantom Forest"}
+  - {id: 0x19, title: "Wild West"}
+  - {id: 0x1A, title: "Save Them"}
+  - {id: 0x1B, title: "Emperor Gestahl"}
+  - {id: 0x1C, title: "Troops March On"}
+  - {id: 0x1D, title: "Under Martial Law"}
+  - {id: 0x1E, title: "1E"}
+  - {id: 0x1F, title: "Metamorphosis"}
+  - {id: 0x20, title: "Train Starting"}
+  - {id: 0x21, title: "Another World of Beasts"}
+  - {id: 0x22, title: "Grand Finale 2"}
+  - {id: 0x23, title: "Mt Koltz"}
+  - {id: 0x24, title: "Battle"}
+  - {id: 0x25, title: "Short Fanfare"}
+  - {id: 0x26, title: "Wedding 1"}
+  - {id: 0x27, title: "Aria de Mezzo Carattere"}
+  - {id: 0x28, title: "Serpent Trench"}
+  - {id: 0x29, title: "Slam Shuffle (Zozo)"}
+  - {id: 0x2A, title: "Kids Run Through The City Corner"}
+  - {id: 0x2B, title: "Double Question Marks"}
+  - {id: 0x2C, title: "2C"}
+  - {id: 0x2D, title: "Gogo"}
+  - {id: 0x2E, title: "Returners"}
+  - {id: 0x2F, title: "Fanfare"}
+  - {id: 0x30, title: "Umaro"}
+  - {id: 0x31, title: "Mog"}
+  - {id: 0x32, title: "Unforgiven"}
+  - {id: 0x33, title: "Fierce Battle"}
+  - {id: 0x34, title: "The Day After"}
+  - {id: 0x35, title: "Blackjack"}
+  - {id: 0x36, title: "Catastrophe"}
+  - {id: 0x37, title: "Magic House"}
+  - {id: 0x38, title: "Sleep"}
+  - {id: 0x39, title: "39"}
+  - {id: 0x3A, title: "3A"}
+  - {id: 0x3B, title: "Dancing Mad 1"}
+  - {id: 0x3C, title: "3C"}
+  - {id: 0x3D, title: "Spinach Rag"}
+  - {id: 0x3E, title: "Rest in Peace"}
+  - {id: 0x3F, title: "3F"}
+  - {id: 0x40, title: "40"}
+  - {id: 0x41, title: "Overture 1"}
+  - {id: 0x42, title: "Overture 2"}
+  - {id: 0x43, title: "Overture 3"}
+  - {id: 0x44, title: "Wedding 2"}
+  - {id: 0x45, title: "Wedding 3"}
+  - {id: 0x46, title: "Wedding 4"}
+  - {id: 0x47, title: "Devil's Lab"}
+  - {id: 0x48, title: "48"}
+  - {id: 0x49, title: "49"}
+  - {id: 0x4A, title: "4A"}
+  - {id: 0x4B, title: "New Continent"}
+  - {id: 0x4C, title: "Searching for Friends"}
+  - {id: 0x4D, title: "Fanatics"}
+  - {id: 0x4E, title: "Last Dungeon"}
+  - {id: 0x4F, title: "Dark World"}
+  - {id: 0x50, title: "Dancing Mad 5"}
+  - {id: 0x51, title: "51"}
+  - {id: 0x52, title: "Dancing Mad 4"}
+  - {id: 0x53, title: "Ending 1"}
+  - {id: 0x54, title: "Ending 2"}

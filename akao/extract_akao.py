@@ -230,8 +230,13 @@ class SequenceFormat(ABC):
     """Abstract base class for sequence format handlers."""
     
     @abstractmethod
-    def parse_header(self, data: bytes) -> Dict:
-        """Parse the sequence header and return metadata."""
+    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+        """Parse the sequence header and return metadata.
+
+        Args:
+            data: Song data buffer
+            song_id: Song ID (optional, for format-specific lookups like FF3 instrument table)
+        """
         pass
     
     @abstractmethod
@@ -447,7 +452,7 @@ class AKAONewStyle(SequenceFormat):
         
         return file_offset
     
-    def parse_header(self, data: bytes) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
         """Parse AKAO sequence header."""
         if len(data) < 0x40:
             raise ValueError("Data too short for AKAO header")
@@ -990,7 +995,7 @@ class SNESFF2(SequenceFormat):
 
         return instruments
 
-    def parse_header(self, data: bytes) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
         """Parse SNES FF2 song header.
 
         Format:
@@ -1702,6 +1707,1027 @@ class SNESFF2(SequenceFormat):
         return midi_events
 
 
+class SNESFF3(SequenceFormat):
+    """SNES Final Fantasy III (US) / VI (JP) music format handler."""
+
+    OPCODE_NAMES = {
+        0xc4: 'Set Volume', 0xc5: 'Volume Fade', 0xc6: 'Set Balance', 0xc7: 'Balance Fade',
+        0xc8: 'Portamento', 0xc9: 'Vibrato', 0xca: 'Vibrato Off',
+        0xcb: 'Tremolo', 0xcc: 'Tremolo Off', 0xcd: 'Pan Sweep', 0xce: 'Pan Sweep Off',
+        0xcf: 'Set Noise Clock', 0xd0: 'Enable Noise', 0xd1: 'Disable Noise',
+        0xd2: 'Enable Pitchmod', 0xd3: 'Disable Pitchmod',
+        0xd4: 'Enable Echo', 0xd5: 'Disable Echo',
+        0xd6: 'Set Octave', 0xd7: 'Inc Octave', 0xd8: 'Dec Octave',
+        0xd9: 'Set Transpose', 0xda: 'Change Transpose', 0xdb: 'Detune',
+        0xdc: 'Patch Change',
+        0xdd: 'Set ADSR Attack', 0xde: 'Set ADSR Decay',
+        0xdf: 'Set ADSR Sustain', 0xe0: 'Set ADSR Release', 0xe1: 'Set Default ADSR',
+        0xe2: 'Begin Repeat', 0xe3: 'End Repeat',
+        0xe4: 'Begin Slur', 0xe5: 'End Slur',
+        0xe6: 'Begin Roll', 0xe7: 'End Roll',
+        0xe8: 'Utility Rest', 0xe9: 'Play SFX (E9)', 0xea: 'Play SFX (EA)',
+        0xeb: 'Halt', 0xec: 'Halt', 0xed: 'Halt', 0xee: 'Halt', 0xef: 'Halt',
+        0xf0: 'Set Tempo', 0xf1: 'Tempo Fade',
+        0xf2: 'Set Echo Volume', 0xf3: 'Fade Echo Volume',
+        0xf4: 'Set Volume Multiplier', 0xf5: 'Conditional Loop',
+        0xf6: 'Goto', 0xf7: 'Set/Fade Echo Feedback',
+        0xf8: 'Set/Fade Filter', 0xf9: 'Advance Cue Point',
+        0xfa: 'Zero Cue Point', 0xfb: 'Ignore Volume Multiplier',
+        0xfc: 'Branch if $DD', 0xfd: 'Halt', 0xfe: 'Halt', 0xff: 'Halt'
+    }
+
+    def __init__(self, config: Dict, rom_data: bytes):
+        """Initialize with game-specific config and ROM data."""
+        self.config = config
+        self.rom_data: bytes = rom_data
+        self.has_smc_header = len(rom_data) % 1024 == 512  # SMC header is 512 bytes
+        self.smc_header_size = 512 if self.has_smc_header else 0
+
+        # Auto-detect ROM mapping mode (LoROM vs HiROM)
+        self.rom_mapping = self._detect_rom_mapping()
+
+        # Read duration table from ROM
+        if 'duration_table' in config:
+            table_cfg = config['duration_table']
+            self.duration_table = self._read_rom_table(
+                table_cfg.get('address'),
+                table_cfg.get('size', 14),
+                table_cfg.get('type', 'B')
+            )
+        else:
+            # Default duration table (14 values for FF3)
+            self.duration_table = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+        # Read opcode length table from ROM
+        if 'opcode_table' in config:
+            table_cfg = config['opcode_table']
+            self.opcode_table = self._read_rom_table(
+                table_cfg.get('address'),
+                table_cfg.get('size', 60),
+                table_cfg.get('type', 'B')
+            )
+        else:
+            # Default opcode lengths (60 opcodes starting from 0xC4)
+            self.opcode_table = [1] * 60
+
+        # Get state defaults from config
+        self.default_tempo = config.get('default_tempo', 255)
+        self.default_octave = config.get('default_octave', 4)
+        self.default_velocity = config.get('default_velocity', 64)
+        self.tempo_factor = config.get('tempo_factor', 55296000)
+
+        # Build patch map from config (instrument_id -> PatchInfo)
+        self.patch_map = {}
+        if 'patch_map' in config:
+            for inst_id_str, patch_info in config['patch_map'].items():
+                # Convert hex string to int (handles both "0x00" and "00" formats)
+                if isinstance(inst_id_str, str):
+                    inst_id = int(inst_id_str, 0)  # base 0 auto-detects hex with 0x prefix
+                else:
+                    inst_id = inst_id_str
+                self.patch_map[inst_id] = patch_info
+
+        # Build patch_map_low from config
+        self.patch_map_low = {}
+        if 'patch_map_low' in config:
+            for patch_id_str, patch_info in config['patch_map_low'].items():
+                if isinstance(patch_id_str, str):
+                    patch_id = int(patch_id_str, 0)
+                else:
+                    patch_id = patch_id_str
+                self.patch_map_low[patch_id] = patch_info
+
+        # Get note divisor (14 for FF3 vs 15 for FF2)
+        self.note_divisor = config.get('note_divisor', 14)
+
+        # Get first opcode value (0xC4 for FF3 vs 0xD2 for FF2)
+        self.first_opcode = config.get('first_opcode', 0xC4)
+
+        # Get base address for song pointers
+        self.base_address = config.get('base_address', 0x04C000)
+
+        # Read song pointer table
+        self.song_pointers = self._read_song_pointer_table()
+
+    def _detect_rom_mapping(self) -> str:
+        """Auto-detect ROM mapping mode (LoROM vs HiROM).
+
+        Based on snesutil.pl:openrom logic - checks ROM header at two possible locations
+        and validates with complement checksum.
+
+        Returns:
+            "lorom" or "hirom"
+        """
+        offset = self.smc_header_size
+
+        # Read potential headers at LoROM and HiROM locations
+        lorom_header_offset = offset + 0x7FC0
+        hirom_header_offset = offset + 0xFFC0
+
+        # Read 32-byte headers
+        if lorom_header_offset + 32 <= len(self.rom_data):
+            lorom_header = self.rom_data[lorom_header_offset:lorom_header_offset + 32]
+        else:
+            lorom_header = None
+
+        if hirom_header_offset + 32 <= len(self.rom_data):
+            hirom_header = self.rom_data[hirom_header_offset:hirom_header_offset + 32]
+        else:
+            hirom_header = None
+
+        # Check complement checksums (bytes 28-29 = checksum, 30-31 = inverse checksum)
+        # Format: A21C7v2 = 21 byte title, 7 single bytes, 2 words (little-endian)
+        lorom_valid = False
+        hirom_valid = False
+
+        if lorom_header:
+            # Checksum at offset 28-29, inverse at 30-31
+            checksum = struct.unpack('<H', lorom_header[28:30])[0]
+            inverse = struct.unpack('<H', lorom_header[30:32])[0]
+            if (checksum ^ 0xFFFF) == inverse:
+                lorom_valid = True
+
+        if hirom_header:
+            checksum = struct.unpack('<H', hirom_header[28:30])[0]
+            inverse = struct.unpack('<H', hirom_header[30:32])[0]
+            if (checksum ^ 0xFFFF) == inverse:
+                hirom_valid = True
+
+        # If checksum validation worked, use that
+        if lorom_valid and not hirom_valid:
+            return "lorom"
+        elif hirom_valid and not lorom_valid:
+            return "hirom"
+
+        # Fallback: check mapping mode byte (offset 21 in header)
+        # Bit 0-3 = mode: 0 = LoROM, 1 = HiROM
+        if lorom_header and (lorom_header[21] & 0xF) == 0:
+            return "lorom"
+        if hirom_header and (hirom_header[21] & 0xF) == 1:
+            return "hirom"
+
+        # Default to LoROM (most common)
+        return "lorom"
+
+    def rom_offset_to_display_addr(self, offset: int) -> str:
+        """Convert ROM file offset to SNES bank/address display format.
+
+        Args:
+            offset: ROM file offset (includes SMC header if present)
+
+        Returns:
+            Formatted string like "06/F727" (bank/address)
+        """
+        # Remove SMC header from offset
+        rom_offset = offset - self.smc_header_size
+
+        if self.rom_mapping == "hirom":
+            # HiROM: bank = (offset / 0x10000) | 0xC0, addr = offset & 0xFFFF
+            bank = (rom_offset // 0x10000) | 0xC0
+            addr = rom_offset & 0xFFFF
+        else:
+            # LoROM: bank = offset / 0x8000, addr = (offset % 0x8000) + 0x8000
+            bank = rom_offset // 0x8000
+            addr = (rom_offset % 0x8000) + 0x8000
+
+        return f"{bank:02X}/{addr:04X}"
+
+    def buffer_offset_to_spc_addr(self, offset: int) -> int:
+        """Convert buffer offset to SPC RAM address.
+
+        For FF3, SPC loads data at 0x1C00 (vs 0x2000 for FF2).
+        """
+        return offset + 0x1C00
+
+    def _read_3byte_pointers(self, offset: int, count: int) -> List[int]:
+        """Read a table of 3-byte SNES pointers from ROM."""
+        pointers = []
+        for i in range(count):
+            ptr_offset = offset + i * 3
+            ptr_bytes = self.rom_data[ptr_offset:ptr_offset + 3]
+            # 3-byte little-endian pointer
+            ptr = struct.unpack('<I', ptr_bytes + b'\x00')[0]  # Pad to 4 bytes
+            pointers.append(ptr)
+        return pointers
+
+    def _snes_addr_to_offset(self, snes_addr: int) -> int:
+        """Convert SNES address (bank/addr format) to ROM file offset."""
+        # For LoROM: bank bytes 0x00-0x7F map to ROM offset = (bank * 0x8000) + (addr - 0x8000)
+        # For HiROM: bank bytes 0xC0-0xFF map to ROM offset = ((bank - 0xC0) * 0x10000) + addr
+        bank = (snes_addr >> 16) & 0xFF
+        addr = snes_addr & 0xFFFF
+
+        if self.rom_mapping == "hirom":
+            rom_offset = ((bank - 0xC0) * 0x10000) + addr
+        else:
+            rom_offset = (bank * 0x8000) + (addr - 0x8000)
+
+        return rom_offset + self.smc_header_size
+
+    def _read_song_pointer_table(self) -> Dict[int, Tuple[int, int]]:
+        """Read FF3 song pointer table.
+
+        FF3 has direct pointers at base + 0x3e96 for 85 songs.
+        Returns dict mapping song_id -> (offset, length).
+        """
+        base_offset = self._snes_addr_to_offset(self.base_address)
+
+        # Read 85 song pointers (3 bytes each: 2-byte addr + 1-byte bank)
+        song_count = 0x55  # 85 songs
+        song_pointers = {}
+
+        for i in range(song_count):
+            ptr_offset = base_offset + 0x3e96 + (i * 3)
+            if ptr_offset + 3 > len(self.rom_data):
+                break
+
+            addr_low = self.rom_data[ptr_offset]
+            addr_high = self.rom_data[ptr_offset + 1]
+            bank = self.rom_data[ptr_offset + 2]
+            snes_addr = (bank << 16) | (addr_high << 8) | addr_low
+            rom_offset = self._snes_addr_to_offset(snes_addr)
+
+            # Read actual length from 2-byte size field at start of song data
+            if rom_offset + 2 <= len(self.rom_data):
+                length = struct.unpack('<H', self.rom_data[rom_offset:rom_offset + 2])[0]
+            else:
+                length = 0
+
+            # Map song index to (offset, length)
+            song_pointers[i] = (rom_offset, length)
+
+        # DEBUG
+        # print(f"DEBUG: Read {len(song_pointers)} FF3 song pointers")
+        # if 0x00 in song_pointers:
+        #     print(f"  Song 00: offset={song_pointers[0x00][0]:06X}, length={song_pointers[0x00][1]:04X}")
+        # if 0x01 in song_pointers:
+        #     print(f"  Song 01: offset={song_pointers[0x01][0]:06X}, length={song_pointers[0x01][1]:04X}")
+
+        return song_pointers
+
+    def _read_rom_table(self, address: int, size: int, data_type: str) -> List[int]:
+        """Read a table from the ROM."""
+        file_offset = self._snes_addr_to_offset(address)
+
+        type_map = {
+            'byte': 'B', 'B': 'B',
+            'ubyte': 'B', 'unsigned char': 'B',
+            'short': 'H', 'H': 'H', 'ushort': 'H',
+            'int': 'I', 'I': 'I', 'uint': 'I'
+        }
+        format_char = type_map.get(data_type, data_type)
+
+        item_size = struct.calcsize(format_char)
+        bytes_to_read = size * item_size
+
+        data = self.rom_data[file_offset:file_offset + bytes_to_read]
+        return list(struct.unpack(f'<{size}{format_char}', data))
+
+    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+        """Parse FF3 song header with vaddroffset calculation.
+
+        FF3 header structure:
+        - 2 bytes: vaddroffset (raw)
+        - 2 bytes: emptyvoice marker
+        - 16 bytes: 8 voice pointers (vstart)
+        - 16 bytes: 8 voice pointers (vstart2) - usually unused
+        """
+        if len(data) < 36:
+            return {'track_offsets': [], 'instrument_table': []}
+
+        # Read vaddroffset and emptyvoice
+        vaddroffset_raw, emptyvoice = struct.unpack('<HH', data[0:4])
+        # FF3 specific: adjust vaddroffset
+        vaddroffset = (0x11c24 - vaddroffset_raw) & 0xFFFF
+
+        # Read voice pointers
+        vstart = struct.unpack('<8H', data[4:20])
+        vstart2 = struct.unpack('<8H', data[20:36])
+
+        # Adjust voice pointers and filter empty voices
+        track_offsets = []
+        adjusted_voice_pointers = []
+        for ptr in vstart:
+            if ptr != emptyvoice:
+                adjusted_ptr = (ptr + vaddroffset) & 0xFFFF
+                adjusted_voice_pointers.append(adjusted_ptr)
+                # Convert SPC address to buffer offset (0x1C00 base)
+                buffer_offset = adjusted_ptr - 0x1C00
+                if buffer_offset >= 0 and buffer_offset < len(data):
+                    track_offsets.append(buffer_offset)
+            else:
+                adjusted_voice_pointers.append(0)  # Mark unused voices as 0
+
+        # Read instrument table at base + 0x3f95 + song_id * 0x20
+        base_offset = self._snes_addr_to_offset(self.base_address)
+        inst_table_offset = base_offset + 0x3f95 + (song_id * 0x20)
+        instrument_table = []
+
+        if inst_table_offset + 32 <= len(self.rom_data):
+            for j in range(16):
+                inst_id = struct.unpack('<H', self.rom_data[inst_table_offset + j*2:inst_table_offset + j*2 + 2])[0]
+                if inst_id != 0:
+                    instrument_table.append(inst_id)
+
+        return {
+            'track_offsets': track_offsets,
+            'instrument_table': instrument_table,
+            'vaddroffset': vaddroffset,
+            'emptyvoice': emptyvoice,
+            'voice_pointers': tuple(adjusted_voice_pointers)  # Adjusted SPC RAM addresses for disassembly
+        }
+
+    def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
+        """Get list of voice offsets within song data.
+
+        For FF3, track offsets are pre-calculated in parse_header.
+        """
+        return header.get('track_offsets', [])
+
+    def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
+                    instrument_table: Optional[List[int]] = None,
+                    target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> Tuple[List, List]:
+        """Parse a single SNES voice's event data using a two-pass approach.
+
+        Pass 1: Parse opcodes linearly, generate disassembly, build intermediate representation (IR)
+        Pass 2: Expand IR with loops to generate MIDI events
+
+        Args:
+            data: Song data buffer
+            offset: Offset into data where this voice starts
+            track_num: Track/voice number (0-7)
+            song_id: Song ID for looking up instruments
+            instrument_table: List of instrument IDs for this song
+            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
+            loop_info: Loop analysis info from _analyze_track_loops()
+
+        Returns:
+            Tuple of (disassembly_lines, midi_events)
+        """
+        if instrument_table is None:
+            instrument_table = []
+
+        # Pass 1: Parse and build IR
+        disasm, ir_events = self._parse_track_pass1(data, offset, track_num, instrument_table)
+
+        # Pass 2: Expand IR and generate MIDI
+        midi_events = self._parse_track_pass2(ir_events, track_num, target_loop_time, loop_info)
+
+        return disasm, midi_events
+
+    def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
+                          instrument_table: List[int]) -> Tuple[List, List[IREvent]]:
+        """Pass 1: Linear parse to build disassembly and intermediate representation.
+
+        This pass does NOT execute loops or generate MIDI events. It simply parses
+        the opcode stream linearly, building IR events that represent the sequence
+        structure. Disassembly is generated with loop awareness to avoid duplicates.
+
+        Returns:
+            Tuple of (disassembly_lines, ir_events)
+        """
+        disasm = []
+        ir_events = []
+
+        # Track state for disassembly and IR building
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        current_patch = 0
+        perc_key = 0
+        transpose_octaves = 0
+        inst_id = 0  # Current instrument ID from table
+
+        # Track loop depth for disassembly indentation (but don't execute loops)
+        loop_depth = 0
+
+        # Start from voice offset
+        p = offset
+
+        while p < len(data):
+            cmd = data[p]
+
+            # Convert buffer offset to SPC RAM address for display
+            # SPC data loaded at 0x1C00 for FF3
+            spc_addr = self.buffer_offset_to_spc_addr(p)
+            line = f"      {spc_addr:04X}: {cmd:02X} "
+
+            # Check if it's a note (< self.first_opcode)
+            if cmd < self.first_opcode:
+                # Note encoding: note = cmd / note_divisor, duration = cmd % note_divisor
+                note_num = cmd // self.note_divisor
+                dur_idx = cmd % self.note_divisor
+                # Duration table values are in native units (48 ticks/quarter)
+                # Double them to convert to MIDI resolution (96 ticks/quarter)
+                raw_dur = self.duration_table[dur_idx]
+                dur = raw_dur * 2
+
+                if note_num < 12:
+                    # Regular note - create IR event
+                    event = make_note(p, note_num, dur)
+                    # Store current state in event for pass 2
+                    # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
+                    # because loops can modify octave during execution
+                    event.metadata = {
+                        'velocity': velocity,
+                        'patch': current_patch,
+                        'perc_key': perc_key,
+                        'transpose': transpose_octaves,
+                        'track_num': track_num,
+                        'inst_id': inst_id
+                    }
+                    ir_events.append(event)
+
+                    # Build disassembly line
+                    # Format: "4E            Note F  (05) Dur 48"
+                    note_name = NOTE_NAMES[note_num]
+                    if perc_key:
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
+                    else:
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
+
+                elif note_num == 12:
+                    # Rest - create IR event
+                    event = make_rest(p, dur)
+                    ir_events.append(event)
+                    line += f"           Rest         Dur {raw_dur}"
+
+                else:
+                    # Tie - create IR event
+                    event = make_tie(p, dur)
+                    ir_events.append(event)
+                    line += f"           Tie          Dur {raw_dur}"
+
+                p += 1
+                disasm.append(line)
+
+            else:
+                # Command opcode
+                oplen = self.opcode_table[cmd - self.first_opcode]
+                operands = list(data[p+1:p+1+oplen])
+
+                # Format operands with proper spacing
+                operand_str = ' '.join(f"{op:02X}" for op in operands)
+                # Pad operands to align text descriptions (assume max 3 operands = 8 chars)
+                line += f"{operand_str:<8}   {self.OPCODE_NAMES.get(cmd, f'OP_{cmd:02X}')}"
+
+                # Create IR events for opcodes that affect playback
+                if cmd == 0xF0 and len(operands) >= 1:
+                    # Tempo change (FF3 uses 0xF0 vs FF2 uses 0xD2)
+                    tempo = operands[0]
+                    event = make_tempo(p, tempo, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xDC and len(operands) >= 1:  # Patch Change
+                    patch_operand = operands[0]
+
+                    # FF3 dual patch map: operand < 0x20 uses patch_map_low
+                    if patch_operand < 0x20:
+                        # Use low patch map
+                        if patch_operand in self.patch_map_low:
+                            patch_info = self.patch_map_low[patch_operand]
+                            gm_patch = patch_info['gm_patch']
+                            transpose_octaves = patch_info.get('transpose', 0)
+                            inst_id = patch_operand  # For disasm
+                        else:
+                            gm_patch = 0
+                            transpose_octaves = 0
+                            inst_id = patch_operand
+                    else:
+                        # Use main patch map with instrument table
+                        inst_idx = patch_operand - 0x20
+                        if inst_idx < len(instrument_table):
+                            inst_id = instrument_table[inst_idx]
+                            if inst_id in self.patch_map:
+                                patch_info = self.patch_map[inst_id]
+                                gm_patch = patch_info['gm_patch']
+                                transpose_octaves = patch_info.get('transpose', 0)
+                            else:
+                                gm_patch = 0
+                                transpose_octaves = 0
+                        else:
+                            gm_patch = 0
+                            transpose_octaves = 0
+                            inst_id = patch_operand
+
+                    # Check if this is percussion (negative GM patch number)
+                    if gm_patch < 0:
+                        # Percussion mode
+                        perc_key = abs(gm_patch)
+                        line += f" -> PERC key={perc_key}"
+                    else:
+                        # Regular instrument
+                        perc_key = 0
+                        line += f" -> GM patch {gm_patch}"
+
+                    # Create patch change IR event
+                    current_patch = gm_patch
+                    ir_events.append(make_patch_change(p, inst_id, gm_patch, transpose_octaves, operands))
+
+                elif cmd == 0xD6 and len(operands) >= 1:
+                    # Set octave (FF3 uses 0xD6 vs FF2 uses 0xDA)
+                    octave = operands[0]
+                    event = make_octave_set(p, octave, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xD7:
+                    # Inc octave (FF3 uses 0xD7 vs FF2 uses 0xE1)
+                    octave += 1
+                    event = make_octave_inc(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xD8:
+                    # Dec octave (FF3 uses 0xD8 vs FF2 uses 0xE2)
+                    octave -= 1
+                    event = make_octave_dec(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xC4 and len(operands) >= 1:
+                    # Voice Volume (FF3 uses 0xC4 vs FF2 uses 0xF2)
+                    # For FF3, single operand for immediate volume
+                    # Scale from 0-255 to MIDI velocity 0-127
+                    velocity = operands[0] >> 1
+                    event = make_volume(p, velocity, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE2 and len(operands) >= 1:
+                    # Begin repeat (FF3 uses 0xE2 vs FF2 uses 0xE0)
+                    loop_depth += 1
+                    event = make_loop_start(p, operands[0], operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE3:
+                    # End repeat (FF3 uses 0xE3 vs FF2 uses 0xF0)
+                    loop_depth = max(0, loop_depth - 1)
+                    event = make_loop_end(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xF5 and len(operands) >= 3:
+                    # Selective repeat (0xF5) - conditional jump - just record
+                    target_spc_addr = operands[1] + operands[2] * 256
+                    target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
+                    event = make_loop_break(p, operands[0], target_offset, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xC9 and len(operands) >= 3:
+                    # Vibrato settings (FF3 uses 0xC9 vs FF2 uses 0xD8)
+                    event = make_vibrato_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xCA:
+                    # Vibrato off (FF3 uses 0xCA vs FF2 uses 0xE8)
+                    event = make_vibrato_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xCB and len(operands) >= 3:
+                    # Tremolo settings (FF3 uses 0xCB vs FF2 uses 0xD7)
+                    event = make_tremolo_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xCC:
+                    # Tremolo off (FF3 uses 0xCC vs FF2 uses 0xE7)
+                    event = make_tremolo_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xC8 and len(operands) >= 3:
+                    # Portamento settings (FF3 uses 0xC8 vs FF2 uses 0xD6)
+                    event = make_portamento_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xCE:
+                    # Pan Sweep off (replaces FF2's portamento off at 0xE6)
+                    event = make_portamento_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xF6 and len(operands) >= 2:
+                    # Goto (FF3 uses 0xF6 vs FF2 uses 0xF4)
+                    target_spc_addr = operands[0] + operands[1] * 256
+                    target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
+                    event = make_goto(p, target_offset, operands)
+                    ir_events.append(event)
+                    disasm.append(line)
+                    break
+
+                elif cmd in (0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xFD, 0xFE, 0xFF):
+                    # Halt - end of track
+                    event = make_halt(p, operands)
+                    ir_events.append(event)
+                    disasm.append(line)
+                    break
+
+                p += oplen + 1
+                disasm.append(line)
+
+        return disasm, ir_events
+
+    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
+        """Analyze track for backwards GOTO loops and calculate timing.
+
+        This is a simplified analysis pass that detects loop patterns and measures
+        timing without generating MIDI events.
+
+        Args:
+            ir_events: List of IR events from pass 1
+
+        Returns:
+            Dict with keys:
+                'has_backwards_goto': bool - True if track ends with backwards GOTO
+                'intro_time': int - Time units before loop starts (0 if no loop)
+                'loop_time': int - Time units for one loop iteration (0 if no loop)
+                'goto_target_idx': int - Index of GOTO target event (None if no loop)
+        """
+        total_time = 0
+        loop_stack = []
+
+        # Find the last GOTO event
+        last_goto_event = None
+        last_goto_idx = None
+        for i, event in enumerate(ir_events):
+            if event.type == IREventType.GOTO:
+                last_goto_event = event
+                last_goto_idx = i
+
+        # Check if it's a backwards GOTO
+        if last_goto_event is None:
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None
+            }
+
+        # Find target event index
+        target_idx = None
+        for j, e in enumerate(ir_events):
+            if e.offset == last_goto_event.target_offset:
+                target_idx = j
+                break
+
+        # DEBUG
+        # if target_idx is not None and last_goto_idx is not None:
+        #     print(f"    Found backwards GOTO: last_goto_idx={last_goto_idx}, target_idx={target_idx}")
+
+        # Check if backwards (target comes before GOTO)
+        assert last_goto_idx is not None, "last_goto_idx should not be None here"
+        if target_idx is None or target_idx >= last_goto_idx:
+            # Forward GOTO or target not found - not a loop
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None
+            }
+
+        # It's a backwards GOTO - calculate intro and loop times
+        # Intro time = time from start (index 0) to GOTO target (target_idx)
+        # Loop time = time from GOTO target to GOTO itself
+
+        # Measure intro time: execute from 0 to target_idx
+        intro_time = 0
+        loop_stack_intro = []
+        i = 0
+        while i < target_idx:
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE or event.type == IREventType.REST or event.type == IREventType.TIE:
+                assert event.duration is not None
+                intro_time += event.duration
+                i += 1
+            elif event.type == IREventType.LOOP_START:
+                loop_stack_intro.append({'start_idx': i + 1, 'count': event.loop_count, 'iteration': 0})
+                i += 1
+            elif event.type == IREventType.LOOP_END:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['count'] -= 1
+                    if loop['count'] >= 0:
+                        i = loop['start_idx']
+                    else:
+                        loop_stack_intro.pop()
+                        i += 1
+                else:
+                    i += 1
+            elif event.type == IREventType.LOOP_BREAK:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['iteration'] += 1
+                    if loop['iteration'] == event.condition:
+                        for j, e in enumerate(ir_events):
+                            if e.offset == event.target_offset:
+                                i = j
+                                break
+                        loop_stack_intro.pop()
+                    else:
+                        i += 1
+                else:
+                    i += 1
+            else:
+                i += 1
+
+        # Measure loop time: execute from target_idx to last_goto_idx
+        loop_time = 0
+        assert target_idx is not None, "target_idx should not be None for backwards GOTO"
+        assert last_goto_idx is not None, "last_goto_idx should not be None for backwards GOTO"
+        loop_stack_loop = []
+        j = target_idx
+
+        while j < last_goto_idx:
+            e = ir_events[j]
+
+            if e.type == IREventType.NOTE or e.type == IREventType.REST or e.type == IREventType.TIE:
+                assert e.duration is not None
+                loop_time += e.duration
+                j += 1
+            elif e.type == IREventType.LOOP_START:
+                loop_stack_loop.append({'start_idx': j + 1, 'count': e.loop_count, 'iteration': 0})
+                j += 1
+            elif e.type == IREventType.LOOP_END:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['count'] -= 1
+                    if lp['count'] >= 0:
+                        j = lp['start_idx']
+                    else:
+                        loop_stack_loop.pop()
+                        j += 1
+                else:
+                    j += 1
+            elif e.type == IREventType.LOOP_BREAK:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['iteration'] += 1
+                    if lp['iteration'] == e.condition:
+                        for k, ev in enumerate(ir_events):
+                            if ev.offset == e.target_offset:
+                                j = k
+                                break
+                        loop_stack_loop.pop()
+                    else:
+                        j += 1
+                else:
+                    j += 1
+            else:
+                j += 1
+
+        # DEBUG
+        # print(f"      Analysis: intro_time={intro_time}, loop_time={loop_time}, target_idx={target_idx}, last_goto_idx={last_goto_idx}")
+
+        return {
+            'has_backwards_goto': True,
+            'intro_time': intro_time,
+            'loop_time': loop_time,
+            'goto_target_idx': target_idx
+        }
+
+    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
+                          target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> List[Dict]:
+        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+
+        This pass takes the linear IR event stream and executes it, expanding loops
+        and generating timed MIDI events.
+
+        Args:
+            ir_events: List of IR events from pass 1
+            track_num: Track/voice number (0-7)
+            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
+            loop_info: Loop analysis info from _analyze_track_loops()
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        import time
+        start_time = time.time()
+        max_time_seconds = 2.0  # Emergency brake: 2 second time limit
+        max_midi_events = 50000  # Emergency brake: max MIDI events per track
+
+        midi_events = []
+        total_time = 0
+
+        # Playback state
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        perc_key = 0
+        transpose_octaves = 0
+        current_channel = track_num
+
+        # Loop execution state
+        loop_stack = []  # Stack of {start_idx, count, iteration}
+
+        # Calculate target time for loop termination
+        target_total_time = 0
+        if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
+            intro_time = loop_info['intro_time']
+            target_total_time = intro_time + target_loop_time
+
+        # Event pointer for execution
+        i = 0
+        # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
+        # Typical: 100-200 IR events, with loops expanding to 10,000-20,000 iterations
+        max_iterations = len(ir_events) * 200  # Allow 200x expansion for looping songs
+        iteration_count = 0
+
+        while i < len(ir_events) and iteration_count < max_iterations:
+            iteration_count += 1
+
+            # Check if we've reached target playthrough time
+            if target_total_time > 0 and total_time >= target_total_time:
+                break
+
+            # Emergency brakes (only warn, not error - looping is normal)
+            if time.time() - start_time > max_time_seconds:
+                # Silently stop - time limit reached (normal for looping songs)
+                break
+            if len(midi_events) > max_midi_events:
+                # Silently stop - MIDI event limit reached (normal for looping songs)
+                break
+
+            if i < 0 or i >= len(ir_events):
+                print(f"WARNING: Track {track_num} invalid event index {i}, stopping")
+                break
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE:
+                # Extract state from metadata (stored in pass 1)
+                # NOTE: octave is tracked as state variable, not in metadata
+                velocity = event.metadata['velocity']
+                perc_key = event.metadata['perc_key']
+                transpose_octaves = event.metadata['transpose']
+
+                # Calculate MIDI note
+                assert event.note_num is not None, "NOTE event must have note_num"
+                assert event.duration is not None, "NOTE event must have duration"
+                midi_note = 12 * (octave + transpose_octaves) + event.note_num
+
+                # Check if we're in percussion mode
+                if perc_key:
+                    midi_channel = 9  # Percussion channel
+                    midi_note = perc_key
+                else:
+                    midi_channel = track_num
+
+                # Add MIDI note event
+                midi_events.append({
+                    'type': 'note',
+                    'time': total_time,
+                    'duration': event.duration - 1,  # Matches Perl: $dur - 1
+                    'note': midi_note,
+                    'velocity': velocity,
+                    'channel': midi_channel
+                })
+
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.REST:
+                # Rest just advances time
+                assert event.duration is not None, "REST event must have duration"
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.TIE:
+                # Tie extends the last note
+                assert event.duration is not None, "TIE event must have duration"
+                for j in range(len(midi_events) - 1, -1, -1):
+                    if midi_events[j]['type'] == 'note':
+                        midi_events[j]['duration'] += event.duration
+                        break
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.TEMPO:
+                # Tempo change
+                assert event.value is not None, "TEMPO event must have value"
+                midi_events.append({
+                    'type': 'tempo',
+                    'time': total_time,
+                    'tempo': event.value
+                })
+                tempo = event.value
+                i += 1
+
+            elif event.type == IREventType.PATCH_CHANGE:
+                # Patch change
+                assert event.gm_patch is not None, "PATCH_CHANGE event must have gm_patch"
+                if event.gm_patch < 0:
+                    # Percussion mode
+                    perc_key = abs(event.gm_patch)
+                    transpose_octaves = event.transpose
+                else:
+                    # Regular instrument
+                    perc_key = 0
+                    transpose_octaves = event.transpose
+                    midi_events.append({
+                        'type': 'program_change',
+                        'time': total_time,
+                        'patch': event.gm_patch
+                    })
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_SET:
+                assert event.value is not None, "OCTAVE_SET event must have value"
+                octave = event.value
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_INC:
+                octave += 1
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_DEC:
+                octave -= 1
+                i += 1
+
+            elif event.type == IREventType.VOLUME:
+                velocity = event.value
+                i += 1
+
+            elif event.type == IREventType.LOOP_START:
+                # Push loop onto stack
+                loop_stack.append({
+                    'start_idx': i + 1,  # Start after LOOP_START
+                    'count': event.loop_count,
+                    'iteration': 0,
+                    'end_idx': None  # Will be set when we find LOOP_END
+                })
+                i += 1
+
+            elif event.type == IREventType.LOOP_END:
+                # End of loop body - decide if we repeat
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['count'] -= 1
+
+                    if loop['count'] >= 0:
+                        # Repeat: jump back to loop start
+                        i = loop['start_idx']
+                    else:
+                        # Done looping: pop and continue
+                        loop_stack.pop()
+                        i += 1
+                else:
+                    # No matching loop start? Just continue
+                    i += 1
+
+            elif event.type == IREventType.LOOP_BREAK:
+                # Selective repeat (F5): conditional jump on specific iteration
+                # This increments the current loop iteration and jumps if it matches the condition
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['iteration'] += 1
+
+                    if loop['iteration'] == event.condition:
+                        # Condition met: jump to target and exit loop
+                        # Find event at target offset
+                        target_idx = None
+                        for j, e in enumerate(ir_events):
+                            if e.offset == event.target_offset:
+                                target_idx = j
+                                break
+
+                        if target_idx is not None:
+                            i = target_idx
+                            loop_stack.pop()  # Exit this loop level
+                        else:
+                            # Target not found, just continue
+                            i += 1
+                    else:
+                        # Condition not met: continue to next event
+                        i += 1
+                else:
+                    # No loop context, just skip
+                    i += 1
+
+            elif event.type == IREventType.GOTO:
+                # Phase 2: Smart GOTO handling for looping music
+                if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
+                    # This is a backwards GOTO loop - jump to target
+                    # Time check happens at top of while loop
+                    target_idx = loop_info['goto_target_idx']
+                    if target_idx is not None:
+                        i = target_idx
+                    else:
+                        # Target not found, halt
+                        break
+                else:
+                    # Forward GOTO or no loop info - treat as HALT
+                    break
+
+            elif event.type == IREventType.HALT:
+                # End of track
+                break
+
+            else:
+                # Other event types (vibrato, tremolo, etc.) are not yet expanded
+                # Just skip for now
+                i += 1
+
+        # Check if we hit the iteration limit
+        if iteration_count >= max_iterations:
+            print(f"WARNING: Track {track_num} hit max iteration limit ({max_iterations}), possible infinite loop")
+
+        return midi_events
+
+
 class SequenceExtractor:
     """Main extractor class."""
 
@@ -1768,6 +2794,8 @@ class SequenceExtractor:
             self.format_handler = AKAONewStyle(self.config, self.rom_data, exe_iso_reader=self)
         elif format_name == 'snes_ff2':
             self.format_handler = SNESFF2(self.config, self.rom_data)
+        elif format_name == 'snes_ff3':
+            self.format_handler = SNESFF3(self.config, self.rom_data)
         else:
             raise ValueError(f"Unknown format: {format_name}")
     
@@ -1999,8 +3027,8 @@ class SequenceExtractor:
         """Generate text disassembly of sequence."""
         output = []
 
-        # Parse header
-        header = self.format_handler.parse_header(data)
+        # Parse header (pass song_id for FF3)
+        header = self.format_handler.parse_header(data, song.id)
 
         # Different header formats for different console types
         if self.console_type == 'snes':
@@ -2008,7 +3036,7 @@ class SequenceExtractor:
             output.append(f"Song {song.id:02X} - {song.title}:")
 
             # Add song location info if available (from song_pointers)
-            if isinstance(self.format_handler, SNESFF2) and hasattr(self.format_handler, 'song_pointers'):
+            if isinstance(self.format_handler, (SNESFF2, SNESFF3)) and hasattr(self.format_handler, 'song_pointers'):
                 if song.id in self.format_handler.song_pointers:  # type: ignore[attr-defined]
                     song_offset, song_length = self.format_handler.song_pointers[song.id]  # type: ignore[attr-defined]
                     # Convert ROM offset to display format
@@ -2019,6 +3047,12 @@ class SequenceExtractor:
             instrument_table = None
             if isinstance(self.format_handler, SNESFF2):
                 instrument_table = self.format_handler._read_song_instrument_table(song.id)
+                if instrument_table:
+                    inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
+                    output.append(f"  Instruments: {inst_str}")
+            elif isinstance(self.format_handler, SNESFF3):
+                # FF3: instrument table is in header
+                instrument_table = header.get('instrument_table', [])
                 if instrument_table:
                     inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
                     output.append(f"  Instruments: {inst_str}")
@@ -2075,13 +3109,17 @@ class SequenceExtractor:
     def generate_midi(self, song: SongMetadata, data: bytes, output_path: Path):
         """Generate MIDI file from sequence with patch mapping support."""
         try:
-            header = self.format_handler.parse_header(data)
+            header = self.format_handler.parse_header(data, song.id)
             track_offsets = self.format_handler.get_track_offsets(data, header)
 
-            # Read instrument table for SNES FF2 format
+            # Read instrument table for SNES FF2 and FF3 formats
             instrument_table = None
-            if isinstance(self.format_handler, SNESFF2):
-                instrument_table = self.format_handler._read_song_instrument_table(song.id)
+            if isinstance(self.format_handler, (SNESFF2, SNESFF3)):
+                if isinstance(self.format_handler, SNESFF2):
+                    instrument_table = self.format_handler._read_song_instrument_table(song.id)
+                else:
+                    # FF3: instrument table is in header
+                    instrument_table = header.get('instrument_table', [])
 
             # Phase 2 loop handling: Analyze all tracks first to find longest loop
             track_loop_infos = []
@@ -2400,7 +3438,7 @@ class SequenceExtractor:
     def generate_musicxml(self, song: SongMetadata, data: bytes, output_path: Path):
         """Generate MusicXML from sequence data."""
         # Parse tracks using same logic as MIDI generation
-        header = self.format_handler.parse_header(data)
+        header = self.format_handler.parse_header(data, song.id)
         track_offsets = self.format_handler.get_track_offsets(data, header)
 
         # Parse all tracks
