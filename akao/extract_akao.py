@@ -18,6 +18,16 @@ import io
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
+# Import IR event classes
+from ir_events import (
+    IREvent, IRVoice, IRSequence, IREventType,
+    make_note, make_rest, make_tie, make_tempo, make_patch_change,
+    make_octave_set, make_octave_inc, make_octave_dec, make_volume,
+    make_loop_start, make_loop_end, make_loop_break, make_goto, make_halt,
+    make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
+    make_portamento_on, make_portamento_off
+)
+
 
 # Global constants
 NOTE_NAMES = ["C ", "C#", "D ", "D#", "E ", "F ", "F#",
@@ -225,10 +235,18 @@ class SequenceFormat(ABC):
         pass
     
     @abstractmethod
-    def parse_track(self, data: bytes, offset: int, track_num: int) -> Tuple[List, List]:
+    def parse_track(self, data: bytes, offset: int, track_num: int,
+                    song_id: int = 0, instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
         """
         Parse a single track's data.
         Returns (disasm_lines, midi_events) tuple.
+
+        Args:
+            data: Song data buffer
+            offset: Offset into data where this track starts
+            track_num: Track/voice number
+            song_id: Song ID (for format-specific lookups)
+            instrument_table: List of instrument IDs for this song
         """
         pass
     
@@ -476,7 +494,8 @@ class AKAONewStyle(SequenceFormat):
         
         return offsets
     
-    def parse_track(self, data: bytes, offset: int, track_num: int) -> Tuple[List, List]:
+    def parse_track(self, data: bytes, offset: int, track_num: int,
+                    song_id: int = 0, instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
         """Parse a single track's event data."""
         disasm = []
         midi_events = []
@@ -723,6 +742,10 @@ class SNESFF2(SequenceFormat):
         self.config = config
         self.rom_data: bytes = rom_data
         self.has_smc_header = len(rom_data) % 1024 == 512  # SMC header is 512 bytes
+        self.smc_header_size = 512 if self.has_smc_header else 0
+
+        # Auto-detect ROM mapping mode (LoROM vs HiROM)
+        self.rom_mapping = self._detect_rom_mapping()
 
         # Read duration table from ROM
         if 'duration_table' in config:
@@ -770,6 +793,103 @@ class SNESFF2(SequenceFormat):
 
         # Read song pointer table
         self.song_pointers = self._read_song_pointer_table()
+
+    def _detect_rom_mapping(self) -> str:
+        """Auto-detect ROM mapping mode (LoROM vs HiROM).
+
+        Based on snesutil.pl:openrom logic - checks ROM header at two possible locations
+        and validates with complement checksum.
+
+        Returns:
+            "lorom" or "hirom"
+        """
+        offset = self.smc_header_size
+
+        # Read potential headers at LoROM and HiROM locations
+        lorom_header_offset = offset + 0x7FC0
+        hirom_header_offset = offset + 0xFFC0
+
+        # Read 32-byte headers
+        if lorom_header_offset + 32 <= len(self.rom_data):
+            lorom_header = self.rom_data[lorom_header_offset:lorom_header_offset + 32]
+        else:
+            lorom_header = None
+
+        if hirom_header_offset + 32 <= len(self.rom_data):
+            hirom_header = self.rom_data[hirom_header_offset:hirom_header_offset + 32]
+        else:
+            hirom_header = None
+
+        # Check complement checksums (bytes 28-29 = checksum, 30-31 = inverse checksum)
+        # Format: A21C7v2 = 21 byte title, 7 single bytes, 2 words (little-endian)
+        lorom_valid = False
+        hirom_valid = False
+
+        if lorom_header:
+            # Checksum at offset 28-29, inverse at 30-31
+            checksum = struct.unpack('<H', lorom_header[28:30])[0]
+            inverse = struct.unpack('<H', lorom_header[30:32])[0]
+            if (checksum ^ 0xFFFF) == inverse:
+                lorom_valid = True
+
+        if hirom_header:
+            checksum = struct.unpack('<H', hirom_header[28:30])[0]
+            inverse = struct.unpack('<H', hirom_header[30:32])[0]
+            if (checksum ^ 0xFFFF) == inverse:
+                hirom_valid = True
+
+        # If checksum validation worked, use that
+        if lorom_valid and not hirom_valid:
+            return "lorom"
+        elif hirom_valid and not lorom_valid:
+            return "hirom"
+
+        # Fallback: check mapping mode byte (offset 21 in header)
+        # Bit 0-3 = mode: 0 = LoROM, 1 = HiROM
+        if lorom_header and (lorom_header[21] & 0xF) == 0:
+            return "lorom"
+        if hirom_header and (hirom_header[21] & 0xF) == 1:
+            return "hirom"
+
+        # Default to LoROM (most common)
+        return "lorom"
+
+    def rom_offset_to_display_addr(self, offset: int) -> str:
+        """Convert ROM file offset to SNES bank/address display format.
+
+        Args:
+            offset: ROM file offset (includes SMC header if present)
+
+        Returns:
+            Formatted string like "06/F727" (bank/address)
+        """
+        # Remove SMC header from offset
+        rom_offset = offset - self.smc_header_size
+
+        if self.rom_mapping == "hirom":
+            # HiROM: bank = (offset / 0x10000) | 0xC0, addr = offset & 0xFFFF
+            bank = (rom_offset // 0x10000) | 0xC0
+            addr = rom_offset & 0xFFFF
+        else:
+            # LoROM: bank = offset / 0x8000, addr = (offset % 0x8000) + 0x8000
+            bank = rom_offset // 0x8000
+            addr = (rom_offset % 0x8000) + 0x8000
+
+        return f"{bank:02X}/{addr:04X}"
+
+    def buffer_offset_to_spc_addr(self, offset: int) -> int:
+        """Convert buffer offset to SPC RAM address.
+
+        The song data buffer contains only music data (size bytes already removed).
+        SPC loads data at 0x2000.
+
+        Args:
+            offset: Offset within the song data buffer
+
+        Returns:
+            SPC RAM address
+        """
+        return offset + 0x2000
 
     def _read_3byte_pointers(self, offset: int, count: int) -> List[int]:
         """Read a table of 3-byte SNES pointers from ROM."""
@@ -824,9 +944,10 @@ class SNESFF2(SequenceFormat):
                 song_length_bytes = self.rom_data[song_offset:song_offset + 2]
                 song_length = struct.unpack('<H', song_length_bytes)[0]
 
-                # Add 2 to account for the length field itself (the length field is part of the ROM data)
-                # The length field specifies the size of data sent to SPC, but in ROM it includes the field
-                song_data[i] = (song_offset, song_length + 2)  # Song ID equals table index
+                # Store length as-is (not including the 2-byte size field itself)
+                # This matches the Perl convention where the length is the data sent to SPC
+                # The size bytes will be skipped when extracting the actual data
+                song_data[i] = (song_offset, song_length)  # Song ID equals table index
 
         return song_data
 
@@ -873,21 +994,18 @@ class SNESFF2(SequenceFormat):
         """Parse SNES FF2 song header.
 
         Format:
-        - Bytes 0-1: Song size (not sent to SPC, just for ROM storage)
-        - Bytes 2-17: 8 voice pointers (2 bytes each, little-endian)
+        - Bytes 0-15: 8 voice pointers (2 bytes each, little-endian)
+
+        Note: The 2-byte size field has already been removed from the data buffer.
         """
-        if len(data) < 18:
-            raise ValueError(f"Song data too short: {len(data)} bytes (need at least 18 for size + voice pointers)")
+        if len(data) < 16:
+            raise ValueError(f"Song data too short: {len(data)} bytes (need at least 16 for voice pointers)")
 
-        # Read size (first 2 bytes, not used for playback)
-        song_size = struct.unpack('<H', data[0:2])[0]
-
-        # Read voice pointers (skip first 2 bytes)
-        voice_pointers = struct.unpack('<8H', data[2:18])
+        # Read voice pointers (now at offset 0 since size bytes were removed)
+        voice_pointers = struct.unpack('<8H', data[0:16])
 
         # A pointer < 0x100 indicates unused voice (matches Perl script threshold)
         return {
-            'song_size': song_size,
             'voice_pointers': voice_pointers,
             'num_voices': sum(1 for ptr in voice_pointers if ptr >= 0x100)
         }
@@ -895,23 +1013,22 @@ class SNESFF2(SequenceFormat):
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
         """Get list of voice offsets within song data.
 
-        Voice pointers are SPC-700 RAM addresses where the song data (after size bytes) is loaded at 0x2000.
+        Voice pointers are SPC-700 RAM addresses where the song data is loaded at 0x2000.
         Pointers < 0x100 indicate unused voices (matches Perl script threshold).
-        Subtract 0x2000 to get SPC data offset, then add 2 to get buffer offset (skip size bytes).
+        The data buffer no longer includes size bytes, so we just subtract 0x2000.
         """
         SPC_LOAD_ADDR = 0x2000
         offsets = []
         for ptr in header['voice_pointers']:
             if ptr >= 0x100:  # Valid voice pointer (matches Perl: next if $vstart[$v] < 0x100)
                 # Convert SPC RAM address to offset in our data buffer
-                # ptr is SPC address, data at SPC starts at 0x2000, our buffer has 2-byte size prefix
-                spc_offset = ptr - SPC_LOAD_ADDR  # Offset within SPC data
-                buffer_offset = spc_offset + 2     # Add 2 for size bytes in our buffer
+                # ptr is SPC address, data at SPC starts at 0x2000
+                buffer_offset = ptr - SPC_LOAD_ADDR  # Our buffer now has no size prefix
                 offsets.append(buffer_offset)
         return offsets
 
     def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
-                    instrument_table: List[int] = None) -> Tuple[List, List]:
+                    instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
         """Parse a single SNES voice's event data using a two-pass approach.
 
         Pass 1: Parse opcodes linearly, generate disassembly, build intermediate representation (IR)
@@ -939,8 +1056,12 @@ class SNESFF2(SequenceFormat):
         return disasm, midi_events
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int]) -> Tuple[List, List]:
+                          instrument_table: List[int]) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
+
+        This pass does NOT execute loops or generate MIDI events. It simply parses
+        the opcode stream linearly, building IR events that represent the sequence
+        structure. Disassembly is generated with loop awareness to avoid duplicates.
 
         Returns:
             Tuple of (disassembly_lines, ir_events)
@@ -948,16 +1069,17 @@ class SNESFF2(SequenceFormat):
         disasm = []
         ir_events = []
 
-        # Track state for disassembly
+        # Track state for disassembly and IR building
         octave = self.default_octave
         velocity = self.default_velocity
         tempo = self.default_tempo
         current_patch = 0
         perc_key = 0
         transpose_octaves = 0
+        inst_id = 0  # Current instrument ID from table
 
-        # Repeat stack for proper disassembly display
-        repeat_stack = []
+        # Track loop depth for disassembly indentation (but don't execute loops)
+        loop_depth = 0
 
         # Start from voice offset
         p = offset
@@ -966,12 +1088,9 @@ class SNESFF2(SequenceFormat):
             cmd = data[p]
 
             # Convert buffer offset to SPC RAM address for display
-            # Buffer has 2-byte size prefix, SPC data loaded at 0x2000
-            spc_addr = (p - 2) + 0x2000
+            # SPC data loaded at 0x2000
+            spc_addr = p + 0x2000
             line = f"      {spc_addr:04X}: {cmd:02X} "
-
-            # Check if we should add this line to disasm (before any state changes)
-            should_disasm = not repeat_stack or repeat_stack[-1].get('first_pass', True)
 
             # Check if it's a note (< 0xD2)
             if cmd < 0xD2:
@@ -984,60 +1103,42 @@ class SNESFF2(SequenceFormat):
                 dur = raw_dur * 2
 
                 if note_num < 12:
-                    # Regular note
-                    # Add to IR
-                    ir_events.append({
-                        'type': 'note',
-                        'note_num': note_num,
-                        'duration': dur,
+                    # Regular note - create IR event
+                    event = make_note(p, note_num, dur)
+                    # Store current state in event for pass 2
+                    event.metadata = {
                         'octave': octave,
                         'velocity': velocity,
                         'patch': current_patch,
                         'perc_key': perc_key,
-                        'transpose_octaves': transpose_octaves,
+                        'transpose': transpose_octaves,
                         'track_num': track_num,
-                        'offset': p
-                    })
+                        'inst_id': inst_id
+                    }
+                    ir_events.append(event)
 
-                    # Apply octave transpose from current instrument
-                    midi_note = 12 * (octave + transpose_octaves) + note_num
-                    midi_channel = track_num
-
-                    # Check if we're in percussion mode
+                    # Build disassembly line
+                    # Format: "4E            Note F  (05) Dur 48"
+                    note_name = NOTE_NAMES[note_num]
                     if perc_key:
-                        # Use percussion channel (10, zero-indexed as 9) with fixed percussion key
-                        midi_channel = 9
-                        midi_note = perc_key
-                        line += f"         Note {NOTE_NAMES[note_num]}{octave} dur={raw_dur} [PERC key={perc_key}]"
+                        line += f"            Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
                     else:
-                        line += f"         Note {NOTE_NAMES[note_num]}{octave} dur={raw_dur}"
+                        line += f"            Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
 
-                    midi_events.append({
-                        'type': 'note',
-                        'time': total_time,
-                        'duration': dur - 1,  # Matches Perl: $dur - 1
-                        'note': midi_note,
-                        'velocity': velocity,
-                        'patch': current_patch,
-                        'channel': midi_channel
-                    })
                 elif note_num == 12:
-                    # Rest
-                    line += f"         Rest     dur={raw_dur}"
+                    # Rest - create IR event
+                    event = make_rest(p, dur)
+                    ir_events.append(event)
+                    line += f"            Rest     Dur {raw_dur}"
+
                 else:
-                    # Tie - extend last note
-                    line += f"         Tie      dur={raw_dur}"
-                    for i in range(len(midi_events) - 1, -1, -1):
-                        if midi_events[i]['type'] == 'note':
-                            midi_events[i]['duration'] += dur
-                            break
+                    # Tie - create IR event
+                    event = make_tie(p, dur)
+                    ir_events.append(event)
+                    line += f"            Tie      Dur {raw_dur}"
 
-                total_time += dur
                 p += 1
-
-                # Add note to disasm if we determined it should be shown
-                if should_disasm:
-                    disasm.append(line)
+                disasm.append(line)
 
             else:
                 # Command opcode
@@ -1049,18 +1150,15 @@ class SNESFF2(SequenceFormat):
                 # Pad operands to align text descriptions (assume max 3 operands = 8 chars)
                 line += f"{operand_str:<8}   {self.OPCODE_NAMES.get(cmd, f'OP_{cmd:02X}')}"
 
-                # Handle state-changing opcodes
+                # Create IR events for opcodes that affect playback
                 if cmd == 0xD2 and len(operands) >= 3:
                     # Tempo change
                     tempo = operands[2]
-                    midi_events.append({
-                        'type': 'tempo',
-                        'time': total_time,
-                        'tempo': tempo
-                    })
+                    event = make_tempo(p, tempo, operands)
+                    ir_events.append(event)
+
                 elif cmd == 0xDB and len(operands) >= 1:
                     # Patch change
-                    # In Perl: my $inst = $inst[$op1 - 0x40];
                     patch_index = operands[0] - 0x40
                     if 0 <= patch_index < len(instrument_table):
                         inst_id = instrument_table[patch_index]
@@ -1074,18 +1172,17 @@ class SNESFF2(SequenceFormat):
 
                             # Check if this is percussion (negative GM patch number)
                             if gm_patch < 0:
-                                # Percussion mode: use absolute value as MIDI key on channel 10
+                                # Percussion mode
                                 perc_key = abs(gm_patch)
                                 line += f" -> PERC key={perc_key}"
                             else:
                                 # Regular instrument
                                 perc_key = 0
-                                midi_events.append({
-                                    'type': 'program_change',
-                                    'time': total_time,
-                                    'patch': gm_patch
-                                })
                                 line += f" -> GM patch {gm_patch}"
+
+                            # Create IR event for patch change
+                            event = make_patch_change(p, inst_id, gm_patch, transpose_octaves, operands)
+                            ir_events.append(event)
                         else:
                             # Instrument not in patch map, use default
                             current_patch = operands[0]
@@ -1096,15 +1193,25 @@ class SNESFF2(SequenceFormat):
                         current_patch = operands[0]
                         perc_key = 0
                         transpose_octaves = 0
+
                 elif cmd == 0xDA and len(operands) >= 1:
                     # Set octave
                     octave = operands[0]
+                    event = make_octave_set(p, octave, operands)
+                    ir_events.append(event)
+
                 elif cmd == 0xE1:
                     # Inc octave
                     octave += 1
+                    event = make_octave_inc(p)
+                    ir_events.append(event)
+
                 elif cmd == 0xE2:
                     # Dec octave
                     octave -= 1
+                    event = make_octave_dec(p)
+                    ir_events.append(event)
+
                 elif cmd == 0xF2 and len(operands) >= 3:
                     # Voice Volume (F2): 3 operands
                     # Bytes 0-1: fade steps (if both zero, immediate change)
@@ -1112,54 +1219,310 @@ class SNESFF2(SequenceFormat):
                     # For MIDI, we use the target volume and ignore fades
                     # Scale from 0-255 to MIDI velocity 0-127
                     velocity = operands[2] >> 1
+                    event = make_volume(p, velocity, operands)
+                    ir_events.append(event)
+
                 elif cmd == 0xE0 and len(operands) >= 1:
-                    # Begin repeat (0xE0)
-                    # In Perl: $rptcnt[++$rpt] = $op1; $rptpos[$rpt] = $p + 1; $rptcur[$rpt] = 0;
-                    repeat_stack.append({
-                        'count': operands[0],
-                        'position': p + 1 + oplen,
-                        'current_iteration': 0,  # For selective repeat (0xF5)
-                        'first_pass': True
-                    })
+                    # Begin repeat (0xE0) - just record it, don't execute
+                    loop_depth += 1
+                    event = make_loop_start(p, operands[0], operands)
+                    ir_events.append(event)
+
                 elif cmd == 0xF0:
-                    # End repeat (0xF0)
-                    # In Perl: if (--$rptcnt[$rpt] < 0) { $rpt--; } else { $p = $rptpos[$rpt]; }
-                    if repeat_stack:
-                        loop = repeat_stack[-1]
-                        loop['count'] -= 1
-                        if loop['count'] >= 0:
-                            p = loop['position'] - 1  # -1 because p += oplen + 1 below
-                            loop['first_pass'] = False
-                        else:
-                            repeat_stack.pop()
+                    # End repeat (0xF0) - just record it, don't execute
+                    loop_depth = max(0, loop_depth - 1)
+                    event = make_loop_end(p)
+                    ir_events.append(event)
+
                 elif cmd == 0xF5 and len(operands) >= 3:
-                    # Selective repeat (0xF5)
-                    # In Perl: if (++$rptcur[$rpt] == $op1) { $p = ($op2 + $op3 * 256) - 0x2000 - 1; $rpt--; }
-                    if repeat_stack:
-                        loop = repeat_stack[-1]
-                        loop['current_iteration'] += 1
-                        if loop['current_iteration'] == operands[0]:
-                            # Jump to target address
-                            # operands[1] and [2] form a 2-byte SPC address
-                            target_spc_addr = operands[1] + operands[2] * 256
-                            # Convert SPC address to buffer offset
-                            # SPC data is loaded at 0x2000, buffer has 2-byte size prefix
-                            target_offset = (target_spc_addr - 0x2000) + 2
-                            p = target_offset - 1  # -1 because p += oplen + 1 below
-                            # Pop this repeat level
-                            repeat_stack.pop()
+                    # Selective repeat (0xF5) - conditional jump - just record
+                    target_spc_addr = operands[1] + operands[2] * 256
+                    target_offset = target_spc_addr - 0x2000  # Convert SPC address to buffer offset
+                    event = make_loop_break(p, operands[0], target_offset, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xD8 and len(operands) >= 3:
+                    # Vibrato settings
+                    event = make_vibrato_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE8:
+                    # Vibrato off
+                    event = make_vibrato_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xD7 and len(operands) >= 3:
+                    # Tremolo settings
+                    event = make_tremolo_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE7:
+                    # Tremolo off
+                    event = make_tremolo_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xD6 and len(operands) >= 3:
+                    # Portamento settings
+                    event = make_portamento_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE6:
+                    # Portamento off
+                    event = make_portamento_off(p)
+                    ir_events.append(event)
+
                 elif cmd in (0xF1, 0xF4) or cmd >= 0xF7:
                     # Halt or goto - end of track
+                    if cmd == 0xF4 and len(operands) >= 2:
+                        # Goto with address
+                        target_spc_addr = operands[0] + operands[1] * 256
+                        target_offset = target_spc_addr - 0x2000  # Convert SPC address to buffer offset
+                        event = make_goto(p, target_offset, operands)
+                    else:
+                        # Halt
+                        event = make_halt(p, operands)
+                    ir_events.append(event)
                     disasm.append(line)
                     break
 
                 p += oplen + 1
+                disasm.append(line)
 
-                # Add to disasm if we determined it should be shown
-                if should_disasm:
-                    disasm.append(line)
+        return disasm, ir_events
 
-        return disasm, midi_events
+    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int) -> List[Dict]:
+        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+
+        This pass takes the linear IR event stream and executes it, expanding loops
+        and generating timed MIDI events.
+
+        Args:
+            ir_events: List of IR events from pass 1
+            track_num: Track/voice number (0-7)
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        import time
+        start_time = time.time()
+        max_time_seconds = 2.0  # Emergency brake: 2 second time limit
+        max_midi_events = 50000  # Emergency brake: max MIDI events per track
+
+        midi_events = []
+        total_time = 0
+
+        # Playback state
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        perc_key = 0
+        transpose_octaves = 0
+        current_channel = track_num
+
+        # Loop execution state
+        loop_stack = []  # Stack of {start_idx, count, iteration}
+
+        # Event pointer for execution
+        i = 0
+        # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
+        # Typical: 100-200 IR events, with loops expanding to 10,000-20,000 iterations
+        max_iterations = len(ir_events) * 200  # Allow 200x expansion for looping songs
+        iteration_count = 0
+
+        while i < len(ir_events) and iteration_count < max_iterations:
+            iteration_count += 1
+
+            # Emergency brakes (only warn, not error - looping is normal)
+            if time.time() - start_time > max_time_seconds:
+                # Silently stop - time limit reached (normal for looping songs)
+                break
+            if len(midi_events) > max_midi_events:
+                # Silently stop - MIDI event limit reached (normal for looping songs)
+                break
+
+            if i < 0 or i >= len(ir_events):
+                print(f"WARNING: Track {track_num} invalid event index {i}, stopping")
+                break
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE:
+                # Extract state from metadata (stored in pass 1)
+                octave = event.metadata['octave']
+                velocity = event.metadata['velocity']
+                perc_key = event.metadata['perc_key']
+                transpose_octaves = event.metadata['transpose']
+
+                # Calculate MIDI note
+                assert event.note_num is not None, "NOTE event must have note_num"
+                assert event.duration is not None, "NOTE event must have duration"
+                midi_note = 12 * (octave + transpose_octaves) + event.note_num
+
+                # Check if we're in percussion mode
+                if perc_key:
+                    midi_channel = 9  # Percussion channel
+                    midi_note = perc_key
+                else:
+                    midi_channel = track_num
+
+                # Add MIDI note event
+                midi_events.append({
+                    'type': 'note',
+                    'time': total_time,
+                    'duration': event.duration - 1,  # Matches Perl: $dur - 1
+                    'note': midi_note,
+                    'velocity': velocity,
+                    'channel': midi_channel
+                })
+
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.REST:
+                # Rest just advances time
+                assert event.duration is not None, "REST event must have duration"
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.TIE:
+                # Tie extends the last note
+                assert event.duration is not None, "TIE event must have duration"
+                for j in range(len(midi_events) - 1, -1, -1):
+                    if midi_events[j]['type'] == 'note':
+                        midi_events[j]['duration'] += event.duration
+                        break
+                total_time += event.duration
+                i += 1
+
+            elif event.type == IREventType.TEMPO:
+                # Tempo change
+                assert event.value is not None, "TEMPO event must have value"
+                midi_events.append({
+                    'type': 'tempo',
+                    'time': total_time,
+                    'tempo': event.value
+                })
+                tempo = event.value
+                i += 1
+
+            elif event.type == IREventType.PATCH_CHANGE:
+                # Patch change
+                assert event.gm_patch is not None, "PATCH_CHANGE event must have gm_patch"
+                if event.gm_patch < 0:
+                    # Percussion mode
+                    perc_key = abs(event.gm_patch)
+                    transpose_octaves = event.transpose
+                else:
+                    # Regular instrument
+                    perc_key = 0
+                    transpose_octaves = event.transpose
+                    midi_events.append({
+                        'type': 'program_change',
+                        'time': total_time,
+                        'patch': event.gm_patch
+                    })
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_SET:
+                assert event.value is not None, "OCTAVE_SET event must have value"
+                octave = event.value
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_INC:
+                octave += 1
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_DEC:
+                octave -= 1
+                i += 1
+
+            elif event.type == IREventType.VOLUME:
+                velocity = event.value
+                i += 1
+
+            elif event.type == IREventType.LOOP_START:
+                # Push loop onto stack
+                loop_stack.append({
+                    'start_idx': i + 1,  # Start after LOOP_START
+                    'count': event.loop_count,
+                    'iteration': 0,
+                    'end_idx': None  # Will be set when we find LOOP_END
+                })
+                i += 1
+
+            elif event.type == IREventType.LOOP_END:
+                # End of loop body - decide if we repeat
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['iteration'] += 1
+
+                    if loop['iteration'] < loop['count']:
+                        # Repeat: jump back to loop start
+                        i = loop['start_idx']
+                    else:
+                        # Done looping: pop and continue
+                        loop_stack.pop()
+                        i += 1
+                else:
+                    # No matching loop start? Just continue
+                    i += 1
+
+            elif event.type == IREventType.LOOP_BREAK:
+                # Selective repeat (F5): conditional jump on specific iteration
+                # This increments the current loop iteration and jumps if it matches the condition
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['iteration'] += 1
+
+                    if loop['iteration'] == event.condition:
+                        # Condition met: jump to target and exit loop
+                        # Find event at target offset
+                        target_idx = None
+                        for j, e in enumerate(ir_events):
+                            if e.offset == event.target_offset:
+                                target_idx = j
+                                break
+
+                        if target_idx is not None:
+                            i = target_idx
+                            loop_stack.pop()  # Exit this loop level
+                        else:
+                            # Target not found, just continue
+                            i += 1
+                    else:
+                        # Condition not met: continue to next event
+                        i += 1
+                else:
+                    # No loop context, just skip
+                    i += 1
+
+            elif event.type == IREventType.GOTO:
+                # Jump to target address
+                target_idx = None
+                for j, e in enumerate(ir_events):
+                    if e.offset == event.target_offset:
+                        target_idx = j
+                        break
+
+                if target_idx is not None:
+                    i = target_idx
+                else:
+                    # Target not found, halt
+                    break
+
+            elif event.type == IREventType.HALT:
+                # End of track
+                break
+
+            else:
+                # Other event types (vibrato, tremolo, etc.) are not yet expanded
+                # Just skip for now
+                i += 1
+
+        # Check if we hit the iteration limit
+        if iteration_count >= max_iterations:
+            print(f"WARNING: Track {track_num} hit max iteration limit ({max_iterations}), possible infinite loop")
+
+        return midi_events
 
 
 class SequenceExtractor:
@@ -1184,6 +1547,10 @@ class SequenceExtractor:
         self._img_file_cache = {}  # Cache of open file handles for large IMG files
 
         # Handle SNES ROMs differently from PSX ISOs
+        self.iso: Optional[pycdlib_module.PyCdlib]
+        self.sector_size: Optional[int]
+        self.raw_sector_size: Optional[int]
+
         if self.console_type == 'snes':
             # SNES ROMs are simple binary files, no ISO needed
             self.iso = None
@@ -1219,6 +1586,7 @@ class SequenceExtractor:
 
         # Create format handler with ROM data
         format_name = self.config.get('format', 'akao_newstyle')
+        self.format_handler: SequenceFormat
         if format_name == 'akao_newstyle':
             self.format_handler = AKAONewStyle(self.config, self.rom_data, exe_iso_reader=self)
         elif format_name == 'snes_ff2':
@@ -1271,6 +1639,8 @@ class SequenceExtractor:
     
     def _load_psx_executable(self) -> bytes:
         """Load PSX executable by reading SYSTEM.CNF from the CD-ROM."""
+        assert self.iso is not None, "ISO must be loaded for PSX executables"
+
         # Read SYSTEM.CNF from the root directory
         try:
             system_cnf_data = self._read_file_from_iso('/SYSTEM.CNF;1')
@@ -1316,6 +1686,8 @@ class SequenceExtractor:
         if self.console_type == 'snes':
             raise ValueError("SNES ROMs do not support ISO file access")
 
+        assert self.iso is not None, "ISO must be loaded for PSX file access"
+
         # pycdlib expects paths in uppercase with version numbers
         iso_path_upper = iso_path.upper()
 
@@ -1346,6 +1718,8 @@ class SequenceExtractor:
         if self.console_type == 'snes':
             raise ValueError("SNES ROMs do not support ISO file access")
 
+        assert self.iso is not None, "ISO must be loaded for PSX file access"
+
         # Normalize the ISO path
         if not iso_path.startswith('/'):
             iso_path = '/' + iso_path
@@ -1372,21 +1746,22 @@ class SequenceExtractor:
         if self.console_type == 'snes':
             # Get offset and length from format handler's song pointer table
             if hasattr(self.format_handler, 'song_pointers'):
-                if song.id in self.format_handler.song_pointers:
-                    offset, length = self.format_handler.song_pointers[song.id]
-                    return self.rom_data[offset:offset + length]
+                if song.id in self.format_handler.song_pointers:  # type: ignore[attr-defined]
+                    offset, length = self.format_handler.song_pointers[song.id]  # type: ignore[attr-defined]
+                    # Skip the 2-byte size field at the start - we only want the actual music data
+                    return self.rom_data[offset + 2:offset + 2 + length]
                 else:
                     raise ValueError(f"Song {song.id:02X} not found in song pointer table")
             else:
                 # Fallback to explicit offset/length if specified
-                if song.offset is None:
-                    raise ValueError(f"Song {song.id:02X} has no offset specified")
+                if song.offset is None or song.length is None:
+                    raise ValueError(f"Song {song.id:02X} has no offset/length specified")
                 return self.rom_data[song.offset:song.offset + song.length]
 
         # PSX: Check if song specifies a file path with offset
         if song.file_path:
             # Read from a specific file in the ISO
-            if song.offset is not None:
+            if song.offset is not None and song.length is not None:
                 # Direct file offset (like FF9.IMG)
                 # Use seek/read to avoid loading the entire large file
                 return self._read_file_chunk_from_iso(song.file_path, song.offset, song.length)
@@ -1408,9 +1783,10 @@ class SequenceExtractor:
             
             if self.raw_sector_size == 2352:
                 # Skip to the sector and past the 24-byte header
+                assert song.length is not None, "Song must have length for sector-based extraction"
                 raw_offset = song.sector * 2352 + 24
                 f.seek(raw_offset)
-                
+
                 # Read data, accounting for headers in each sector
                 data = bytearray()
                 bytes_remaining = song.length
@@ -1436,6 +1812,8 @@ class SequenceExtractor:
                 return bytes(data)
             else:
                 # Standard 2048-byte sectors
+                assert song.length is not None, "Song must have length for sector-based extraction"
+                assert self.raw_sector_size is not None, "raw_sector_size must be set for PSX"
                 offset = song.sector * self.raw_sector_size if song.offset is None else song.offset
                 f.seek(offset)
                 return f.read(song.length)
@@ -1449,12 +1827,35 @@ class SequenceExtractor:
 
         # Different header formats for different console types
         if self.console_type == 'snes':
-            # SNES format - just voice pointers
-            output.append(f"Voice count: {header['num_voices']}")
-            output.append("")
+            # SNES format - add song header with title and location
+            output.append(f"Song {song.id:02X} - {song.title}:")
+
+            # Add song location info if available (from song_pointers)
+            if isinstance(self.format_handler, SNESFF2) and hasattr(self.format_handler, 'song_pointers'):
+                if song.id in self.format_handler.song_pointers:  # type: ignore[attr-defined]
+                    song_offset, song_length = self.format_handler.song_pointers[song.id]  # type: ignore[attr-defined]
+                    # Convert ROM offset to display format
+                    addr_str = self.format_handler.rom_offset_to_display_addr(song_offset)
+                    output.append(f"  Start {addr_str}  Length {song_length:04X}")
+
+            # Read and display instrument table
+            instrument_table = None
+            if isinstance(self.format_handler, SNESFF2):
+                instrument_table = self.format_handler._read_song_instrument_table(song.id)
+                if instrument_table:
+                    inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
+                    output.append(f"  Instruments: {inst_str}")
+
+            # Voice start addresses
+            output.append("  Voice start addresses:")
+            voice_addrs = []
             for i, ptr in enumerate(header['voice_pointers']):
                 if ptr >= 0x100:
-                    output.append(f"Voice {i:02X} @ {ptr:04X}")
+                    voice_addrs.append(f"{i}:{ptr:04X}")
+            # Print 8 per line
+            for i in range(0, len(voice_addrs), 8):
+                chunk = voice_addrs[i:i+8]
+                output.append(f"    {' '.join(chunk)}")
             output.append("")
         else:
             # PSX AKAO format
@@ -1482,6 +1883,10 @@ class SequenceExtractor:
 
         # Parse each track
         for i, offset in enumerate(track_offsets):
+            # Add voice label for SNES format
+            if self.console_type == 'snes':
+                output.append(f"    Voice {i} data:")
+
             disasm, _ = self.format_handler.parse_track(
                 data, offset, i, song.id, instrument_table
             )
@@ -1545,7 +1950,7 @@ class SequenceExtractor:
                 # First calculate microseconds per quarter note: uspqn = tempo_factor / tempo_value
                 # tempo_factor already includes ticks_per_quarter and resolution (256 for SNES, 65536 for PSX)
                 # Then convert to BPM: BPM = 60,000,000 / uspqn = (60,000,000 * tempo_value) / tempo_factor
-                uspqn = self.format_handler.tempo_factor / event['tempo']
+                uspqn = self.format_handler.tempo_factor / event['tempo']  # type: ignore[attr-defined]
                 bpm = 60000000.0 / uspqn
                 midi.addTempo(0, time_beats, bpm)
 
@@ -1978,9 +2383,20 @@ class SequenceExtractor:
 
         output_path.write_text(pretty_xml, encoding='utf-8')
 
-    def extract_all(self):
-        """Extract all songs defined in config."""
+    def extract_all(self, song_id_filter=None):
+        """Extract all songs defined in config.
+
+        Args:
+            song_id_filter: If specified, only extract this song ID
+        """
         songs = [SongMetadata(**s) for s in self.config.get('songs', [])]
+
+        # Apply song ID filter if specified
+        if song_id_filter is not None:
+            songs = [s for s in songs if s.id == song_id_filter]
+            if not songs:
+                print(f"WARNING: Song ID {song_id_filter:02X} not found in config")
+                return
 
         # Create output directories
         text_dir = Path('txt')
@@ -2048,21 +2464,32 @@ def main():
 
     # Parse command-line arguments
     patch_based_tracks = False
+    song_id_filter = None
     args = []
 
-    for arg in sys.argv[1:]:
+    i = 0
+    while i < len(sys.argv[1:]):
+        arg = sys.argv[1 + i]
         if arg == '--patch-based-tracks':
             patch_based_tracks = True
+        elif arg == '--song' and i + 1 < len(sys.argv[1:]):
+            # Next arg is the song ID
+            song_id_filter = int(sys.argv[1 + i + 1], 0)  # Support hex with 0x prefix
+            i += 1  # Skip next arg
         else:
             args.append(arg)
+        i += 1
 
     if len(args) < 2:
-        print("Usage: python extract_akao.py <config.yaml> <source_file> [--patch-based-tracks]")
+        print("Usage: python extract_akao.py <config.yaml> <source_file> [options]")
         print()
         print("Arguments:")
         print("  config.yaml             - Game metadata configuration file")
         print("  source_file             - ISO/ROM file containing the game data")
+        print()
+        print("Options:")
         print("  --patch-based-tracks    - Organize MIDI tracks by instrument/patch instead of sequence")
+        print("  --song <id>             - Extract only the specified song ID (decimal or hex with 0x)")
         print()
         print("Examples:")
         print("  python extract_akao.py ff9.yaml ff9.iso")
@@ -2074,7 +2501,7 @@ def main():
 
     try:
         extractor = SequenceExtractor(config_file, source_file, patch_based_tracks=patch_based_tracks)
-        extractor.extract_all()
+        extractor.extract_all(song_id_filter=song_id_filter)
     except Exception as e:
         print(f"\nError: {e}")
         print("\nFull traceback:")
