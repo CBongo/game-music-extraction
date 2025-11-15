@@ -1,0 +1,10 @@
+**/mid
+**/*_mid
+**/txt
+**/*_txt
+**/xml
+**/*_txt
+**/.claude
+**/__pycache__/
+**/*.pyc
+**/.not-git
