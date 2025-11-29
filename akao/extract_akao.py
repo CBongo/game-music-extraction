@@ -263,7 +263,8 @@ class SequenceFormat(ABC):
 
     @abstractmethod
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         Args:
@@ -279,15 +280,18 @@ class SequenceFormat(ABC):
         pass
 
     @abstractmethod
-    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
-                          target_loop_time: int, loop_info: Dict) -> List[Dict]:
-        """Pass 2: Expand IR events into MIDI events with loop handling.
+    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
+                          target_loop_time: int = 0) -> List[Dict]:
+        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+
+        This pass takes all track data and executes from a starting voice, expanding loops,
+        following GOTOs (including cross-track), and generating timed MIDI events.
+        Loop information is read from all_track_data['tracks'][voice_num]['loop_info'].
 
         Args:
-            ir_events: IR events from pass 1
-            track_num: Track/voice number
-            target_loop_time: Target playthrough time in ticks
-            loop_info: Loop analysis from _analyze_track_loops
+            all_track_data: Complete track data from parse_all_tracks() (includes loop_info per track)
+            start_voice_num: Starting voice/track number to execute from
+            target_loop_time: Target playthrough time in ticks (0 = no loop expansion)
 
         Returns:
             List of MIDI event dictionaries
@@ -313,7 +317,7 @@ class SequenceFormat(ABC):
         pass
 
     def _validate_track_address(self, track_num: int, target_spc_addr: int,
-                                source_offset: int, event_type: str) -> bool:
+                                source_offset: int, event_type: str, has_timing_events: bool = False) -> bool:
         """Validate that a target address is within the valid range for this track.
 
         This is a hook for format-specific address validation. Subclasses can override
@@ -324,6 +328,7 @@ class SequenceFormat(ABC):
             target_spc_addr: Target SPC RAM address to validate
             source_offset: Byte offset of the instruction containing this target
             event_type: Type of event (e.g., "GOTO", "LOOP_BREAK")
+            has_timing_events: True if any notes/rests have been processed yet
 
         Returns:
             True if valid, False if invalid (warning already printed)
@@ -966,6 +971,61 @@ class SNESFF2(SequenceFormat):
         """
         return offset + 0x2000
 
+    def _find_event_by_offset(self, all_track_data: Dict, target_offset: int) -> Optional[Tuple[int, int]]:
+        """Find which track/event corresponds to a data buffer offset.
+
+        Works for SNES formats where tracks are parsed from a shared buffer.
+        NOT applicable to PSX which uses different memory layout.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks()
+            target_offset: Target byte offset in data buffer
+
+        Returns:
+            (track_num, event_idx) if found, None otherwise
+        """
+        # For each track, check if this offset falls within its range
+        for track_num, track_info in all_track_data['tracks'].items():
+            ir_events = track_info['ir_events']
+            if not ir_events:
+                continue
+
+            # Check if target_offset is within this track's event range
+            first_offset = ir_events[0].offset
+            last_offset = ir_events[-1].offset
+
+            if first_offset <= target_offset <= last_offset:
+                # Find exact event at this offset
+                for idx, event in enumerate(ir_events):
+                    if event.offset == target_offset:
+                        return (track_num, idx)
+
+        return None
+
+    def _find_track_containing_offset(self, all_track_data: Dict, target_offset: int) -> Optional[int]:
+        """Find which track owns a given offset based on track boundaries.
+
+        Works for SNES formats where tracks are parsed from a shared buffer.
+        NOT applicable to PSX which uses different memory layout.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks()
+            target_offset: Target byte offset in data buffer
+
+        Returns:
+            track_num if offset falls within that track's boundary, None otherwise
+        """
+        for track_num, track_info in all_track_data['tracks'].items():
+            boundaries = all_track_data['header']['track_boundaries'].get(track_num)
+            if boundaries is None:
+                continue
+
+            start_offset, end_offset = boundaries
+            if start_offset <= target_offset < end_offset:
+                return track_num
+
+        return None
+
     def _read_3byte_pointers(self, offset: int, count: int) -> List[int]:
         """Read a table of 3-byte SNES pointers from ROM."""
         pointers = []
@@ -1134,7 +1194,8 @@ class SNESFF2(SequenceFormat):
         return disasm, midi_events
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         This pass does NOT execute loops or generate MIDI events. It simply parses
@@ -1158,6 +1219,10 @@ class SNESFF2(SequenceFormat):
 
         # Track loop depth for disassembly indentation (but don't execute loops)
         loop_depth = 0
+
+        # Track whether any timing events (notes/rests) have been processed
+        # This allows cross-track GOTOs at the very start (for chorus effects)
+        has_timing_events = False
 
         # Start from voice offset
         p = offset
@@ -1195,6 +1260,7 @@ class SNESFF2(SequenceFormat):
                         'inst_id': inst_id
                     }
                     ir_events.append(event)
+                    has_timing_events = True
 
                     # Build disassembly line
                     # Format: "4E            Note F  (05) Dur 48"
@@ -1353,20 +1419,45 @@ class SNESFF2(SequenceFormat):
                     ir_events.append(event)
 
                 elif cmd in (0xF1, 0xF4) or cmd >= 0xF7:
-                    # Halt or goto - end of track
+                    # Halt or goto
                     if cmd == 0xF4 and len(operands) >= 2:
                         # Goto with address
                         target_spc_addr = operands[0] + operands[1] * 256
                         target_offset = target_spc_addr - 0x2000  # Convert SPC address to buffer offset
+
+                        # Determine if this is a backwards GOTO
+                        is_backwards = target_offset < p
+
                         # Add target address to disassembly line
                         line += f" ${target_spc_addr:04X}"
                         event = make_goto(p, target_offset, operands)
+                        ir_events.append(event)
+                        disasm.append(line)
+
+                        # Backwards GOTO - loop, halt disassembly
+                        if is_backwards:
+                            break
+                        else:
+                            # Forward GOTO - check if target is in another track's assigned region
+                            if track_boundaries:
+                                target_track = None
+                                for t_num, (t_start, t_end) in track_boundaries.items():
+                                    if t_num != track_num and t_start <= target_offset < t_end:
+                                        target_track = t_num
+                                        break
+
+                                if target_track is not None:
+                                    # GOTO into another track's data (songs 49, 4A) - halt
+                                    break
+
+                            # Either no track_boundaries, or target is unassigned - continue (songs 53, 54)
+                            p += oplen + 1
                     else:
-                        # Halt
+                        # Halt - end of track
                         event = make_halt(p, operands)
-                    ir_events.append(event)
-                    disasm.append(line)
-                    break
+                        ir_events.append(event)
+                        disasm.append(line)
+                        break
 
                 p += oplen + 1
                 disasm.append(line)
@@ -1392,13 +1483,16 @@ class SNESFF2(SequenceFormat):
         total_time = 0
         loop_stack = []
 
-        # Find the last GOTO event
+        # Find the last BACKWARDS GOTO event (for looping)
+        # Forward GOTOs are sequence continuation, not loops
         last_goto_event = None
         last_goto_idx = None
         for i, event in enumerate(ir_events):
             if event.type == IREventType.GOTO:
-                last_goto_event = event
-                last_goto_idx = i
+                # Check if this GOTO is backwards (target_offset < current offset)
+                if event.target_offset < event.offset:
+                    last_goto_event = event
+                    last_goto_idx = i
 
         # Check if it's a backwards GOTO
         if last_goto_event is None:
@@ -1532,16 +1626,16 @@ class SNESFF2(SequenceFormat):
             'goto_target_idx': target_idx
         }
 
-    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
-                          target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> List[Dict]:
+    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
+                          target_loop_time: int = 0) -> List[Dict]:
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
 
-        This pass takes the linear IR event stream and executes it, expanding loops
-        and generating timed MIDI events.
+        This pass takes all track data and executes from a starting voice, expanding loops,
+        following GOTOs (including cross-track), and generating timed MIDI events.
 
         Args:
-            ir_events: List of IR events from pass 1
-            track_num: Track/voice number (0-7)
+            all_track_data: Complete track data from parse_all_tracks()
+            start_voice_num: Starting track/voice number (0-7)
             target_loop_time: Target time for 2x loop playthrough (0 = no looping)
             loop_info: Loop analysis info from _analyze_track_loops()
 
@@ -1556,13 +1650,18 @@ class SNESFF2(SequenceFormat):
         midi_events = []
         total_time = 0
 
+        # Start with the specified voice
+        current_voice_num = start_voice_num
+        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
         # Playback state
         octave = self.default_octave
         velocity = self.default_velocity
         tempo = self.default_tempo
         perc_key = 0
         transpose_octaves = 0
-        current_channel = track_num
+        current_channel = start_voice_num
 
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
@@ -1577,7 +1676,10 @@ class SNESFF2(SequenceFormat):
         i = 0
         # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
         # Typical: 100-200 IR events, with loops expanding to 10,000-20,000 iterations
-        max_iterations = len(ir_events) * 200  # Allow 200x expansion for looping songs
+        # Ensure minimum iterations for short loops while still acting as failsafe
+        # - Multiplier of 200 per event handles normal cases
+        # - Minimum of 10000 ensures short loops (1-2 events) can reach target duration
+        max_iterations = max(len(ir_events) * 200, 10000)
         iteration_count = 0
 
         while i < len(ir_events) and iteration_count < max_iterations:
@@ -1596,7 +1698,7 @@ class SNESFF2(SequenceFormat):
                 break
 
             if i < 0 or i >= len(ir_events):
-                print(f"WARNING: Track {track_num} invalid event index {i}, stopping")
+                print(f"WARNING: Track {start_voice_num} invalid event index {i}, stopping")
                 break
             event = ir_events[i]
 
@@ -1617,7 +1719,7 @@ class SNESFF2(SequenceFormat):
                     midi_channel = 9  # Percussion channel
                     midi_note = perc_key
                 else:
-                    midi_channel = track_num
+                    midi_channel = current_channel
 
                 # Add MIDI note event
                 midi_events.append({
@@ -1751,19 +1853,46 @@ class SNESFF2(SequenceFormat):
                     i += 1
 
             elif event.type == IREventType.GOTO:
-                # Phase 2: Smart GOTO handling for looping music
-                if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
-                    # This is a backwards GOTO loop - jump to target
-                    # Time check happens at top of while loop
-                    target_idx = loop_info['goto_target_idx']
-                    if target_idx is not None:
+                # Determine GOTO type and handle accordingly
+                if event.target_offset is None:
+                    break  # Invalid GOTO
+
+                # Find target track and event
+                result = self._find_event_by_offset(all_track_data, event.target_offset)
+
+                if result is None:
+                    # Target not found - halt
+                    break
+
+                target_track, target_idx = result
+
+                # Classify GOTO type
+                is_backwards = event.target_offset < event.offset
+                is_cross_track = target_track != current_voice_num
+
+                if is_backwards and not is_cross_track:
+                    # Backwards loop within same track
+                    if loop_info and loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
+                        # Follow loop until target time reached
                         i = target_idx
                     else:
-                        # Target not found, halt
+                        # No loop playback requested - halt at loop point
                         break
                 else:
-                    # Forward GOTO or no loop info - treat as HALT
-                    break
+                    # Forward GOTO or cross-track GOTO - follow as normal continuation
+                    current_voice_num = target_track
+                    ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+                    i = target_idx
+
+                    # Switch to target track's loop_info
+                    loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
+                    # Recalculate target_total_time for new track's loop
+                    if loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
+                        intro_time = loop_info['intro_time']
+                        target_total_time = intro_time + target_loop_time
+                    else:
+                        target_total_time = 0
 
             elif event.type == IREventType.HALT:
                 # End of track
@@ -1776,7 +1905,7 @@ class SNESFF2(SequenceFormat):
 
         # Check if we hit the iteration limit
         if iteration_count >= max_iterations:
-            print(f"WARNING: Track {track_num} hit max iteration limit ({max_iterations}), possible infinite loop")
+            print(f"WARNING: Track {start_voice_num} hit max iteration limit ({max_iterations}), possible infinite loop")
 
         return midi_events
 
@@ -1972,6 +2101,61 @@ class SNESFF3(SequenceFormat):
         For FF3, SPC loads data at 0x1C00 (vs 0x2000 for FF2).
         """
         return offset + 0x1C00
+
+    def _find_event_by_offset(self, all_track_data: Dict, target_offset: int) -> Optional[Tuple[int, int]]:
+        """Find which track/event corresponds to a data buffer offset.
+
+        Works for SNES formats where tracks are parsed from a shared buffer.
+        NOT applicable to PSX which uses different memory layout.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks()
+            target_offset: Target byte offset in data buffer
+
+        Returns:
+            (track_num, event_idx) if found, None otherwise
+        """
+        # For each track, check if this offset falls within its range
+        for track_num, track_info in all_track_data['tracks'].items():
+            ir_events = track_info['ir_events']
+            if not ir_events:
+                continue
+
+            # Check if target_offset is within this track's event range
+            first_offset = ir_events[0].offset
+            last_offset = ir_events[-1].offset
+
+            if first_offset <= target_offset <= last_offset:
+                # Find exact event at this offset
+                for idx, event in enumerate(ir_events):
+                    if event.offset == target_offset:
+                        return (track_num, idx)
+
+        return None
+
+    def _find_track_containing_offset(self, all_track_data: Dict, target_offset: int) -> Optional[int]:
+        """Find which track owns a given offset based on track boundaries.
+
+        Works for SNES formats where tracks are parsed from a shared buffer.
+        NOT applicable to PSX which uses different memory layout.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks()
+            target_offset: Target byte offset in data buffer
+
+        Returns:
+            track_num if offset falls within that track's boundary, None otherwise
+        """
+        for track_num, track_info in all_track_data['tracks'].items():
+            boundaries = all_track_data['header']['track_boundaries'].get(track_num)
+            if boundaries is None:
+                continue
+
+            start_offset, end_offset = boundaries
+            if start_offset <= target_offset < end_offset:
+                return track_num
+
+        return None
 
     def _read_3byte_pointers(self, offset: int, count: int) -> List[int]:
         """Read a table of 3-byte SNES pointers from ROM."""
@@ -2181,6 +2365,9 @@ class SNESFF3(SequenceFormat):
             result['alternate_voice_pointers'] = tuple(alternate_voice_pointers_list)
             result['alternate_track_boundaries'] = alternate_track_boundaries
 
+        # Store song data length for validation
+        self._song_data_length = len(data)
+
         return result
 
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
@@ -2191,33 +2378,42 @@ class SNESFF3(SequenceFormat):
         return header.get('track_offsets', [])
 
     def _validate_track_address(self, track_num: int, target_spc_addr: int,
-                                source_offset: int, event_type: str) -> bool:
+                                source_offset: int, event_type: str, has_timing_events: bool = False) -> bool:
         """Validate that a target address is within the valid range for this track.
 
-        For FF3, each track has a specific SPC RAM address range from its voice start
-        to the next voice start (or end of song data). GOTO/LOOP_BREAK targets must
-        fall within the same track's address space.
+        For FF3, each track should only reference addresses within the song data.
+        GOTO/LOOP_BREAK targets must fall within the song's SPC RAM region, EXCEPT:
+        - Cross-track GOTOs at the very start (chorus effects, e.g. song 3D)
+        - "Fall through" execution into subsequent voice regions (e.g. song 1E)
 
         Args:
             track_num: Track/voice number
             target_spc_addr: Target SPC RAM address to validate
             source_offset: Byte offset of the instruction containing this target
             event_type: Type of event (e.g., "GOTO", "LOOP_BREAK")
+            has_timing_events: True if any notes/rests have been processed yet
 
         Returns:
             True if valid, False if invalid (warning already printed)
         """
-        if not hasattr(self, '_track_boundaries') or track_num not in self._track_boundaries:
-            # No boundaries available, skip validation
+        # Allow GOTO to other tracks at the very start (for chorus effects)
+        if event_type == "GOTO" and not has_timing_events:
             return True
 
-        start_addr, end_addr = self._track_boundaries[track_num]
+        # Simplified validation - just check song boundaries
+        # All track data (including fall through) lies within the song's SPC RAM region
+        if not hasattr(self, '_song_data_length'):
+            return True  # No song length available, can't validate
 
-        if target_spc_addr < start_addr or target_spc_addr >= end_addr:
+        song_start = 0x1C00
+        song_end = 0x1C00 + self._song_data_length
+
+        if target_spc_addr < song_start or target_spc_addr >= song_end:
+            # Target is outside song data - warn
             import sys
             print(f"WARNING: Track {track_num} @ 0x{source_offset:04X}: {event_type} targets SPC addr 0x{target_spc_addr:04X}",
                   file=sys.stderr)
-            print(f"         Valid range for this track: [0x{start_addr:04X}, 0x{end_addr:04X})",
+            print(f"         Song data range: [0x{song_start:04X}, 0x{song_end:04X})",
                   file=sys.stderr)
             print(f"         This indicates incorrect vaddroffset calculation",
                   file=sys.stderr)
@@ -2257,7 +2453,8 @@ class SNESFF3(SequenceFormat):
         return disasm, midi_events
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         This pass does NOT execute loops or generate MIDI events. It simply parses
@@ -2281,6 +2478,10 @@ class SNESFF3(SequenceFormat):
 
         # Track loop depth for disassembly indentation (but don't execute loops)
         loop_depth = 0
+
+        # Track whether any timing events (notes/rests) have been processed
+        # This allows cross-track GOTOs at the very start (for chorus effects)
+        has_timing_events = False
 
         # Start from voice offset
         p = offset
@@ -2318,6 +2519,7 @@ class SNESFF3(SequenceFormat):
                         'inst_id': inst_id
                     }
                     ir_events.append(event)
+                    has_timing_events = True
 
                     # Build disassembly line
                     # Format: "4E            Note F  (05) Dur 48"
@@ -2331,12 +2533,14 @@ class SNESFF3(SequenceFormat):
                      # Tie - create IR event
                     event = make_tie(p, dur)
                     ir_events.append(event)
+                    has_timing_events = True
                     line += f"           Tie          Dur {raw_dur}"
 
                 else:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
+                    has_timing_events = True
                     line += f"           Rest         Dur {raw_dur}"
 
                 p += 1
@@ -2450,7 +2654,7 @@ class SNESFF3(SequenceFormat):
                     target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
 
                     # Validate address is within track boundaries
-                    self._validate_track_address(track_num, target_spc_addr, p, "LOOP_BREAK")
+                    self._validate_track_address(track_num, target_spc_addr, p, "LOOP_BREAK", has_timing_events)
 
                     # Add target address to disassembly line
                     line += f" ${target_spc_addr:04X}"
@@ -2494,8 +2698,12 @@ class SNESFF3(SequenceFormat):
                     target_spc_addr = ((operands[0] + operands[1] * 256) + vaddroffset) & 0xFFFF
                     target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
 
+                    # Determine if this is a backwards GOTO
+                    is_backwards = target_offset < p
+
                     # Validate address is within track boundaries
-                    self._validate_track_address(track_num, target_spc_addr, p, "GOTO")
+                    # Allow cross-track GOTOs at the start for chorus effects (e.g., song 3D)
+                    self._validate_track_address(track_num, target_spc_addr, p, "GOTO", has_timing_events)
 
                     # Add target address to disassembly line
                     line += f" ${target_spc_addr:04X}"
@@ -2503,7 +2711,25 @@ class SNESFF3(SequenceFormat):
                     event = make_goto(p, target_offset, operands)
                     ir_events.append(event)
                     disasm.append(line)
-                    break
+
+                    # Backwards GOTO - loop, halt disassembly
+                    if is_backwards:
+                        break
+                    else:
+                        # Forward GOTO - check if target is in another track's assigned region
+                        if track_boundaries:
+                            target_track = None
+                            for t_num, (t_start, t_end) in track_boundaries.items():
+                                if t_num != track_num and t_start <= target_offset < t_end:
+                                    target_track = t_num
+                                    break
+
+                            if target_track is not None:
+                                # GOTO into another track's data (songs 49, 4A) - halt
+                                break
+
+                        # Either no track_boundaries, or target is unassigned - continue (songs 53, 54)
+                        p += oplen + 1
 
                 elif cmd in (0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xFD, 0xFE, 0xFF):
                     # Halt - end of track
@@ -2536,13 +2762,16 @@ class SNESFF3(SequenceFormat):
         total_time = 0
         loop_stack = []
 
-        # Find the last GOTO event
+        # Find the last BACKWARDS GOTO event (for looping)
+        # Forward GOTOs are sequence continuation, not loops
         last_goto_event = None
         last_goto_idx = None
         for i, event in enumerate(ir_events):
             if event.type == IREventType.GOTO:
-                last_goto_event = event
-                last_goto_idx = i
+                # Check if this GOTO is backwards (target_offset < current offset)
+                if event.target_offset < event.offset:
+                    last_goto_event = event
+                    last_goto_idx = i
 
         # Check if it's a backwards GOTO
         if last_goto_event is None:
@@ -2676,16 +2905,16 @@ class SNESFF3(SequenceFormat):
             'goto_target_idx': target_idx
         }
 
-    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
-                          target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> List[Dict]:
+    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
+                          target_loop_time: int = 0) -> List[Dict]:
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
 
-        This pass takes the linear IR event stream and executes it, expanding loops
-        and generating timed MIDI events.
+        This pass takes all track data and executes from a starting voice, expanding loops,
+        following GOTOs (including cross-track), and generating timed MIDI events.
 
         Args:
-            ir_events: List of IR events from pass 1
-            track_num: Track/voice number (0-7)
+            all_track_data: Complete track data from parse_all_tracks()
+            start_voice_num: Starting track/voice number (0-7)
             target_loop_time: Target time for 2x loop playthrough (0 = no looping)
             loop_info: Loop analysis info from _analyze_track_loops()
 
@@ -2700,13 +2929,18 @@ class SNESFF3(SequenceFormat):
         midi_events = []
         total_time = 0
 
+        # Start with the specified voice
+        current_voice_num = start_voice_num
+        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
         # Playback state
         octave = self.default_octave
         velocity = self.default_velocity
         tempo = self.default_tempo
         perc_key = 0
         transpose_octaves = 0
-        current_channel = track_num
+        current_channel = start_voice_num
 
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
@@ -2721,7 +2955,10 @@ class SNESFF3(SequenceFormat):
         i = 0
         # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
         # Typical: 100-200 IR events, with loops expanding to 10,000-20,000 iterations
-        max_iterations = len(ir_events) * 200  # Allow 200x expansion for looping songs
+        # Ensure minimum iterations for short loops while still acting as failsafe
+        # - Multiplier of 200 per event handles normal cases
+        # - Minimum of 10000 ensures short loops (1-2 events) can reach target duration
+        max_iterations = max(len(ir_events) * 200, 10000)
         iteration_count = 0
 
         while i < len(ir_events) and iteration_count < max_iterations:
@@ -2740,7 +2977,7 @@ class SNESFF3(SequenceFormat):
                 break
 
             if i < 0 or i >= len(ir_events):
-                print(f"WARNING: Track {track_num} invalid event index {i}, stopping")
+                print(f"WARNING: Track {start_voice_num} invalid event index {i}, stopping")
                 break
             event = ir_events[i]
 
@@ -2761,7 +2998,7 @@ class SNESFF3(SequenceFormat):
                     midi_channel = 9  # Percussion channel
                     midi_note = perc_key
                 else:
-                    midi_channel = track_num
+                    midi_channel = current_channel
 
                 # Add MIDI note event
                 midi_events.append({
@@ -2895,19 +3132,46 @@ class SNESFF3(SequenceFormat):
                     i += 1
 
             elif event.type == IREventType.GOTO:
-                # Phase 2: Smart GOTO handling for looping music
-                if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
-                    # This is a backwards GOTO loop - jump to target
-                    # Time check happens at top of while loop
-                    target_idx = loop_info['goto_target_idx']
-                    if target_idx is not None:
+                # Determine GOTO type and handle accordingly
+                if event.target_offset is None:
+                    break  # Invalid GOTO
+
+                # Find target track and event
+                result = self._find_event_by_offset(all_track_data, event.target_offset)
+
+                if result is None:
+                    # Target not found - halt
+                    break
+
+                target_track, target_idx = result
+
+                # Classify GOTO type
+                is_backwards = event.target_offset < event.offset
+                is_cross_track = target_track != current_voice_num
+
+                if is_backwards and not is_cross_track:
+                    # Backwards loop within same track
+                    if loop_info and loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
+                        # Follow loop until target time reached
                         i = target_idx
                     else:
-                        # Target not found, halt
+                        # No loop playback requested - halt at loop point
                         break
                 else:
-                    # Forward GOTO or no loop info - treat as HALT
-                    break
+                    # Forward GOTO or cross-track GOTO - follow as normal continuation
+                    current_voice_num = target_track
+                    ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+                    i = target_idx
+
+                    # Switch to target track's loop_info
+                    loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
+                    # Recalculate target_total_time for new track's loop
+                    if loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
+                        intro_time = loop_info['intro_time']
+                        target_total_time = intro_time + target_loop_time
+                    else:
+                        target_total_time = 0
 
             elif event.type == IREventType.HALT:
                 # End of track
@@ -2920,7 +3184,7 @@ class SNESFF3(SequenceFormat):
 
         # Check if we hit the iteration limit
         if iteration_count >= max_iterations:
-            print(f"WARNING: Track {track_num} hit max iteration limit ({max_iterations}), possible infinite loop")
+            print(f"WARNING: Track {start_voice_num} hit max iteration limit ({max_iterations}), possible infinite loop")
 
         return midi_events
 
@@ -3267,7 +3531,8 @@ class SequenceExtractor:
             # Call _parse_track_pass1 to get disassembly and IR events
             # Returns: (disasm_lines, ir_events)
             disasm_lines, ir_events = self.format_handler._parse_track_pass1(
-                data, offset, voice_num, instrument_table or [], vaddroffset
+                data, offset, voice_num, instrument_table or [], vaddroffset,
+                track_boundaries=header.get('track_boundaries')
             )
 
             tracks[voice_num] = {
@@ -3496,16 +3761,18 @@ class SequenceExtractor:
             # Calculate target playthrough time: intro + (2× longest loop)
             target_loop_time = 2 * longest_loop_time
 
+            # Embed loop_info in track_data for Pass 2
+            for voice_num in track_data['tracks'].keys():
+                track_data['tracks'][voice_num]['loop_info'] = \
+                    loop_analysis['tracks'][voice_num]['loop_info']
+
             # Parse all tracks with loop info (Pass 2)
             parsed_tracks = []
             for voice_num in sorted(track_data['tracks'].keys()):
                 try:
-                    track = track_data['tracks'][voice_num]
-                    loop_info = loop_analysis['tracks'][voice_num]['loop_info']
-
                     # Pass 2 - expand IR events into MIDI events
                     midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
-                        track['ir_events'], voice_num, target_loop_time, loop_info
+                        track_data, voice_num, target_loop_time
                     )
                     has_notes = any(e['type'] == 'note' for e in midi_events)
                     parsed_tracks.append({
@@ -3806,15 +4073,17 @@ class SequenceExtractor:
 
         target_loop_time = 2 * longest_loop_time
 
+        # Embed loop_info in track_data for Pass 2
+        for voice_num in track_data['tracks'].keys():
+            track_data['tracks'][voice_num]['loop_info'] = \
+                loop_analysis['tracks'][voice_num]['loop_info']
+
         # Parse all tracks (Pass 2)
         parsed_tracks = []
         for voice_num in sorted(track_data['tracks'].keys()):
-            track = track_data['tracks'][voice_num]
-            loop_info = loop_analysis['tracks'][voice_num]['loop_info']
-
             # Pass 2 - expand IR events into MIDI events
             midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
-                track['ir_events'], voice_num, target_loop_time, loop_info
+                track_data, voice_num, target_loop_time
             )
             has_notes = any(e['type'] == 'note' for e in midi_events)
             parsed_tracks.append({
