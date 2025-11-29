@@ -230,12 +230,13 @@ class SequenceFormat(ABC):
     """Abstract base class for sequence format handlers."""
     
     @abstractmethod
-    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
         """Parse the sequence header and return metadata.
 
         Args:
             data: Song data buffer
             song_id: Song ID (optional, for format-specific lookups like FF3 instrument table)
+            use_alternate_pointers: If True, use alternate voice pointers (format-specific)
         """
         pass
     
@@ -259,6 +260,75 @@ class SequenceFormat(ABC):
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
         """Get list of track data offsets from header info."""
         pass
+
+    @abstractmethod
+    def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
+                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
+        """Pass 1: Linear parse to build disassembly and intermediate representation.
+
+        Args:
+            data: Song data buffer
+            offset: Offset into data where this track starts
+            track_num: Track/voice number
+            instrument_table: List of instrument IDs for this song
+            vaddroffset: Address offset for target address calculations (format-specific)
+
+        Returns:
+            Tuple of (disasm_lines, ir_events)
+        """
+        pass
+
+    @abstractmethod
+    def _parse_track_pass2(self, ir_events: List[IREvent], track_num: int,
+                          target_loop_time: int, loop_info: Dict) -> List[Dict]:
+        """Pass 2: Expand IR events into MIDI events with loop handling.
+
+        Args:
+            ir_events: IR events from pass 1
+            track_num: Track/voice number
+            target_loop_time: Target playthrough time in ticks
+            loop_info: Loop analysis from _analyze_track_loops
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        pass
+
+    @abstractmethod
+    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
+        """Analyze IR events to find loop structure.
+
+        Args:
+            ir_events: IR events from pass 1
+
+        Returns:
+            Dict with loop analysis: {
+                'has_backwards_goto': bool,
+                'goto_target_idx': int,
+                'intro_time': int,
+                'loop_time': int,
+                'target_time': int
+            }
+        """
+        pass
+
+    def _validate_track_address(self, track_num: int, target_spc_addr: int,
+                                source_offset: int, event_type: str) -> bool:
+        """Validate that a target address is within the valid range for this track.
+
+        This is a hook for format-specific address validation. Subclasses can override
+        to implement their own validation logic appropriate to their addressing scheme.
+
+        Args:
+            track_num: Track/voice number
+            target_spc_addr: Target SPC RAM address to validate
+            source_offset: Byte offset of the instruction containing this target
+            event_type: Type of event (e.g., "GOTO", "LOOP_BREAK")
+
+        Returns:
+            True if valid, False if invalid (warning already printed)
+        """
+        return True  # Default: no validation
 
 
 class AKAONewStyle(SequenceFormat):
@@ -452,7 +522,7 @@ class AKAONewStyle(SequenceFormat):
         
         return file_offset
     
-    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
         """Parse AKAO sequence header."""
         if len(data) < 0x40:
             raise ValueError("Data too short for AKAO header")
@@ -995,7 +1065,7 @@ class SNESFF2(SequenceFormat):
 
         return instruments
 
-    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
         """Parse SNES FF2 song header.
 
         Format:
@@ -1064,7 +1134,7 @@ class SNESFF2(SequenceFormat):
         return disasm, midi_events
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int]) -> Tuple[List, List[IREvent]]:
+                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         This pass does NOT execute loops or generate MIDI events. It simply parses
@@ -1247,6 +1317,8 @@ class SNESFF2(SequenceFormat):
                     # Selective repeat (0xF5) - conditional jump - just record
                     target_spc_addr = operands[1] + operands[2] * 256
                     target_offset = target_spc_addr - 0x2000  # Convert SPC address to buffer offset
+                    # Add target address to disassembly line
+                    line += f" ${target_spc_addr:04X}"
                     event = make_loop_break(p, operands[0], target_offset, operands)
                     ir_events.append(event)
 
@@ -1286,6 +1358,8 @@ class SNESFF2(SequenceFormat):
                         # Goto with address
                         target_spc_addr = operands[0] + operands[1] * 256
                         target_offset = target_spc_addr - 0x2000  # Convert SPC address to buffer offset
+                        # Add target address to disassembly line
+                        line += f" ${target_spc_addr:04X}"
                         event = make_goto(p, target_offset, operands)
                     else:
                         # Halt
@@ -1983,14 +2057,22 @@ class SNESFF3(SequenceFormat):
         data = self.rom_data[file_offset:file_offset + bytes_to_read]
         return list(struct.unpack(f'<{size}{format_char}', data))
 
-    def parse_header(self, data: bytes, song_id: int = 0) -> Dict:
+    def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
         """Parse FF3 song header with vaddroffset calculation.
 
         FF3 header structure:
         - 2 bytes: vaddroffset (raw)
         - 2 bytes: emptyvoice marker
         - 16 bytes: 8 voice pointers (vstart)
-        - 16 bytes: 8 voice pointers (vstart2) - usually unused
+        - 16 bytes: 8 voice pointers (vstart2) - alternate starting points
+
+        Args:
+            data: Song data bytes
+            song_id: Song ID for reading instrument table
+            use_alternate_pointers: If True, use vstart2 instead of vstart
+
+        Returns:
+            Dict with header info including track offsets, pointers, boundaries
         """
         if len(data) < 36:
             return {'track_offsets': [], 'instrument_table': []}
@@ -2000,14 +2082,17 @@ class SNESFF3(SequenceFormat):
         # FF3 specific: adjust vaddroffset
         vaddroffset = (0x11c24 - vaddroffset_raw) & 0xFFFF
 
-        # Read voice pointers
+        # Read both standard and alternate voice pointers
         vstart = struct.unpack('<8H', data[4:20])
         vstart2 = struct.unpack('<8H', data[20:36])
 
-        # Adjust voice pointers and filter empty voices
+        # Choose which set to use for primary track data
+        active_vstart = vstart2 if use_alternate_pointers else vstart
+
+        # Process active voice pointers (standard or alternate depending on flag)
         track_offsets = []
         adjusted_voice_pointers = []
-        for ptr in vstart:
+        for ptr in active_vstart:
             if ptr != emptyvoice:
                 adjusted_ptr = (ptr + vaddroffset) & 0xFFFF
                 adjusted_voice_pointers.append(adjusted_ptr)
@@ -2029,13 +2114,74 @@ class SNESFF3(SequenceFormat):
                 if inst_id != 0:
                     instrument_table.append(inst_id)
 
-        return {
+        # Calculate track boundaries for address validation
+        # Each track occupies SPC RAM from its start address to the nearest other track's start (or end of data)
+        # Note: Tracks are NOT necessarily in ascending address order!
+        track_boundaries = {}
+        for i, start_addr in enumerate(adjusted_voice_pointers):
+            if start_addr != 0:  # Not empty voice
+                # Find the smallest address > start_addr among ALL other tracks
+                other_starts = [addr for j, addr in enumerate(adjusted_voice_pointers)
+                               if j != i and addr != 0 and addr > start_addr]
+                end_addr = min(other_starts) if other_starts else (0x1C00 + len(data))
+                track_boundaries[i] = (start_addr, end_addr)
+
+        # Store for validation in _parse_track_pass1
+        self._track_boundaries = track_boundaries
+
+        # When using standard pointers, also process alternate pointers to detect differences
+        has_alternate_pointers = False
+        alternate_track_offsets = []
+        alternate_voice_pointers_list = []
+        alternate_track_boundaries = {}
+
+        if not use_alternate_pointers:
+            # Process alternate voice pointers
+            for ptr in vstart2:
+                if ptr != emptyvoice:
+                    adjusted_ptr = (ptr + vaddroffset) & 0xFFFF
+                    alternate_voice_pointers_list.append(adjusted_ptr)
+                    buffer_offset = adjusted_ptr - 0x1C00
+                    if buffer_offset >= 0 and buffer_offset < len(data):
+                        alternate_track_offsets.append(buffer_offset)
+                else:
+                    alternate_voice_pointers_list.append(0)
+
+            # Calculate alternate track boundaries
+            for i, start_addr in enumerate(alternate_voice_pointers_list):
+                if start_addr != 0:
+                    other_starts = [addr for j, addr in enumerate(alternate_voice_pointers_list)
+                                   if j != i and addr != 0 and addr > start_addr]
+                    end_addr = min(other_starts) if other_starts else (0x1C00 + len(data))
+                    alternate_track_boundaries[i] = (start_addr, end_addr)
+
+            # Check if any alternate pointer differs from standard (excluding empty voices)
+            for i in range(len(adjusted_voice_pointers)):
+                std_ptr = adjusted_voice_pointers[i]
+                alt_ptr = alternate_voice_pointers_list[i]
+                # Only compare non-empty voices
+                if std_ptr != 0 or alt_ptr != 0:
+                    if std_ptr != alt_ptr:
+                        has_alternate_pointers = True
+                        break
+
+        result = {
             'track_offsets': track_offsets,
             'instrument_table': instrument_table,
             'vaddroffset': vaddroffset,
             'emptyvoice': emptyvoice,
-            'voice_pointers': tuple(adjusted_voice_pointers)  # Adjusted SPC RAM addresses for disassembly
+            'voice_pointers': tuple(adjusted_voice_pointers),  # Adjusted SPC RAM addresses for disassembly
+            'track_boundaries': track_boundaries  # For address validation: {track_num: (start_spc, end_spc)}
         }
+
+        # Add alternate pointer information when processing standard pointers
+        if not use_alternate_pointers:
+            result['has_alternate_pointers'] = has_alternate_pointers
+            result['alternate_track_offsets'] = alternate_track_offsets
+            result['alternate_voice_pointers'] = tuple(alternate_voice_pointers_list)
+            result['alternate_track_boundaries'] = alternate_track_boundaries
+
+        return result
 
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
         """Get list of voice offsets within song data.
@@ -2043,6 +2189,41 @@ class SNESFF3(SequenceFormat):
         For FF3, track offsets are pre-calculated in parse_header.
         """
         return header.get('track_offsets', [])
+
+    def _validate_track_address(self, track_num: int, target_spc_addr: int,
+                                source_offset: int, event_type: str) -> bool:
+        """Validate that a target address is within the valid range for this track.
+
+        For FF3, each track has a specific SPC RAM address range from its voice start
+        to the next voice start (or end of song data). GOTO/LOOP_BREAK targets must
+        fall within the same track's address space.
+
+        Args:
+            track_num: Track/voice number
+            target_spc_addr: Target SPC RAM address to validate
+            source_offset: Byte offset of the instruction containing this target
+            event_type: Type of event (e.g., "GOTO", "LOOP_BREAK")
+
+        Returns:
+            True if valid, False if invalid (warning already printed)
+        """
+        if not hasattr(self, '_track_boundaries') or track_num not in self._track_boundaries:
+            # No boundaries available, skip validation
+            return True
+
+        start_addr, end_addr = self._track_boundaries[track_num]
+
+        if target_spc_addr < start_addr or target_spc_addr >= end_addr:
+            import sys
+            print(f"WARNING: Track {track_num} @ 0x{source_offset:04X}: {event_type} targets SPC addr 0x{target_spc_addr:04X}",
+                  file=sys.stderr)
+            print(f"         Valid range for this track: [0x{start_addr:04X}, 0x{end_addr:04X})",
+                  file=sys.stderr)
+            print(f"         This indicates incorrect vaddroffset calculation",
+                  file=sys.stderr)
+            return False
+
+        return True
 
     def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
                     instrument_table: Optional[List[int]] = None,
@@ -2076,7 +2257,7 @@ class SNESFF3(SequenceFormat):
         return disasm, midi_events
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
-                          instrument_table: List[int]) -> Tuple[List, List[IREvent]]:
+                          instrument_table: List[int], vaddroffset: int = 0) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         This pass does NOT execute loops or generate MIDI events. It simply parses
@@ -2147,16 +2328,16 @@ class SNESFF3(SequenceFormat):
                         line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
 
                 elif note_num == 12:
+                     # Tie - create IR event
+                    event = make_tie(p, dur)
+                    ir_events.append(event)
+                    line += f"           Tie          Dur {raw_dur}"
+
+                else:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
                     line += f"           Rest         Dur {raw_dur}"
-
-                else:
-                    # Tie - create IR event
-                    event = make_tie(p, dur)
-                    ir_events.append(event)
-                    line += f"           Tie          Dur {raw_dur}"
 
                 p += 1
                 disasm.append(line)
@@ -2264,8 +2445,16 @@ class SNESFF3(SequenceFormat):
 
                 elif cmd == 0xF5 and len(operands) >= 3:
                     # Selective repeat (0xF5) - conditional jump - just record
-                    target_spc_addr = operands[1] + operands[2] * 256
+                    # Apply vaddroffset per Perl code: target = (($op2 + $op3 * 256) + $vaddroffset - 1) & 0xffff
+                    target_spc_addr = ((operands[1] + operands[2] * 256) + vaddroffset - 1) & 0xFFFF
                     target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
+
+                    # Validate address is within track boundaries
+                    self._validate_track_address(track_num, target_spc_addr, p, "LOOP_BREAK")
+
+                    # Add target address to disassembly line
+                    line += f" ${target_spc_addr:04X}"
+
                     event = make_loop_break(p, operands[0], target_offset, operands)
                     ir_events.append(event)
 
@@ -2301,8 +2490,16 @@ class SNESFF3(SequenceFormat):
 
                 elif cmd == 0xF6 and len(operands) >= 2:
                     # Goto (FF3 uses 0xF6 vs FF2 uses 0xF4)
-                    target_spc_addr = operands[0] + operands[1] * 256
+                    # Apply vaddroffset per Perl code: target = (($op1 + $op2 * 256) + $vaddroffset) & 0xffff
+                    target_spc_addr = ((operands[0] + operands[1] * 256) + vaddroffset) & 0xFFFF
                     target_offset = target_spc_addr - 0x1C00  # Convert SPC address to buffer offset (FF3 base)
+
+                    # Validate address is within track boundaries
+                    self._validate_track_address(track_num, target_spc_addr, p, "GOTO")
+
+                    # Add target address to disassembly line
+                    line += f" ${target_spc_addr:04X}"
+
                     event = make_goto(p, target_offset, operands)
                     ir_events.append(event)
                     disasm.append(line)
@@ -3022,13 +3219,122 @@ class SequenceExtractor:
                 offset = song.sector * self.raw_sector_size if song.offset is None else song.offset
                 f.seek(offset)
                 return f.read(song.length)
-    
-    def disassemble_to_text(self, song: SongMetadata, data: bytes) -> str:
-        """Generate text disassembly of sequence."""
-        output = []
 
-        # Parse header (pass song_id for FF3)
-        header = self.format_handler.parse_header(data, song.id)
+    def parse_all_tracks(self, song: SongMetadata, data: bytes, use_alternate_pointers: bool = False) -> Dict:
+        """Parse all tracks for a song (Pass 1) and return IR events + disassembly.
+
+        This method performs the first pass parsing for all tracks in a song,
+        generating both IR events and disassembly text. The results can be reused
+        for generating multiple output formats without re-parsing.
+
+        Args:
+            song: Song metadata
+            data: Raw song data
+            use_alternate_pointers: If True, use alternate voice pointers (FF3 vstart2)
+
+        Returns:
+            Dict with structure:
+            {
+                'header': {...},  # Parsed header
+                'tracks': {
+                    voice_num: {
+                        'offset': int,  # Byte offset within data
+                        'ir_events': List[IREvent],  # IR events from pass 1
+                        'disasm_lines': List[str],  # Disassembly text lines
+                    },
+                    ...
+                }
+            }
+        """
+        # Parse header (pass song_id for FF3, and use_alternate_pointers flag)
+        header = self.format_handler.parse_header(data, song.id, use_alternate_pointers)
+        track_offsets = self.format_handler.get_track_offsets(data, header)
+
+        # Read instrument table for SNES FF2/FF3 format
+        instrument_table = None
+        if isinstance(self.format_handler, SNESFF2):
+            instrument_table = self.format_handler._read_song_instrument_table(song.id)
+        elif isinstance(self.format_handler, SNESFF3):
+            # FF3: instrument table is in the header
+            instrument_table = header.get('instrument_table', [])
+
+        # Get vaddroffset for FF3 (for GOTO/LOOP_BREAK address calculations)
+        vaddroffset = header.get('vaddroffset', 0) if isinstance(self.format_handler, SNESFF3) else 0
+
+        # Parse all tracks
+        tracks = {}
+        for voice_num, offset in enumerate(track_offsets):
+            # Call _parse_track_pass1 to get disassembly and IR events
+            # Returns: (disasm_lines, ir_events)
+            disasm_lines, ir_events = self.format_handler._parse_track_pass1(
+                data, offset, voice_num, instrument_table or [], vaddroffset
+            )
+
+            tracks[voice_num] = {
+                'offset': offset,
+                'ir_events': ir_events,
+                'disasm_lines': disasm_lines,
+            }
+
+        return {
+            'header': header,
+            'tracks': tracks,
+        }
+
+    def analyze_song_structure(self, track_data: Dict) -> Dict:
+        """Analyze loop structure for all tracks and determine song length.
+
+        Args:
+            track_data: Output from parse_all_tracks()
+
+        Returns:
+            Dict with structure:
+            {
+                'tracks': {
+                    voice_num: {
+                        'loop_info': {...},  # From _analyze_track_loops
+                    },
+                    ...
+                },
+                'song_length': int,  # Maximum target_time across all tracks (in ticks)
+            }
+        """
+        analysis = {
+            'tracks': {},
+            'song_length': 0,
+        }
+
+        max_target_time = 0
+
+        for voice_num, track in track_data['tracks'].items():
+            # Analyze loop structure for this track
+            loop_info = self.format_handler._analyze_track_loops(track['ir_events'])
+
+            analysis['tracks'][voice_num] = {
+                'loop_info': loop_info,
+            }
+
+            # Track maximum target time for song length
+            target_time = loop_info.get('target_time', 0)
+            if target_time > max_target_time:
+                max_target_time = target_time
+
+        analysis['song_length'] = max_target_time
+
+        return analysis
+
+    def disassemble_to_text(self, song: SongMetadata, track_data: Dict) -> str:
+        """Generate text disassembly of sequence from pre-parsed track data.
+
+        Args:
+            song: Song metadata
+            track_data: Output from parse_all_tracks()
+
+        Returns:
+            Formatted disassembly text
+        """
+        output = []
+        header = track_data['header']
 
         # Different header formats for different console types
         if self.console_type == 'snes':
@@ -3044,18 +3350,10 @@ class SequenceExtractor:
                     output.append(f"  Start {addr_str}  Length {song_length:04X}")
 
             # Read and display instrument table
-            instrument_table = None
-            if isinstance(self.format_handler, SNESFF2):
-                instrument_table = self.format_handler._read_song_instrument_table(song.id)
-                if instrument_table:
-                    inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
-                    output.append(f"  Instruments: {inst_str}")
-            elif isinstance(self.format_handler, SNESFF3):
-                # FF3: instrument table is in header
-                instrument_table = header.get('instrument_table', [])
-                if instrument_table:
-                    inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
-                    output.append(f"  Instruments: {inst_str}")
+            instrument_table = header.get('instrument_table', [])
+            if instrument_table:
+                inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
+                output.append(f"  Instruments: {inst_str}")
 
             # Voice start addresses
             output.append("  Voice start addresses:")
@@ -3077,84 +3375,137 @@ class SequenceExtractor:
             output.append(f"Voice count: {header['voice_count']}")
             output.append("")
 
-            # Get track offsets
-            track_offsets = self.format_handler.get_track_offsets(data, header)
-
-            for i, offset in enumerate(track_offsets):
-                output.append(f"Voice {i:02X} @ {offset:04X}")
+            # List track offsets
+            for voice_num in sorted(track_data['tracks'].keys()):
+                offset = track_data['tracks'][voice_num]['offset']
+                output.append(f"Voice {voice_num:02X} @ {offset:04X}")
             output.append("")
 
-        # Get track offsets for disassembly
-        track_offsets = self.format_handler.get_track_offsets(data, header)
-
-        # Read instrument table for SNES FF2 format
-        instrument_table = None
-        if isinstance(self.format_handler, SNESFF2):
-            instrument_table = self.format_handler._read_song_instrument_table(song.id)
-
-        # Parse each track
-        for i, offset in enumerate(track_offsets):
+        # Output disassembly for each track
+        for voice_num in sorted(track_data['tracks'].keys()):
             # Add voice label for SNES format
             if self.console_type == 'snes':
-                output.append(f"    Voice {i} data:")
+                output.append(f"    Voice {voice_num} data:")
 
-            disasm, _ = self.format_handler.parse_track(
-                data, offset, i, song.id, instrument_table
-            )
-            output.extend(disasm)
+            # Use pre-parsed disassembly lines
+            disasm_lines = track_data['tracks'][voice_num]['disasm_lines']
+            output.extend(disasm_lines)
             output.append("")
 
         return '\n'.join(output)
-    
-    def generate_midi(self, song: SongMetadata, data: bytes, output_path: Path):
-        """Generate MIDI file from sequence with patch mapping support."""
+
+    def dump_ir_to_text(self, song: SongMetadata, track_data: Dict, loop_analysis: Dict) -> str:
+        """Generate IR (Intermediate Representation) dump from pre-parsed track data.
+
+        Args:
+            song: Song metadata
+            track_data: Output from parse_all_tracks()
+            loop_analysis: Output from analyze_song_structure()
+
+        Returns:
+            Formatted IR dump text
+        """
+        output = []
+        output.append(f"Song: {song.id:02X} {song.title}")
+        output.append(f"Song length: {loop_analysis['song_length']} ticks")
+        output.append("")
+
+        # Note names for display
+        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+        for voice_num in sorted(track_data['tracks'].keys()):
+            track = track_data['tracks'][voice_num]
+            ir_events = track['ir_events']
+            loop_info = loop_analysis['tracks'][voice_num]['loop_info']
+
+            output.append(f"=== Voice {voice_num} ===")
+            output.append("")
+
+            # Dump IR events
+            for idx, event in enumerate(ir_events):
+                parts = [f"[{idx:03d}] @0x{event.offset:04X} {event.type.name:15s}"]
+
+                # Add event-specific fields
+                if event.type == IREventType.NOTE:
+                    note_name = NOTE_NAMES[event.note_num] if event.note_num is not None else '?'
+                    parts.append(f"note={event.note_num}({note_name:2s}) dur={event.duration}")
+                    # Add metadata
+                    if event.metadata:
+                        meta_str = ', '.join(f"{k}={v}" for k, v in event.metadata.items())
+                        parts.append(f" metadata={{{meta_str}}}")
+
+                elif event.type in (IREventType.REST, IREventType.TIE):
+                    parts.append(f"dur={event.duration}")
+
+                elif event.type == IREventType.PATCH_CHANGE:
+                    parts.append(f"inst_id=0x{event.inst_id:02X} gm_patch={event.gm_patch} transpose={event.transpose}")
+
+                elif event.type == IREventType.TEMPO:
+                    parts.append(f"value={event.value}")
+
+                elif event.type in (IREventType.OCTAVE_SET, IREventType.VOLUME, IREventType.PAN):
+                    parts.append(f"value={event.value}")
+
+                elif event.type == IREventType.LOOP_START:
+                    parts.append(f"count={event.loop_count}")
+
+                elif event.type in (IREventType.GOTO, IREventType.LOOP_BREAK):
+                    parts.append(f"target=0x{event.target_offset:04X}")
+                    if event.condition is not None:
+                        parts.append(f" cond={event.condition}")
+
+                # Add operands if present
+                if event.operands:
+                    op_str = ' '.join(f"{b:02X}" for b in event.operands)
+                    parts.append(f" operands=[{op_str}]")
+
+                output.append(''.join(parts))
+
+            # Add loop analysis summary
+            output.append("")
+            output.append("Loop Analysis:")
+            output.append(f"  has_backwards_goto: {loop_info.get('has_backwards_goto', False)}")
+            if loop_info.get('has_backwards_goto'):
+                output.append(f"  goto_target_index: {loop_info.get('goto_target_idx', 'N/A')}")
+            output.append(f"  intro_time: {loop_info.get('intro_time', 0)} ticks")
+            output.append(f"  loop_time: {loop_info.get('loop_time', 0)} ticks")
+            output.append(f"  target_time: {loop_info.get('target_time', 0)} ticks")
+            output.append("")
+
+        return '\n'.join(output)
+
+    def generate_midi(self, song: SongMetadata, track_data: Dict, loop_analysis: Dict, output_path: Path):
+        """Generate MIDI file from sequence with patch mapping support.
+
+        Args:
+            song: Song metadata
+            track_data: Output from parse_all_tracks()
+            loop_analysis: Output from analyze_song_structure()
+            output_path: Path to write MIDI file
+        """
         try:
-            header = self.format_handler.parse_header(data, song.id)
-            track_offsets = self.format_handler.get_track_offsets(data, header)
-
-            # Read instrument table for SNES FF2 and FF3 formats
-            instrument_table = None
-            if isinstance(self.format_handler, (SNESFF2, SNESFF3)):
-                if isinstance(self.format_handler, SNESFF2):
-                    instrument_table = self.format_handler._read_song_instrument_table(song.id)
-                else:
-                    # FF3: instrument table is in header
-                    instrument_table = header.get('instrument_table', [])
-
-            # Phase 2 loop handling: Analyze all tracks first to find longest loop
-            track_loop_infos = []
-            for voice_num, offset in enumerate(track_offsets):
-                # Do Pass 1 to get IR events
-                disasm, ir_events = self.format_handler._parse_track_pass1(  # type: ignore[attr-defined]
-                    data, offset, voice_num, instrument_table or []
-                )
-                # Analyze for loops
-                loop_info = self.format_handler._analyze_track_loops(ir_events)  # type: ignore[attr-defined]
-                track_loop_infos.append({
-                    'ir_events': ir_events,
-                    'loop_info': loop_info
-                })
-
             # Find longest loop time among all tracks with backwards GOTOs
             longest_loop_time = 0
-            for i, info in enumerate(track_loop_infos):
-                if info['loop_info']['has_backwards_goto']:
-                    loop_time = info['loop_info']['loop_time']
+            for voice_num in track_data['tracks'].keys():
+                loop_info = loop_analysis['tracks'][voice_num]['loop_info']
+                if loop_info.get('has_backwards_goto', False):
+                    loop_time = loop_info.get('loop_time', 0)
                     if loop_time > longest_loop_time:
                         longest_loop_time = loop_time
 
             # Calculate target playthrough time: intro + (2× longest loop)
             target_loop_time = 2 * longest_loop_time
-            # DEBUG
-            # print(f"  Loop timing: longest_loop={longest_loop_time}, target={target_loop_time}")
 
-            # Parse all tracks with loop info
+            # Parse all tracks with loop info (Pass 2)
             parsed_tracks = []
-            for voice_num, info in enumerate(track_loop_infos):
+            for voice_num in sorted(track_data['tracks'].keys()):
                 try:
-                    # Pass 2 only - we already have IR events from analysis
+                    track = track_data['tracks'][voice_num]
+                    loop_info = loop_analysis['tracks'][voice_num]['loop_info']
+
+                    # Pass 2 - expand IR events into MIDI events
                     midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
-                        info['ir_events'], voice_num, target_loop_time, info['loop_info']
+                        track['ir_events'], voice_num, target_loop_time, loop_info
                     )
                     has_notes = any(e['type'] == 'note' for e in midi_events)
                     parsed_tracks.append({
@@ -3435,16 +3786,36 @@ class SequenceExtractor:
 
                 # Tempo events are now handled on conductor track, not here
 
-    def generate_musicxml(self, song: SongMetadata, data: bytes, output_path: Path):
-        """Generate MusicXML from sequence data."""
-        # Parse tracks using same logic as MIDI generation
-        header = self.format_handler.parse_header(data, song.id)
-        track_offsets = self.format_handler.get_track_offsets(data, header)
+    def generate_musicxml(self, song: SongMetadata, track_data: Dict, loop_analysis: Dict, output_path: Path):
+        """Generate MusicXML from sequence data.
 
-        # Parse all tracks
+        Args:
+            song: Song metadata
+            track_data: Output from parse_all_tracks()
+            loop_analysis: Output from analyze_song_structure()
+            output_path: Path to write MusicXML file
+        """
+        # Calculate target loop time (same as MIDI generation)
+        longest_loop_time = 0
+        for voice_num in track_data['tracks'].keys():
+            loop_info = loop_analysis['tracks'][voice_num]['loop_info']
+            if loop_info.get('has_backwards_goto', False):
+                loop_time = loop_info.get('loop_time', 0)
+                if loop_time > longest_loop_time:
+                    longest_loop_time = loop_time
+
+        target_loop_time = 2 * longest_loop_time
+
+        # Parse all tracks (Pass 2)
         parsed_tracks = []
-        for voice_num, offset in enumerate(track_offsets):
-            _, midi_events = self.format_handler.parse_track(data, offset, voice_num)
+        for voice_num in sorted(track_data['tracks'].keys()):
+            track = track_data['tracks'][voice_num]
+            loop_info = loop_analysis['tracks'][voice_num]['loop_info']
+
+            # Pass 2 - expand IR events into MIDI events
+            midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
+                track['ir_events'], voice_num, target_loop_time, loop_info
+            )
             has_notes = any(e['type'] == 'note' for e in midi_events)
             parsed_tracks.append({
                 'voice_num': voice_num,
@@ -3670,20 +4041,61 @@ class SequenceExtractor:
                 # Extract data
                 data = self.extract_sequence_data(song)
 
+                # Parse all tracks once (Pass 1)
+                track_data = self.parse_all_tracks(song, data)
+
+                # Analyze loop structure
+                loop_analysis = self.analyze_song_structure(track_data)
+
                 # Generate text disassembly
-                text_output = self.disassemble_to_text(song, data)
+                text_output = self.disassemble_to_text(song, track_data)
                 text_file = text_dir / f"{filename}.txt"
                 text_file.write_text(text_output)
 
+                # Generate IR dump
+                ir_output = self.dump_ir_to_text(song, track_data, loop_analysis)
+                ir_file = text_dir / f"{filename}.ir"
+                ir_file.write_text(ir_output)
+
                 # Generate MIDI
                 midi_file = midi_dir / f"{filename}.mid"
-                self.generate_midi(song, data, midi_file)
+                self.generate_midi(song, track_data, loop_analysis, midi_file)
 
                 # Generate MusicXML
                 xml_file = xml_dir / f"{filename}.musicxml"
-                self.generate_musicxml(song, data, xml_file)
+                self.generate_musicxml(song, track_data, loop_analysis, xml_file)
 
-                print(f"  OK: Generated {text_file.name}, {midi_file.name}, and {xml_file.name}")
+                print(f"  OK: Generated {text_file.name}, {ir_file.name}, {midi_file.name}, and {xml_file.name}")
+
+                # Check if song has alternate voice pointers (FF3 feature)
+                if track_data['header'].get('has_alternate_pointers', False):
+                    # Generate alternate filename (insert "alt" after song ID)
+                    if hasattr(song, 'title') and song.title:
+                        alt_filename = f"{song.id:02X}alt {song.title}"
+                    else:
+                        alt_filename = f"AKAO_{song.id:02X}alt"
+
+                    # Sanitize filename (same as standard version)
+                    for char in invalid_chars:
+                        alt_filename = alt_filename.replace(char, '_')
+
+                    print(f"  Processing alternate version: {alt_filename}")
+
+                    # Re-parse with alternate pointers
+                    alt_track_data = self.parse_all_tracks(song, data, use_alternate_pointers=True)
+                    alt_loop_analysis = self.analyze_song_structure(alt_track_data)
+
+                    # Generate all outputs with "alt" filename
+                    alt_text = self.disassemble_to_text(song, alt_track_data)
+                    (text_dir / f"{alt_filename}.txt").write_text(alt_text)
+
+                    alt_ir = self.dump_ir_to_text(song, alt_track_data, alt_loop_analysis)
+                    (text_dir / f"{alt_filename}.ir").write_text(alt_ir)
+
+                    self.generate_midi(song, alt_track_data, alt_loop_analysis, midi_dir / f"{alt_filename}.mid")
+                    self.generate_musicxml(song, alt_track_data, alt_loop_analysis, xml_dir / f"{alt_filename}.musicxml")
+
+                    print(f"  OK: Generated alternate files for {alt_filename}")
 
             except Exception as e:
                 print(f"  ERROR: {e}")
