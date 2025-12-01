@@ -1,5 +1,5 @@
 game: "Final Fantasy II US (SNES)"
-format: "snes_ff2"
+format: "snes_unified"
 console_type: "snes"
 
 # SNES ROM file
@@ -7,6 +7,11 @@ rom_file: "ff2.smc"
 
 # Base address for song data (SNES address 04/C000)
 base_address: 0x04C000
+
+# PHASE 1: Config-driven parameters for SNESUnified
+spc_load_address: 0x2000   # SPC-700 RAM load address
+note_divisor: 15           # Note encoding: note = cmd / 15, duration = cmd % 15
+first_opcode: 0xD2         # First command opcode (< 0xD2 are notes)
 
 # Song pointer table location (SNES address)
 # The first 3-byte pointer at base_address points to the song table

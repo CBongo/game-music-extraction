@@ -2266,6 +2266,415 @@ class SNESFF2(SequenceFormat):
         return midi_events
 
 
+class SNESUnified(SequenceFormat):
+    """Unified SNES music format handler - config-driven for all SNES AKAO games."""
+
+    OPCODE_NAMES = {
+        0xd2: 'Tempo', 0xd3: 'nop', 0xd4: 'Echo Volume',
+        0xd5: 'Echo Settings', 0xd6: 'Portamento Settings',
+        0xd7: 'Tremolo Settings', 0xd8: 'Vibrato Settings',
+        0xd9: 'Pan Sweep Settings', 0xda: 'Set Octave',
+        0xdb: 'Set Patch', 0xdc: 'Set Envelope',
+        0xdd: 'Set Gain (Exp Dec Time)',
+        0xde: 'Set Staccato (note dur ratio)',
+        0xdf: 'Set Noise Clock', 0xe0: 'Start Repeat',
+        0xe1: 'Inc Octave', 0xe2: 'Dec Octave', 0xe3: 'nop',
+        0xe4: 'nop', 0xe5: 'nop', 0xe6: 'Portamento Off',
+        0xe7: 'Tremolo Off', 0xe8: 'Vibrato Off',
+        0xe9: 'Pan Sweep Off', 0xea: 'Enable Echo',
+        0xeb: 'Disable Echo', 0xec: 'Enable Noise',
+        0xed: 'Disable Noise', 0xee: 'Enable Pitchmod',
+        0xef: 'Disable Pitchmod', 0xf0: 'End Repeat',
+        0xf1: 'Halt', 0xf2: 'Voice Volume', 0xf3: 'Voice Balance',
+        0xf4: 'Goto', 0xf5: 'Selective Repeat',
+        0xf6: 'Goto 0760+X', 0xf7: 'Halt', 0xf8: 'Halt',
+        0xf9: 'Halt', 0xfa: 'Halt', 0xfb: 'Halt',
+        0xfc: 'Halt', 0xfd: 'Halt', 0xfe: 'Halt', 0xff: 'Halt'
+    }
+
+    def __init__(self, config: Dict, rom_data: bytes):
+        """Initialize with game-specific config and ROM data."""
+        self.config = config
+        self.rom_data: bytes = rom_data
+        self.has_smc_header = len(rom_data) % 1024 == 512  # SMC header is 512 bytes
+        self.smc_header_size = 512 if self.has_smc_header else 0
+
+        # PHASE 1: Config-driven parameters (new!)
+        self.spc_load_address = config.get('spc_load_address', 0x2000)
+        self.note_divisor = config.get('note_divisor', 15)
+        self.first_opcode = config.get('first_opcode', 0xD2)
+
+        # Auto-detect ROM mapping mode (LoROM vs HiROM)
+        self.rom_mapping = self._detect_rom_mapping()
+
+        # Read duration table from ROM
+        if 'duration_table' in config:
+            table_cfg = config['duration_table']
+            self.duration_table = self._read_rom_table(
+                table_cfg.get('address'),
+                table_cfg.get('size', 15),
+                table_cfg.get('type', 'B')
+            )
+        else:
+            # Default duration table
+            self.duration_table = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+        # Read opcode length table from ROM
+        if 'opcode_table' in config:
+            table_cfg = config['opcode_table']
+            self.opcode_table = self._read_rom_table(
+                table_cfg.get('address'),
+                table_cfg.get('size', 46),
+                table_cfg.get('type', 'B')
+            )
+        else:
+            # Default opcode lengths (46 opcodes starting from first_opcode)
+            self.opcode_table = [1] * 46
+
+        # Get state defaults from config
+        self.default_tempo = config.get('default_tempo', 255)
+        self.default_octave = config.get('default_octave', 4)
+        self.default_velocity = config.get('default_velocity', 64)
+
+        # Calculate tempo_factor from component values
+        # tempo_factor = timer_period_us * timer_count * tempo_resolution
+        timer_period_us = config.get('timer_period_us', 4500)
+        timer_count = config.get('timer_count', 48)
+        tempo_resolution = config.get('tempo_resolution', 256)
+        self.tempo_factor = timer_period_us * timer_count * tempo_resolution
+
+        # Build patch map from config (instrument_id -> PatchInfo)
+        self.patch_map = {}
+        if 'patch_map' in config:
+            for inst_id_str, patch_info in config['patch_map'].items():
+                # Convert hex string to int (handles both "0x00" and "00" formats)
+                if isinstance(inst_id_str, str):
+                    inst_id = int(inst_id_str, 0)  # base 0 auto-detects hex with 0x prefix
+                else:
+                    inst_id = inst_id_str
+                self.patch_map[inst_id] = patch_info
+
+        # Get base address for song pointers
+        self.base_address = config.get('base_address', 0x04C000)
+
+        # Read song pointer table
+        self.song_pointers = self._read_song_pointer_table()
+
+    # Copy all methods from SNESFF2 with modifications for config-driven parameters
+    # These are inherited from the base SequenceFormat or copied identically:
+    _detect_rom_mapping = SNESFF2._detect_rom_mapping
+    rom_offset_to_display_addr = SNESFF2.rom_offset_to_display_addr
+    _find_event_by_offset = SNESFF2._find_event_by_offset
+    _find_track_containing_offset = SNESFF2._find_track_containing_offset
+    _read_3byte_pointers = SNESFF2._read_3byte_pointers
+    _read_song_pointer_table = SNESFF2._read_song_pointer_table
+    _read_rom_table = SNESFF2._read_rom_table
+    _read_song_instrument_table = SNESFF2._read_song_instrument_table
+    parse_header = SNESFF2.parse_header
+    _analyze_track_loops = SNESFF2._analyze_track_loops
+    _parse_track_pass2 = SNESFF2._parse_track_pass2
+
+    def buffer_offset_to_spc_addr(self, offset: int) -> int:
+        """Convert buffer offset to SPC RAM address.
+
+        The song data buffer contains only music data (size bytes already removed).
+        SPC loads data at configurable address (default 0x2000).
+
+        Args:
+            offset: Offset within the song data buffer
+
+        Returns:
+            SPC RAM address
+        """
+        return offset + self.spc_load_address
+
+    def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
+        """Get list of voice offsets within song data.
+
+        Voice pointers are SPC-700 RAM addresses where the song data is loaded.
+        Pointers < 0x100 indicate unused voices (matches Perl script threshold).
+        The data buffer no longer includes size bytes.
+        """
+        offsets = []
+        for ptr in header['voice_pointers']:
+            if ptr >= 0x100:  # Valid voice pointer (matches Perl: next if $vstart[$v] < 0x100)
+                # Convert SPC RAM address to offset in our data buffer
+                buffer_offset = ptr - self.spc_load_address
+                offsets.append(buffer_offset)
+        return offsets
+
+    def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
+        """Pass 1: Linear parse to build disassembly and intermediate representation.
+
+        This pass does NOT execute loops or generate MIDI events. It simply parses
+        the opcode stream linearly, building IR events that represent the sequence
+        structure. Disassembly is generated with loop awareness to avoid duplicates.
+
+        Returns:
+            Tuple of (disassembly_lines, ir_events)
+        """
+        disasm = []
+        ir_events = []
+
+        # Track state for disassembly and IR building
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        current_patch = 0
+        perc_key = 0
+        transpose_octaves = 0
+        inst_id = 0  # Current instrument ID from table
+
+        # Track loop depth for disassembly indentation (but don't execute loops)
+        loop_depth = 0
+
+        # Track whether any timing events (notes/rests) have been processed
+        # This allows cross-track GOTOs at the very start (for chorus effects)
+        has_timing_events = False
+
+        # Start from voice offset
+        p = offset
+
+        while p < len(data):
+            cmd = data[p]
+
+            # Convert buffer offset to SPC RAM address for display (config-driven)
+            spc_addr = p + self.spc_load_address
+            line = f"      {spc_addr:04X}: {cmd:02X} "
+
+            # Check if it's a note (< first_opcode, config-driven)
+            if cmd < self.first_opcode:
+                # Note encoding: note = cmd / note_divisor, duration = cmd % note_divisor (config-driven)
+                note_num = cmd // self.note_divisor
+                dur_idx = cmd % self.note_divisor
+                # Store native duration (no scaling)
+                # Scaling will be applied in Pass 2
+                dur = self.duration_table[dur_idx]
+
+                if note_num < 12:
+                    # Regular note - create IR event
+                    event = make_note(p, note_num, dur)
+                    # Store current state in event for pass 2
+                    # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
+                    # because loops can modify octave during execution
+                    event.metadata = {
+                        'velocity': velocity,
+                        'patch': current_patch,
+                        'perc_key': perc_key,
+                        'transpose': transpose_octaves,
+                        'track_num': track_num,
+                        'inst_id': inst_id
+                    }
+                    ir_events.append(event)
+                    has_timing_events = True
+
+                    # Build disassembly line
+                    # Format: "4E            Note F  (05) Dur 48"
+                    note_name = NOTE_NAMES[note_num]
+                    if perc_key:
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC key={perc_key}]"
+                    else:
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
+
+                elif note_num == 12:
+                    # Rest - create IR event
+                    event = make_rest(p, dur)
+                    ir_events.append(event)
+                    line += f"           Rest         Dur {dur}"
+
+                else:
+                    # Tie - create IR event
+                    event = make_tie(p, dur)
+                    ir_events.append(event)
+                    line += f"           Tie          Dur {dur}"
+
+                p += 1
+                disasm.append(line)
+
+            else:
+                # Command opcode (config-driven first_opcode)
+                oplen = self.opcode_table[cmd - self.first_opcode]
+                operands = list(data[p+1:p+1+oplen])
+
+                # Format operands with proper spacing
+                operand_str = ' '.join(f"{op:02X}" for op in operands)
+                # Pad operands to align text descriptions (assume max 3 operands = 8 chars)
+                line += f"{operand_str:<8}   {self.OPCODE_NAMES.get(cmd, f'OP_{cmd:02X}')}"
+
+                # Create IR events for opcodes that affect playback
+                if cmd == 0xD2 and len(operands) >= 3:
+                    # Tempo change
+                    tempo = operands[2]
+                    # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
+                    bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                    event = make_tempo(p, bpm, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xDB and len(operands) >= 1:
+                    # Patch change
+                    patch_index = operands[0] - 0x40
+                    if 0 <= patch_index < len(instrument_table):
+                        inst_id = instrument_table[patch_index]
+                        current_patch = operands[0]
+
+                        # Look up instrument in patch map
+                        if inst_id in self.patch_map:
+                            patch_info = self.patch_map[inst_id]
+                            gm_patch = patch_info['gm_patch']
+                            transpose_octaves = patch_info.get('transpose', 0)
+
+                            # Check if this is percussion (negative GM patch number)
+                            if gm_patch < 0:
+                                # Percussion mode
+                                perc_key = abs(gm_patch)
+                                line += f" -> PERC key={perc_key}"
+                            else:
+                                # Regular instrument
+                                perc_key = 0
+                                line += f" -> GM patch {gm_patch}"
+
+                            # Create IR event for patch change
+                            event = make_patch_change(p, inst_id, gm_patch, transpose_octaves, operands)
+                            ir_events.append(event)
+                        else:
+                            # Instrument not in patch map, use default
+                            current_patch = operands[0]
+                            perc_key = 0
+                            transpose_octaves = 0
+                    else:
+                        # Invalid patch index
+                        current_patch = operands[0]
+                        perc_key = 0
+                        transpose_octaves = 0
+
+                elif cmd == 0xDA and len(operands) >= 1:
+                    # Set octave
+                    octave = operands[0]
+                    event = make_octave_set(p, octave, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE1:
+                    # Inc octave
+                    octave += 1
+                    event = make_octave_inc(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xE2:
+                    # Dec octave
+                    octave -= 1
+                    event = make_octave_dec(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xF2 and len(operands) >= 3:
+                    # Voice Volume (F2): 3 operands
+                    # Bytes 0-1: fade steps (if both zero, immediate change)
+                    # Byte 2: target volume
+                    # For MIDI, we use the target volume and ignore fades
+                    # Scale from 0-255 to MIDI velocity 0-127
+                    velocity = operands[2] >> 1
+                    event = make_volume(p, velocity, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE0 and len(operands) >= 1:
+                    # Begin repeat (0xE0) - just record it, don't execute
+                    loop_depth += 1
+                    event = make_loop_start(p, operands[0], operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xF0:
+                    # End repeat (0xF0) - just record it, don't execute
+                    loop_depth = max(0, loop_depth - 1)
+                    event = make_loop_end(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xF5 and len(operands) >= 3:
+                    # Selective repeat (0xF5) - conditional jump - just record
+                    target_spc_addr = operands[1] + operands[2] * 256
+                    target_offset = target_spc_addr - self.spc_load_address  # Config-driven
+                    # Add target address to disassembly line
+                    line += f" ${target_spc_addr:04X}"
+                    event = make_loop_break(p, operands[0], target_offset, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xD8 and len(operands) >= 3:
+                    # Vibrato settings
+                    event = make_vibrato_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE8:
+                    # Vibrato off
+                    event = make_vibrato_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xD7 and len(operands) >= 3:
+                    # Tremolo settings
+                    event = make_tremolo_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE7:
+                    # Tremolo off
+                    event = make_tremolo_off(p)
+                    ir_events.append(event)
+
+                elif cmd == 0xD6 and len(operands) >= 3:
+                    # Portamento settings
+                    event = make_portamento_on(p, operands)
+                    ir_events.append(event)
+
+                elif cmd == 0xE6:
+                    # Portamento off
+                    event = make_portamento_off(p)
+                    ir_events.append(event)
+
+                elif cmd in (0xF1, 0xF4) or cmd >= 0xF7:
+                    # Halt or goto
+                    if cmd == 0xF4 and len(operands) >= 2:
+                        # Goto with address
+                        target_spc_addr = operands[0] + operands[1] * 256
+                        target_offset = target_spc_addr - self.spc_load_address  # Config-driven
+
+                        # Determine if this is a backwards GOTO
+                        is_backwards = target_offset < p
+
+                        # Add target address to disassembly line
+                        line += f" ${target_spc_addr:04X}"
+                        event = make_goto(p, target_offset, operands)
+                        ir_events.append(event)
+                        disasm.append(line)
+
+                        # Backwards GOTO - loop, halt disassembly
+                        if is_backwards:
+                            break
+                        else:
+                            # Forward GOTO - check if target is in another track's assigned region
+                            if track_boundaries:
+                                target_track = None
+                                for t_num, (t_start, t_end) in track_boundaries.items():
+                                    if t_num != track_num and t_start <= target_offset < t_end:
+                                        target_track = t_num
+                                        break
+
+                                if target_track is not None:
+                                    # GOTO into another track's data (songs 49, 4A) - halt
+                                    break
+
+                            # Either no track_boundaries, or target is unassigned - continue (songs 53, 54)
+                            p += oplen + 1
+                    else:
+                        # Halt - end of track
+                        event = make_halt(p, operands)
+                        ir_events.append(event)
+                        disasm.append(line)
+                        break
+
+                p += oplen + 1
+                disasm.append(line)
+
+        return disasm, ir_events
+
+
 class SNESFF3(SequenceFormat):
     """SNES Final Fantasy III (US) / VI (JP) music format handler."""
 
@@ -3600,6 +4009,8 @@ class SequenceExtractor:
         self.format_handler: SequenceFormat
         if format_name == 'akao_newstyle':
             self.format_handler = AKAONewStyle(self.config, self.rom_data, exe_iso_reader=self)
+        elif format_name == 'snes_unified':
+            self.format_handler = SNESUnified(self.config, self.rom_data)
         elif format_name == 'snes_ff2':
             self.format_handler = SNESFF2(self.config, self.rom_data)
         elif format_name == 'snes_ff3':
