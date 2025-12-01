@@ -168,12 +168,18 @@ def make_tie(offset: int, duration: int) -> IREvent:
     )
 
 
-def make_tempo(offset: int, tempo: int, operands: Optional[List[int]] = None) -> IREvent:
-    """Create a tempo change event."""
+def make_tempo(offset: int, bpm: float, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a tempo change event.
+
+    Args:
+        offset: Byte offset in original data
+        bpm: Tempo in beats per minute (floating point)
+        operands: Raw operand bytes from the original format
+    """
     return IREvent(
         type=IREventType.TEMPO,
         offset=offset,
-        value=tempo,
+        value=bpm,  # Store BPM directly (format-independent)
         operands=operands or []
     )
 

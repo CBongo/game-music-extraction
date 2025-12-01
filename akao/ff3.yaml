@@ -8,8 +8,12 @@ rom_file: "f_fan3.fig"
 # Base address for song data (SNES address C5/0000 - HiROM)
 base_address: 0xC50000
 
-# Tempo factor for BPM calculation
-tempo_factor: 59904000  # timer0 period 4.875ms * 96/2 ticks * 256
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# where tempo_factor = timer_period_us * timer_count * tempo_resolution
+timer_period_us: 4875     # Timer period in microseconds (timer0 period: 4.875ms)
+timer_count: 48           # Number of timer counts per sound processing loop
+tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
 
 # Default state values
 default_tempo: 120

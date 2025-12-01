@@ -5,6 +5,7 @@ Extracts music sequences from game ROMs/ISOs to text disassembly and MIDI files.
 Chris Bongaarts - 2025-11-02 with help from Claude
 """
 
+import sys
 import struct
 import yaml
 from pathlib import Path
@@ -240,22 +241,11 @@ class SequenceFormat(ABC):
         """
         pass
     
-    @abstractmethod
-    def parse_track(self, data: bytes, offset: int, track_num: int,
-                    song_id: int = 0, instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
-        """
-        Parse a single track's data.
-        Returns (disasm_lines, midi_events) tuple.
+    # Note: parse_track() is DEPRECATED - removed from abstract interface
+    # All format handlers now use two-pass architecture:
+    #   Pass 1: _parse_track_pass1() returns (disasm, ir_events)
+    #   Pass 2: _parse_track_pass2() returns midi_events from IR
 
-        Args:
-            data: Song data buffer
-            offset: Offset into data where this track starts
-            track_num: Track/voice number
-            song_id: Song ID (for format-specific lookups)
-            instrument_table: List of instrument IDs for this song
-        """
-        pass
-    
     @abstractmethod
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
         """Get list of track data offsets from header info."""
@@ -383,7 +373,12 @@ class AKAONewStyle(SequenceFormat):
         0x14: 'Program Change', 0x15: 'Time Signature',
         0x16: 'Measure #'
     }
-    
+
+    # Default values for Pass 2 execution
+    default_octave = 4
+    default_velocity = 100
+    default_tempo = 120
+
     # Override specific lengths
     def __init__(self, config: Dict, rom_data: bytes, exe_iso_reader=None):
         """Initialize with game-specific config and ROM data."""
@@ -466,7 +461,16 @@ class AKAONewStyle(SequenceFormat):
         self.default_tempo = config.get('default_tempo', 255)
         self.default_octave = config.get('default_octave', 4)
         self.default_velocity = config.get('default_velocity', 100)
-        self.tempo_factor = config.get('tempo_factor', 13107200000)
+
+        # Calculate tempo_factor from component values
+        # tempo_factor = timer_period_us * timer_count * tempo_resolution
+        timer_period_us = config.get('timer_period_us', 0.2362)
+        timer_count = config.get('timer_count', 846720)
+        tempo_resolution = config.get('tempo_resolution', 65536)
+        self.tempo_factor = timer_period_us * timer_count * tempo_resolution
+
+        # Initialize patch map (populated from config if provided)
+        self.patch_map = {}
     
     def _read_rom_table(self, address: int, size: int, data_type: str) -> List[int]:
         """Read a table from the ROM image."""
@@ -574,22 +578,32 @@ class AKAONewStyle(SequenceFormat):
         
         return offsets
     
-    def parse_track(self, data: bytes, offset: int, track_num: int,
-                    song_id: int = 0, instrument_table: Optional[List[int]] = None) -> Tuple[List, List]:
-        """Parse a single track's event data."""
+    def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
+        """Pass 1: Linear parse to build disassembly and intermediate representation.
+
+        Args:
+            data: Song data buffer
+            offset: Offset into data where this track starts
+            track_num: Track/voice number
+            instrument_table: List of instrument IDs for this song
+            vaddroffset: Address offset for target address calculations (unused for PSX)
+            track_boundaries: Track boundaries for GOTO validation (unused for PSX)
+
+        Returns:
+            Tuple of (disasm_lines, ir_events)
+        """
         disasm = []
-        midi_events = []
+        ir_events = []
 
         # Track state (use config defaults)
         octave = self.default_octave
         velocity = self.default_velocity
-        total_time = 0
         tempo = self.default_tempo
-        current_patch = 0  # Current instrument patch
-        
-        # Repeat loop state (separate for disasm and MIDI)
-        repeat_stack = []  # Stack for MIDI processing
-        in_repeat_for_disasm = False  # Flag to avoid duplicating disasm output
+        current_patch = 0  # Current GM patch
+        inst_id = 0  # Raw instrument ID
+        transpose_octaves = 0
         
         # Find end of track (next track start or end of data)
         track_end = len(data)
@@ -630,39 +644,37 @@ class AKAONewStyle(SequenceFormat):
                 if notenum < 12:
                     # Note
                     line += f"Note {NOTE_NAMES[notenum]} ({notenum:02d}) "
-                    midi_note = 12 * octave + notenum
-                    
-                    # Debug: check for invalid values
-                    if midi_note < 0 or midi_note > 127:
-                        disasm.append(f"  Warning: Invalid MIDI note {midi_note} (octave={octave}, notenum={notenum}) at {p-1:08X}, clamping")
-                    
-                    # Clamp MIDI note to valid range (0-127)
-                    midi_note = max(0, min(127, midi_note))
-                    
-                    # Add note even if duration is non-positive (may be extended by ties)
-                    note_duration = dur - 2
-                    midi_events.append({
-                        'type': 'note',
-                        'time': total_time,
-                        'duration': note_duration,
-                        'note': midi_note,
+
+                    # Create IR note event (note_num is 0-11, Pass 2 will apply octave)
+                    # Store native duration (no scaling, no gate)
+                    # Scaling and gate will be applied in Pass 2
+                    note_duration = dur
+                    event = make_note(p - 1, notenum, note_duration)
+                    event.metadata = {
                         'velocity': velocity,
-                        'patch': current_patch  # Track which patch plays this note
-                    })
+                        'patch': current_patch,
+                        'track_num': track_num,
+                        'inst_id': inst_id,
+                        'octave': octave  # Store current octave for debugging
+                    }
+                    ir_events.append(event)
                 elif notenum == 12:
-                    # Tie - extend the last note's duration
+                    # Tie - create IR tie event (Pass 2 will extend previous note)
                     line += "Tie          "
-                    # Find the last note event and extend its duration
-                    for i in range(len(midi_events) - 1, -1, -1):
-                        if midi_events[i]['type'] == 'note':
-                            midi_events[i]['duration'] += dur
-                            break
+                    # Store native duration (no scaling)
+                    tie_duration = dur
+                    event = make_tie(p - 1, tie_duration)
+                    ir_events.append(event)
                 else:
                     # Rest
                     line += "Rest         "
+                    # Store native duration (no scaling)
+                    rest_duration = dur
+                    event = make_rest(p - 1, rest_duration)
+                    ir_events.append(event)
                 
                 line += f"Dur {dur:02X}"
-                total_time += dur
+                # Note: total_time tracking removed - Pass 2 will calculate timing
             
             # FE-prefixed opcodes
             elif cmd == 0xFE:
@@ -692,23 +704,51 @@ class AKAONewStyle(SequenceFormat):
                 if op1 == 0x00 and len(operands) >= 2:
                     # Tempo
                     tempo = operands[0] | (operands[1] << 8)
-                    line += f" ~{tempo // 218} bpm"
-                    midi_events.append({
-                        'type': 'tempo',
-                        'time': total_time,
-                        'tempo': tempo
-                    })
-                elif op1 == 0x06:
-                    # Goto - end of track
-                    break
+                    # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
+                    bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                    line += f" {bpm:.1f} bpm"
+                    event = make_tempo(p - oplen, bpm, operands)
+                    ir_events.append(event)
+                elif op1 == 0x06 and len(operands) >= 2:
+                    # Goto relative (signed 16-bit little-endian offset)
+                    # Offset is relative to the third byte of FE command (first operand byte)
+                    rel_offset = struct.unpack('<h', bytes(operands[0:2]))[0]
+                    operand_start = p - oplen + 1  # Position of first operand byte (third byte of FE command)
+                    target_offset = operand_start + rel_offset
+
+                    line += f" -> 0x{target_offset:04X}"
+
+                    # Create IR GOTO event
+                    event = make_goto(p - oplen, target_offset, operands)
+                    ir_events.append(event)
+
+                    # For backwards GOTO (loop), end disassembly here
+                    if target_offset < p:
+                        disasm.append(line)
+                        break
                 elif op1 == 0x14 and len(operands) >= 1:
-                    # Program Change (FE 14)
-                    current_patch = operands[0]
-                    midi_events.append({
-                        'type': 'program_change',
-                        'time': total_time,
-                        'patch': current_patch
-                    })
+                    # Program Change (FE 14) - treat as raw instrument ID (like 0xA1)
+                    inst_id = operands[0]
+
+                    # Look up GM patch from patch_map if available
+                    if hasattr(self, 'patch_map') and inst_id in self.patch_map:
+                        patch_info = self.patch_map[inst_id]
+                        gm_patch = patch_info['gm_patch']
+                        transpose_octaves = patch_info.get('transpose', 0)
+
+                        # Add annotation to disasm line
+                        if gm_patch < 0:
+                            line += f" -> PERC key={abs(gm_patch)}"
+                        else:
+                            line += f" -> GM patch {gm_patch}"
+                    else:
+                        # No patch mapping configured - default to Grand Piano
+                        gm_patch = 0
+                        transpose_octaves = 0
+
+                    current_patch = gm_patch
+                    event = make_patch_change(p - oplen, inst_id, gm_patch, transpose_octaves, operands)
+                    ir_events.append(event)
                 elif op1 == 0x15 and len(operands) >= 2:
                     # Time signature
                     denom_val = 0xC0 / operands[0] if operands[0] != 0 else 0
@@ -734,46 +774,371 @@ class AKAONewStyle(SequenceFormat):
                 # Handle state-changing opcodes
                 if cmd == 0xA1 and operands:
                     # Program Change (A1)
-                    current_patch = operands[0]
+                    inst_id = operands[0]
+
+                    # Look up GM patch from patch_map if available
+                    if hasattr(self, 'patch_map') and inst_id in self.patch_map:
+                        patch_info = self.patch_map[inst_id]
+                        gm_patch = patch_info['gm_patch']
+                        transpose_octaves = patch_info.get('transpose', 0)
+
+                        # Add annotation to disasm line
+                        if gm_patch < 0:
+                            line += f" -> PERC key={abs(gm_patch)}"
+                        else:
+                            line += f" -> GM patch {gm_patch}"
+                    else:
+                        # No patch mapping configured - default to Grand Piano (GM patch 0)
+                        gm_patch = 0
+                        transpose_octaves = 0
+
+                    current_patch = gm_patch
+                    event = make_patch_change(p - oplen, inst_id, gm_patch, transpose_octaves, operands)
+                    ir_events.append(event)
+                elif cmd == 0xA5 and operands:
+                    # Set octave
+                    octave = operands[0]
+                    event = make_octave_set(p - oplen, octave, operands)
+                    ir_events.append(event)
+                elif cmd == 0xA6:
+                    # Inc octave
+                    octave += 1
+                    event = make_octave_inc(p - oplen)
+                    ir_events.append(event)
+                elif cmd == 0xA7:
+                    # Dec octave
+                    octave -= 1
+                    event = make_octave_dec(p - oplen)
+                    ir_events.append(event)
+                elif cmd == 0xA8 and operands:
+                    # Volume
+                    velocity = operands[0]
+                    event = make_volume(p - oplen, velocity, operands)
+                    ir_events.append(event)
+                elif cmd == 0xC8:
+                    # Begin repeat - create IR event, DON'T execute
+                    # Note: AKAO C8 may have no operand (infinite loop) or count operand
+                    loop_count = operands[0] if operands else 255
+                    event = make_loop_start(p - oplen, loop_count, operands)
+                    ir_events.append(event)
+                elif cmd == 0xC9:
+                    # End repeat - create IR event, DON'T execute
+                    event = make_loop_end(p - oplen)
+                    ir_events.append(event)
+                elif cmd == 0xA0 or cmd == 0xFF:
+                    # Halt
+                    event = make_halt(p - oplen, operands if operands else [])
+                    ir_events.append(event)
+                    disasm.append(line)
+                    break
+
+            # Add all lines to disasm (no loop filtering in Pass 1)
+            disasm.append(line)
+
+        return disasm, ir_events
+
+    def _find_event_by_offset(self, ir_events: List[IREvent], target_offset: int) -> Optional[int]:
+        """Find IR event index by byte offset.
+
+        Args:
+            ir_events: List of IR events to search
+            target_offset: Byte offset to find
+
+        Returns:
+            Index of event at or after target_offset, or None if not found
+            (GOTO targets may point to opcodes that don't generate IR events)
+        """
+        # Find the first event at or after the target offset
+        for i, event in enumerate(ir_events):
+            if event.offset >= target_offset:
+                return i
+        return None
+
+    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
+        """Analyze IR events to find loop structure.
+
+        For PSX AKAO format:
+        - Loops can be marked with LOOP_START/LOOP_END (0xC8/0xC9)
+        - Or backwards GOTO (0xFE 0x06 with negative offset)
+
+        Returns:
+            Dict with loop analysis: {
+                'has_backwards_goto': bool,
+                'goto_target_idx': int,  # Index in ir_events
+                'intro_time': int,       # Ticks before loop
+                'loop_time': int,        # Ticks per loop iteration
+                'target_time': int       # intro + loop
+            }
+        """
+        # Find the LAST backwards GOTO (for proper looping)
+        # Forward GOTOs are sequence continuation, not loops
+        last_goto_idx = None
+        last_goto_target_idx = None
+
+        for i, event in enumerate(ir_events):
+            if event.type == IREventType.GOTO and event.target_offset is not None:
+                # Find target event by offset
+                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
+
+                if target_idx is not None and target_idx < i:
+                    # Backwards GOTO found - track it
+                    last_goto_idx = i
+                    last_goto_target_idx = target_idx
+
+        # Check if we found a backwards GOTO
+        if last_goto_idx is not None and last_goto_target_idx is not None:
+            # Calculate intro and loop times
+            intro_time = sum(e.duration or 0 for e in ir_events[:last_goto_target_idx] if e.is_note_event())
+            loop_time = sum(e.duration or 0 for e in ir_events[last_goto_target_idx:last_goto_idx] if e.is_note_event())
+
+            return {
+                'has_backwards_goto': True,
+                'goto_target_idx': last_goto_target_idx,
+                'intro_time': intro_time,
+                'loop_time': loop_time,
+                'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
+            }
+
+        # No backwards GOTO - check for LOOP_START/LOOP_END pairs
+        # (less common in AKAO, but possible)
+        # For now, return no loop detected
+
+        return {
+            'has_backwards_goto': False,
+            'goto_target_idx': -1,
+            'intro_time': 0,
+            'loop_time': 0,
+            'target_time': 0
+        }
+
+    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
+                          target_loop_time: int = 0) -> List[Dict]:
+        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks() (includes loop_info per track)
+            start_voice_num: Starting voice/track number to execute from
+            target_loop_time: Target playthrough time in ticks (0 = no loop expansion)
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        # Initialize from starting track
+        current_voice_num = start_voice_num
+        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
+        # Playback state
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        perc_key = 0
+        transpose_octaves = 0
+        current_channel = start_voice_num
+
+        # Output MIDI events
+        midi_events = []
+
+        # Timing
+        total_time = 0
+
+        # Loop execution state
+        loop_stack = []  # Stack of {start_idx, count, iteration, max_count}
+
+        # Iteration limit (failsafe)
+        max_iterations = max(len(ir_events) * 200, 10000)
+        iteration_count = 0
+
+        # Emergency brakes (match SNESFF2/FF3)
+        import time
+        start_time = time.time()
+        max_time_seconds = 5.0  # 5 second time limit
+        max_midi_events = 100000  # Max MIDI events per track
+
+        # Gate timing (native ticks before full duration when note-off happens)
+        gate_time = 2  # Default: 2 native ticks from end
+                       # Can be modified by slur/legato opcodes
+
+        # Tick scaling factor (native ticks -> MIDI ticks)
+        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
+
+        # Scale target_loop_time from native ticks to MIDI ticks
+        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
+        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
+
+        # Execute IR events
+        i = 0
+        while i < len(ir_events):
+            iteration_count += 1
+            if iteration_count > max_iterations:
+                print(f"WARNING: Track {start_voice_num} hit max iteration limit", file=sys.stderr)
+                break
+
+            # Check if we've reached target playthrough time
+            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
+                break
+
+            # Emergency brakes (only warn, not error - looping is normal)
+            if time.time() - start_time > max_time_seconds:
+                # Silently stop - time limit reached (normal for looping songs)
+                break
+            if len(midi_events) > max_midi_events:
+                # Silently stop - MIDI event limit reached (normal for looping songs)
+                break
+
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE:
+                # Generate MIDI note
+                note_num = event.note_num
+                dur = event.duration  # Native duration from Pass 1
+
+                # Apply octave and transposition
+                midi_note = (octave * 12) + note_num + (transpose_octaves * 12)
+                midi_note = max(0, min(127, midi_note))
+
+                # Get velocity from event metadata or current state
+                vel = event.metadata.get('velocity', velocity)
+
+                # Scale native duration to MIDI ticks
+                midi_dur = dur * tick_scale
+
+                # Apply gate timing (note-off before full duration)
+                gate_adjusted_dur = (dur - gate_time) * tick_scale
+
+                midi_events.append({
+                    'type': 'note',
+                    'time': total_time,
+                    'duration': gate_adjusted_dur,  # Gate-adjusted MIDI duration
+                    'note': midi_note,
+                    'velocity': vel,
+                    'channel': current_channel
+                })
+
+                total_time += midi_dur  # Advance by FULL MIDI duration
+                i += 1
+
+            elif event.type == IREventType.REST:
+                # Scale native duration to MIDI ticks
+                midi_dur = event.duration * tick_scale
+                total_time += midi_dur
+                i += 1
+
+            elif event.type == IREventType.TIE:
+                # Extend previous note
+                # Scale native duration to MIDI ticks
+                tie_dur = event.duration * tick_scale
+                if midi_events and midi_events[-1]['type'] == 'note':
+                    midi_events[-1]['duration'] += tie_dur
+                total_time += tie_dur
+                i += 1
+
+            elif event.type == IREventType.PATCH_CHANGE:
+                # Extract from IR event
+                gm_patch = event.gm_patch
+                transpose_octaves = event.transpose
+
+                # Percussion mode check
+                if gm_patch < 0:
+                    perc_key = abs(gm_patch)
+                else:
+                    perc_key = 0
                     midi_events.append({
                         'type': 'program_change',
                         'time': total_time,
-                        'patch': current_patch
+                        'patch': gm_patch
                     })
-                elif cmd == 0xA5 and operands:
-                    octave = operands[0]
-                elif cmd == 0xA6:
-                    octave += 1
-                elif cmd == 0xA7:
-                    octave -= 1
-                elif cmd == 0xA8 and operands:
-                    velocity = operands[0]
-                elif cmd == 0xC8:
-                    # Begin repeat - push loop start position
-                    repeat_stack.append({'start': p, 'count': 0, 'first_pass': True})
-                elif cmd == 0xC9 and operands:
-                    # End repeat
-                    if repeat_stack:
-                        loop = repeat_stack[-1]
-                        loop['count'] += 1
-                        if loop['count'] < operands[0]:
-                            # Repeat again - jump back but mark we're in a repeat
-                            loop['first_pass'] = False
-                            p = loop['start']
-                            continue
-                        else:
-                            # Done repeating
-                            repeat_stack.pop()
-                elif cmd == 0xA0 or cmd == 0xFF:
-                    # Halt
-                    disasm.append(line)
+
+                i += 1
+
+            elif event.type == IREventType.TEMPO:
+                # Tempo change - add to midi_events for conductor track
+                assert event.value is not None, "TEMPO event must have value"
+                midi_events.append({
+                    'type': 'tempo',
+                    'time': total_time,
+                    'tempo': event.value
+                })
+                tempo = event.value
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_SET:
+                octave = event.value
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_INC:
+                octave += 1
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_DEC:
+                octave -= 1
+                i += 1
+
+            elif event.type == IREventType.VOLUME:
+                velocity = event.value
+                i += 1
+
+            elif event.type == IREventType.LOOP_START:
+                # Push loop onto stack
+                loop_stack.append({
+                    'start_idx': i + 1,  # Next event after LOOP_START
+                    'count': 0,
+                    'max_count': event.loop_count
+                })
+                i += 1
+
+            elif event.type == IREventType.LOOP_END:
+                # Pop and potentially repeat
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['count'] += 1
+
+                    if loop['count'] < loop['max_count']:
+                        # Repeat - jump back to start
+                        i = loop['start_idx']
+                    else:
+                        # Done - pop and continue
+                        loop_stack.pop()
+                        i += 1
+                else:
+                    # Unmatched LOOP_END - skip
+                    i += 1
+
+            elif event.type == IREventType.GOTO:
+                # Find target event
+                if event.target_offset is None:
+                    # Invalid GOTO - halt
                     break
-            
-            # Only add to disasm on first pass through loops
-            if not repeat_stack or repeat_stack[-1].get('first_pass', True):
-                disasm.append(line)
-        
-        return disasm, midi_events
+
+                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
+
+                if target_idx is None:
+                    # Invalid target - halt
+                    break
+
+                # Check if backwards (loop)
+                if target_idx < i:
+                    # Backwards GOTO - loop condition
+                    if target_loop_time > 0 and total_time >= target_loop_time:
+                        # Reached target duration - halt
+                        break
+                    else:
+                        # Continue looping
+                        i = target_idx
+                else:
+                    # Forward GOTO - could be cross-track
+                    # For now, just jump forward
+                    i = target_idx
+
+            elif event.type == IREventType.HALT:
+                # End of track
+                break
+
+            else:
+                # Unknown event type - skip
+                i += 1
+
+        return midi_events
 
 
 def snes_addr_to_offset(snes_addr: int, has_header: bool = True) -> int:
@@ -855,7 +1220,13 @@ class SNESFF2(SequenceFormat):
         self.default_tempo = config.get('default_tempo', 255)
         self.default_octave = config.get('default_octave', 4)
         self.default_velocity = config.get('default_velocity', 64)
-        self.tempo_factor = config.get('tempo_factor', 55296000)
+
+        # Calculate tempo_factor from component values
+        # tempo_factor = timer_period_us * timer_count * tempo_resolution
+        timer_period_us = config.get('timer_period_us', 4500)
+        timer_count = config.get('timer_count', 48)
+        tempo_resolution = config.get('tempo_resolution', 256)
+        self.tempo_factor = timer_period_us * timer_count * tempo_resolution
 
         # Build patch map from config (instrument_id -> PatchInfo)
         self.patch_map = {}
@@ -1162,36 +1533,8 @@ class SNESFF2(SequenceFormat):
                 offsets.append(buffer_offset)
         return offsets
 
-    def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
-                    instrument_table: Optional[List[int]] = None,
-                    target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> Tuple[List, List]:
-        """Parse a single SNES voice's event data using a two-pass approach.
-
-        Pass 1: Parse opcodes linearly, generate disassembly, build intermediate representation (IR)
-        Pass 2: Expand IR with loops to generate MIDI events
-
-        Args:
-            data: Song data buffer
-            offset: Offset into data where this voice starts
-            track_num: Track/voice number (0-7)
-            song_id: Song ID for looking up instruments
-            instrument_table: List of instrument IDs for this song
-            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
-            loop_info: Loop analysis info from _analyze_track_loops()
-
-        Returns:
-            Tuple of (disassembly_lines, midi_events)
-        """
-        if instrument_table is None:
-            instrument_table = []
-
-        # Pass 1: Parse and build IR
-        disasm, ir_events = self._parse_track_pass1(data, offset, track_num, instrument_table)
-
-        # Pass 2: Expand IR and generate MIDI
-        midi_events = self._parse_track_pass2(ir_events, track_num, target_loop_time, loop_info)
-
-        return disasm, midi_events
+    # Note: parse_track() removed - use _parse_track_pass1() and _parse_track_pass2() directly
+    # The two-pass architecture requires calling parse_all_tracks() to get full track_data
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
                           instrument_table: List[int], vaddroffset: int = 0,
@@ -1240,10 +1583,9 @@ class SNESFF2(SequenceFormat):
                 # Note encoding: note = cmd / 15, duration = cmd % 15
                 note_num = cmd // 15
                 dur_idx = cmd % 15
-                # Duration table values are in native units (48 ticks/quarter)
-                # Double them to convert to MIDI resolution (96 ticks/quarter)
-                raw_dur = self.duration_table[dur_idx]
-                dur = raw_dur * 2
+                # Store native duration (no scaling)
+                # Scaling will be applied in Pass 2
+                dur = self.duration_table[dur_idx]
 
                 if note_num < 12:
                     # Regular note - create IR event
@@ -1266,21 +1608,21 @@ class SNESFF2(SequenceFormat):
                     # Format: "4E            Note F  (05) Dur 48"
                     note_name = NOTE_NAMES[note_num]
                     if perc_key:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC key={perc_key}]"
                     else:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
 
                 elif note_num == 12:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
-                    line += f"           Rest         Dur {raw_dur}"
+                    line += f"           Rest         Dur {dur}"
 
                 else:
                     # Tie - create IR event
                     event = make_tie(p, dur)
                     ir_events.append(event)
-                    line += f"           Tie          Dur {raw_dur}"
+                    line += f"           Tie          Dur {dur}"
 
                 p += 1
                 disasm.append(line)
@@ -1299,7 +1641,9 @@ class SNESFF2(SequenceFormat):
                 if cmd == 0xD2 and len(operands) >= 3:
                     # Tempo change
                     tempo = operands[2]
-                    event = make_tempo(p, tempo, operands)
+                    # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
+                    bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                    event = make_tempo(p, bpm, operands)
                     ir_events.append(event)
 
                 elif cmd == 0xDB and len(operands) >= 1:
@@ -1488,7 +1832,7 @@ class SNESFF2(SequenceFormat):
         last_goto_event = None
         last_goto_idx = None
         for i, event in enumerate(ir_events):
-            if event.type == IREventType.GOTO:
+            if event.type == IREventType.GOTO and event.target_offset is not None:
                 # Check if this GOTO is backwards (target_offset < current offset)
                 if event.target_offset < event.offset:
                     last_goto_event = event
@@ -1623,7 +1967,8 @@ class SNESFF2(SequenceFormat):
             'has_backwards_goto': True,
             'intro_time': intro_time,
             'loop_time': loop_time,
-            'goto_target_idx': target_idx
+            'goto_target_idx': target_idx,
+            'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
         }
 
     def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
@@ -1636,8 +1981,7 @@ class SNESFF2(SequenceFormat):
         Args:
             all_track_data: Complete track data from parse_all_tracks()
             start_voice_num: Starting track/voice number (0-7)
-            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
-            loop_info: Loop analysis info from _analyze_track_loops()
+            target_loop_time: Target absolute time for all tracks (0 = no looping)
 
         Returns:
             List of MIDI event dictionaries
@@ -1646,6 +1990,17 @@ class SNESFF2(SequenceFormat):
         start_time = time.time()
         max_time_seconds = 2.0  # Emergency brake: 2 second time limit
         max_midi_events = 50000  # Emergency brake: max MIDI events per track
+
+        # Gate timing (native ticks before full duration when note-off happens)
+        gate_time = 2  # Default: 2 native ticks from end
+                       # Can be modified by slur/legato opcodes
+
+        # Tick scaling factor (native ticks -> MIDI ticks)
+        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
+
+        # Scale target_loop_time from native ticks to MIDI ticks
+        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
+        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
 
         midi_events = []
         total_time = 0
@@ -1666,11 +2021,7 @@ class SNESFF2(SequenceFormat):
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
 
-        # Calculate target time for loop termination
-        target_total_time = 0
-        if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
-            intro_time = loop_info['intro_time']
-            target_total_time = intro_time + target_loop_time
+        # Use global target time directly (no per-track calculation needed)
 
         # Event pointer for execution
         i = 0
@@ -1686,7 +2037,7 @@ class SNESFF2(SequenceFormat):
             iteration_count += 1
 
             # Check if we've reached target playthrough time
-            if target_total_time > 0 and total_time >= target_total_time:
+            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
                 break
 
             # Emergency brakes (only warn, not error - looping is normal)
@@ -1721,33 +2072,43 @@ class SNESFF2(SequenceFormat):
                 else:
                     midi_channel = current_channel
 
+                # Scale native duration to MIDI ticks
+                midi_dur = event.duration * tick_scale
+
+                # Apply gate timing (note-off before full duration)
+                gate_adjusted_dur = (event.duration - gate_time) * tick_scale
+
                 # Add MIDI note event
                 midi_events.append({
                     'type': 'note',
                     'time': total_time,
-                    'duration': event.duration - 1,  # Matches Perl: $dur - 1
+                    'duration': gate_adjusted_dur,  # Gate-adjusted MIDI duration
                     'note': midi_note,
                     'velocity': velocity,
                     'channel': midi_channel
                 })
 
-                total_time += event.duration
+                total_time += midi_dur  # Advance by FULL MIDI duration
                 i += 1
 
             elif event.type == IREventType.REST:
                 # Rest just advances time
+                # Scale native duration to MIDI ticks
                 assert event.duration is not None, "REST event must have duration"
-                total_time += event.duration
+                midi_dur = event.duration * tick_scale
+                total_time += midi_dur
                 i += 1
 
             elif event.type == IREventType.TIE:
                 # Tie extends the last note
+                # Scale native duration to MIDI ticks
                 assert event.duration is not None, "TIE event must have duration"
+                tie_dur = event.duration * tick_scale
                 for j in range(len(midi_events) - 1, -1, -1):
                     if midi_events[j]['type'] == 'note':
-                        midi_events[j]['duration'] += event.duration
+                        midi_events[j]['duration'] += tie_dur
                         break
-                total_time += event.duration
+                total_time += tie_dur
                 i += 1
 
             elif event.type == IREventType.TEMPO:
@@ -1887,12 +2248,7 @@ class SNESFF2(SequenceFormat):
                     # Switch to target track's loop_info
                     loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
 
-                    # Recalculate target_total_time for new track's loop
-                    if loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
-                        intro_time = loop_info['intro_time']
-                        target_total_time = intro_time + target_loop_time
-                    else:
-                        target_total_time = 0
+                    # target_loop_time is global - no need to recalculate
 
             elif event.type == IREventType.HALT:
                 # End of track
@@ -1977,7 +2333,13 @@ class SNESFF3(SequenceFormat):
         self.default_tempo = config.get('default_tempo', 255)
         self.default_octave = config.get('default_octave', 4)
         self.default_velocity = config.get('default_velocity', 64)
-        self.tempo_factor = config.get('tempo_factor', 55296000)
+
+        # Calculate tempo_factor from component values
+        # tempo_factor = timer_period_us * timer_count * tempo_resolution
+        timer_period_us = config.get('timer_period_us', 4875)
+        timer_count = config.get('timer_count', 48)
+        tempo_resolution = config.get('tempo_resolution', 256)
+        self.tempo_factor = timer_period_us * timer_count * tempo_resolution
 
         # Build patch map from config (instrument_id -> PatchInfo)
         self.patch_map = {}
@@ -2421,36 +2783,8 @@ class SNESFF3(SequenceFormat):
 
         return True
 
-    def parse_track(self, data: bytes, offset: int, track_num: int, song_id: int = 0,
-                    instrument_table: Optional[List[int]] = None,
-                    target_loop_time: int = 0, loop_info: Optional[Dict] = None) -> Tuple[List, List]:
-        """Parse a single SNES voice's event data using a two-pass approach.
-
-        Pass 1: Parse opcodes linearly, generate disassembly, build intermediate representation (IR)
-        Pass 2: Expand IR with loops to generate MIDI events
-
-        Args:
-            data: Song data buffer
-            offset: Offset into data where this voice starts
-            track_num: Track/voice number (0-7)
-            song_id: Song ID for looking up instruments
-            instrument_table: List of instrument IDs for this song
-            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
-            loop_info: Loop analysis info from _analyze_track_loops()
-
-        Returns:
-            Tuple of (disassembly_lines, midi_events)
-        """
-        if instrument_table is None:
-            instrument_table = []
-
-        # Pass 1: Parse and build IR
-        disasm, ir_events = self._parse_track_pass1(data, offset, track_num, instrument_table)
-
-        # Pass 2: Expand IR and generate MIDI
-        midi_events = self._parse_track_pass2(ir_events, track_num, target_loop_time, loop_info)
-
-        return disasm, midi_events
+    # Note: parse_track() removed - use _parse_track_pass1() and _parse_track_pass2() directly
+    # The two-pass architecture requires calling parse_all_tracks() to get full track_data
 
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
                           instrument_table: List[int], vaddroffset: int = 0,
@@ -2500,9 +2834,8 @@ class SNESFF3(SequenceFormat):
                 note_num = cmd // self.note_divisor
                 dur_idx = cmd % self.note_divisor
                 # Duration table values are in native units (48 ticks/quarter)
-                # Double them to convert to MIDI resolution (96 ticks/quarter)
-                raw_dur = self.duration_table[dur_idx]
-                dur = raw_dur * 2
+                # Store native duration (no scaling) - scaling applied in Pass 2
+                dur = self.duration_table[dur_idx]
 
                 if note_num < 12:
                     # Regular note - create IR event
@@ -2525,23 +2858,23 @@ class SNESFF3(SequenceFormat):
                     # Format: "4E            Note F  (05) Dur 48"
                     note_name = NOTE_NAMES[note_num]
                     if perc_key:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur:<3} [PERC key={perc_key}]"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC key={perc_key}]"
                     else:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {raw_dur}"
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
 
                 elif note_num == 12:
                      # Tie - create IR event
                     event = make_tie(p, dur)
                     ir_events.append(event)
                     has_timing_events = True
-                    line += f"           Tie          Dur {raw_dur}"
+                    line += f"           Tie          Dur {dur}"
 
                 else:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
                     has_timing_events = True
-                    line += f"           Rest         Dur {raw_dur}"
+                    line += f"           Rest         Dur {dur}"
 
                 p += 1
                 disasm.append(line)
@@ -2560,7 +2893,9 @@ class SNESFF3(SequenceFormat):
                 if cmd == 0xF0 and len(operands) >= 1:
                     # Tempo change (FF3 uses 0xF0 vs FF2 uses 0xD2)
                     tempo = operands[0]
-                    event = make_tempo(p, tempo, operands)
+                    # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
+                    bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                    event = make_tempo(p, bpm, operands)
                     ir_events.append(event)
 
                 elif cmd == 0xDC and len(operands) >= 1:  # Patch Change
@@ -2767,7 +3102,7 @@ class SNESFF3(SequenceFormat):
         last_goto_event = None
         last_goto_idx = None
         for i, event in enumerate(ir_events):
-            if event.type == IREventType.GOTO:
+            if event.type == IREventType.GOTO and event.target_offset is not None:
                 # Check if this GOTO is backwards (target_offset < current offset)
                 if event.target_offset < event.offset:
                     last_goto_event = event
@@ -2902,7 +3237,8 @@ class SNESFF3(SequenceFormat):
             'has_backwards_goto': True,
             'intro_time': intro_time,
             'loop_time': loop_time,
-            'goto_target_idx': target_idx
+            'goto_target_idx': target_idx,
+            'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
         }
 
     def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
@@ -2915,8 +3251,7 @@ class SNESFF3(SequenceFormat):
         Args:
             all_track_data: Complete track data from parse_all_tracks()
             start_voice_num: Starting track/voice number (0-7)
-            target_loop_time: Target time for 2x loop playthrough (0 = no looping)
-            loop_info: Loop analysis info from _analyze_track_loops()
+            target_loop_time: Target absolute time for all tracks (0 = no looping)
 
         Returns:
             List of MIDI event dictionaries
@@ -2925,6 +3260,17 @@ class SNESFF3(SequenceFormat):
         start_time = time.time()
         max_time_seconds = 2.0  # Emergency brake: 2 second time limit
         max_midi_events = 50000  # Emergency brake: max MIDI events per track
+
+        # Gate timing (native ticks before full duration when note-off happens)
+        gate_time = 2  # Default: 2 native ticks from end
+                       # Can be modified by slur/legato opcodes
+
+        # Tick scaling factor (native ticks -> MIDI ticks)
+        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
+
+        # Scale target_loop_time from native ticks to MIDI ticks
+        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
+        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
 
         midi_events = []
         total_time = 0
@@ -2945,11 +3291,7 @@ class SNESFF3(SequenceFormat):
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
 
-        # Calculate target time for loop termination
-        target_total_time = 0
-        if loop_info and loop_info['has_backwards_goto'] and target_loop_time > 0:
-            intro_time = loop_info['intro_time']
-            target_total_time = intro_time + target_loop_time
+        # Use global target time directly (no per-track calculation needed)
 
         # Event pointer for execution
         i = 0
@@ -2965,7 +3307,7 @@ class SNESFF3(SequenceFormat):
             iteration_count += 1
 
             # Check if we've reached target playthrough time
-            if target_total_time > 0 and total_time >= target_total_time:
+            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
                 break
 
             # Emergency brakes (only warn, not error - looping is normal)
@@ -3000,33 +3342,43 @@ class SNESFF3(SequenceFormat):
                 else:
                     midi_channel = current_channel
 
+                # Scale native duration to MIDI ticks
+                midi_dur = event.duration * tick_scale
+
+                # Apply gate timing (note-off before full duration)
+                gate_adjusted_dur = (event.duration - gate_time) * tick_scale
+
                 # Add MIDI note event
                 midi_events.append({
                     'type': 'note',
                     'time': total_time,
-                    'duration': event.duration - 1,  # Matches Perl: $dur - 1
+                    'duration': gate_adjusted_dur,  # Gate-adjusted MIDI duration
                     'note': midi_note,
                     'velocity': velocity,
                     'channel': midi_channel
                 })
 
-                total_time += event.duration
+                total_time += midi_dur  # Advance by FULL MIDI duration
                 i += 1
 
             elif event.type == IREventType.REST:
                 # Rest just advances time
+                # Scale native duration to MIDI ticks
                 assert event.duration is not None, "REST event must have duration"
-                total_time += event.duration
+                midi_dur = event.duration * tick_scale
+                total_time += midi_dur
                 i += 1
 
             elif event.type == IREventType.TIE:
                 # Tie extends the last note
+                # Scale native duration to MIDI ticks
                 assert event.duration is not None, "TIE event must have duration"
+                tie_dur = event.duration * tick_scale
                 for j in range(len(midi_events) - 1, -1, -1):
                     if midi_events[j]['type'] == 'note':
-                        midi_events[j]['duration'] += event.duration
+                        midi_events[j]['duration'] += tie_dur
                         break
-                total_time += event.duration
+                total_time += tie_dur
                 i += 1
 
             elif event.type == IREventType.TEMPO:
@@ -3166,12 +3518,7 @@ class SNESFF3(SequenceFormat):
                     # Switch to target track's loop_info
                     loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
 
-                    # Recalculate target_total_time for new track's loop
-                    if loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
-                        intro_time = loop_info['intro_time']
-                        target_total_time = intro_time + target_loop_time
-                    else:
-                        target_total_time = 0
+                    # target_loop_time is global - no need to recalculate
 
             elif event.type == IREventType.HALT:
                 # End of track
@@ -3561,15 +3908,21 @@ class SequenceExtractor:
                     },
                     ...
                 },
-                'song_length': int,  # Maximum target_time across all tracks (in ticks)
+                'song_length': int,  # Maximum target_time across all tracks (in native ticks)
+                'longest_intro_time': int,  # Intro time of longest track (in native ticks)
+                'longest_loop_time': int,   # Loop time of longest track (in native ticks)
             }
         """
         analysis = {
             'tracks': {},
             'song_length': 0,
+            'longest_intro_time': 0,
+            'longest_loop_time': 0,
         }
 
         max_target_time = 0
+        longest_intro_time = 0
+        longest_loop_time = 0
 
         for voice_num, track in track_data['tracks'].items():
             # Analyze loop structure for this track
@@ -3580,11 +3933,18 @@ class SequenceExtractor:
             }
 
             # Track maximum target time for song length
-            target_time = loop_info.get('target_time', 0)
+            intro_time = loop_info.get('intro_time', 0)
+            loop_time = loop_info.get('loop_time', 0)
+            target_time = intro_time + 2 * loop_time  # intro + 2 loops
+
             if target_time > max_target_time:
                 max_target_time = target_time
+                longest_intro_time = intro_time
+                longest_loop_time = loop_time
 
         analysis['song_length'] = max_target_time
+        analysis['longest_intro_time'] = longest_intro_time
+        analysis['longest_loop_time'] = longest_loop_time
 
         return analysis
 
@@ -3749,17 +4109,12 @@ class SequenceExtractor:
             output_path: Path to write MIDI file
         """
         try:
-            # Find longest loop time among all tracks with backwards GOTOs
-            longest_loop_time = 0
-            for voice_num in track_data['tracks'].keys():
-                loop_info = loop_analysis['tracks'][voice_num]['loop_info']
-                if loop_info.get('has_backwards_goto', False):
-                    loop_time = loop_info.get('loop_time', 0)
-                    if loop_time > longest_loop_time:
-                        longest_loop_time = loop_time
-
-            # Calculate target playthrough time: intro + (2× longest loop)
-            target_loop_time = 2 * longest_loop_time
+            # Calculate target playthrough time: intro + 2 * loop (in native ticks)
+            # Loop analyzer has already found the longest track
+            intro_time = loop_analysis.get('longest_intro_time', 0)
+            loop_time = loop_analysis.get('longest_loop_time', 0)
+            target_loop_time = intro_time + 2 * loop_time
+            print(f"DEBUG generate_midi {song.id:02X} {song.title}: intro_time={intro_time}, loop_time={loop_time}, target_loop_time={target_loop_time}", file=sys.stderr)
 
             # Embed loop_info in track_data for Pass 2
             for voice_num in track_data['tracks'].keys():
@@ -3807,12 +4162,8 @@ class SequenceExtractor:
             # Add conductor events (tempo changes)
             for event in conductor_events:
                 time_beats = event['time'] / 96.0
-                # Convert game tempo value to BPM
-                # First calculate microseconds per quarter note: uspqn = tempo_factor / tempo_value
-                # tempo_factor already includes ticks_per_quarter and resolution (256 for SNES, 65536 for PSX)
-                # Then convert to BPM: BPM = 60,000,000 / uspqn = (60,000,000 * tempo_value) / tempo_factor
-                uspqn = self.format_handler.tempo_factor / event['tempo']  # type: ignore[attr-defined]
-                bpm = 60000000.0 / uspqn
+                # Use BPM directly from IR event (already calculated in Pass 1)
+                bpm = event['tempo']
                 midi.addTempo(0, time_beats, bpm)
 
             # Add tracks
@@ -4016,19 +4367,10 @@ class SequenceExtractor:
                 time_beats = event['time'] / 96.0
 
                 if event['type'] == 'program_change':
-                    # Handle program change
-                    # For SNES FF2, the patch is already the GM patch number
-                    # For PSX/generic, use the patch mapper
-                    if isinstance(self.format_handler, SNESFF2):
-                        # SNES FF2: patch is already GM patch from parse_track
-                        gm_patch = event['patch']
-                        midi.addProgramChange(track_num, default_channel, time_beats, gm_patch)
-                    else:
-                        # PSX/generic: use patch mapper
-                        current_patch = event['patch']
-                        patch_info = self.patch_mapper.get_patch_info(current_patch)
-                        if not patch_info.is_percussion():
-                            midi.addProgramChange(track_num, default_channel, time_beats, patch_info.gm_patch)
+                    # All format handlers store GM patch in IR events (Pass 2 puts this in event['patch'])
+                    gm_patch = event['patch']
+                    midi.addProgramChange(track_num, default_channel, time_beats, gm_patch)
+                    current_patch = gm_patch
 
                 elif event['type'] == 'note':
                     duration_beats = event['duration'] / 96.0
@@ -4036,16 +4378,8 @@ class SequenceExtractor:
                         # Use channel from event if present (for percussion mode), otherwise use default
                         channel = event.get('channel', default_channel)
 
-                        # For SNES FF2, transposition is already applied in parse_track
-                        # For PSX/generic, apply transposition from patch mapper
-                        if isinstance(self.format_handler, SNESFF2):
-                            note = event['note']
-                        else:
-                            # Get patch info for this note
-                            note_patch = event.get('patch', current_patch)
-                            patch_info = self.patch_mapper.get_patch_info(note_patch)
-                            note = event['note'] + patch_info.transpose
-
+                        # Transposition already applied in Pass 2 for all formats
+                        note = event['note']
                         note = max(0, min(127, note))
 
                         midi.addNote(track_num, channel, note,
@@ -4062,16 +4396,22 @@ class SequenceExtractor:
             loop_analysis: Output from analyze_song_structure()
             output_path: Path to write MusicXML file
         """
-        # Calculate target loop time (same as MIDI generation)
+        # Calculate target total time (same as MIDI generation)
         longest_loop_time = 0
+        max_total_time = 0
         for voice_num in track_data['tracks'].keys():
             loop_info = loop_analysis['tracks'][voice_num]['loop_info']
             if loop_info.get('has_backwards_goto', False):
+                intro_time = loop_info.get('intro_time', 0)
                 loop_time = loop_info.get('loop_time', 0)
+                total_time = intro_time + loop_time
+
                 if loop_time > longest_loop_time:
                     longest_loop_time = loop_time
+                if total_time > max_total_time:
+                    max_total_time = total_time
 
-        target_loop_time = 2 * longest_loop_time
+        target_total_time = max_total_time + longest_loop_time
 
         # Embed loop_info in track_data for Pass 2
         for voice_num in track_data['tracks'].keys():
@@ -4083,7 +4423,7 @@ class SequenceExtractor:
         for voice_num in sorted(track_data['tracks'].keys()):
             # Pass 2 - expand IR events into MIDI events
             midi_events = self.format_handler._parse_track_pass2(  # type: ignore[attr-defined]
-                track_data, voice_num, target_loop_time
+                track_data, voice_num, target_total_time
             )
             has_notes = any(e['type'] == 'note' for e in midi_events)
             parsed_tracks.append({
@@ -4135,11 +4475,11 @@ class SequenceExtractor:
                 measure = ET.SubElement(part, 'measure', number='1')
                 attributes = ET.SubElement(measure, 'attributes')
                 divisions = ET.SubElement(attributes, 'divisions')
-                divisions.text = '48'
+                divisions.text = '96'
                 continue
 
-            # Calculate measure breaks (4/4 time, 48 ticks per quarter = 192 ticks per measure)
-            divisions_per_quarter = 48
+            # Calculate measure breaks (4/4 time, 96 ticks per quarter = 384 ticks per measure)
+            divisions_per_quarter = 96
             divisions_per_measure = divisions_per_quarter * 4
 
             # Find max time

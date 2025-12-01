@@ -21,11 +21,17 @@ fe_opcode_table:
   size: 32
   type: "byte"
 
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# where tempo_factor = timer_period_us * timer_count * tempo_resolution
+timer_period_us: 0.2362   # Timer period in microseconds (timer2 period)
+timer_count: 846720       # Number of timer counts per sound processing loop
+tempo_resolution: 65536   # 16-bit tempo operands (range 0-65535)
+
 # Default state values
 default_tempo: 255
 default_octave: 4
 default_velocity: 64
-tempo_factor: 13107200000
 
 # Songs - using file offsets in FF9.IMG
 songs:

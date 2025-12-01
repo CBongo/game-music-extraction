@@ -12,8 +12,12 @@ base_address: 0x04C000
 # The first 3-byte pointer at base_address points to the song table
 song_table_address: 0x04C000
 
-# Tempo factor for BPM calculation
-tempo_factor: 55296000  # timer0 period 4.5ms * 96/2 ticks * 256
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# where tempo_factor = timer_period_us * timer_count * tempo_resolution
+timer_period_us: 4500     # Timer period in microseconds (timer0 period: 4.5ms)
+timer_count: 48           # Number of timer counts per sound processing loop
+tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
 
 # Default state values
 default_tempo: 255
@@ -76,9 +80,9 @@ songs:
   - id: 0x03
     title: "Short Fanfare"
   - id: 0x04
-    title: "Chocobo"
+    title: "11 Chocobo"
   - id: 0x05
-    title: "Mambo de Chocobo"
+    title: "31 Samba de Chocobo"
   - id: 0x06
     title: "Underworld"
   - id: 0x07
@@ -86,47 +90,47 @@ songs:
   - id: 0x08
     title: "Victory"
   - id: 0x09
-    title: "Town"
+    title: "06 Welcome to our Town"
   - id: 0x0A
-    title: "Rydia's Theme"
+    title: 15 "Rydia's Theme"
   - id: 0x0B
-    title: "Battle with Fiends"
+    title: "28 Battle with Fiends"
   - id: 0x0C
-    title: "Mountain"
+    title: "19 Mountain of Ordeals"
   - id: 0x0D
-    title: "Overworld"
+    title: "07 Overworld"
   - id: 0x0E
-    title: "Big Whale"
+    title: "39 Big Whale"
   - id: 0x0F
     title: "Sadness"
   - id: 0x10
     title: "Take a Nap"
   - id: 0x11
-    title: "Golbez's Theme"
+    title: "23 Golbez's Theme"
   - id: 0x12
-    title: "Edward's Theme"
+    title: "18 Edward's Theme"
   - id: 0x13
-    title: "Rosa's Theme"
+    title: "04 Theme of Love"
   - id: 0x14
-    title: "Baron"
+    title: "03 Kingdom of Baron"
   - id: 0x15
-    title: "Prelude"
+    title: "01 Prelude"
   - id: 0x16
     title: "Evil Golbez"
   - id: 0x17
-    title: "Tower of Babil"
+    title: "32 Tower of Babil"
   - id: 0x18
-    title: "Airship"
+    title: "29 Airship"
   - id: 0x19
     title: "Fiends' Theme"
   - id: 0x1A
     title: "Boss"
   - id: 0x1B
-    title: "Giant of Babil"
+    title: "42 Giant of Babil"
   - id: 0x1C
     title: "Illusionary World"
   - id: 0x1D
-    title: "Ring of Bombs"
+    title: "14 Ring of Bombs"
   - id: 0x1E
     title: "Lunar Cave"
   - id: 0x1F
@@ -134,43 +138,43 @@ songs:
   - id: 0x20
     title: "Dwarf Castle"
   - id: 0x21
-    title: "Palom and Porom"
+    title: "27 Palom and Porom"
   - id: 0x22
     title: "Calbrena"
   - id: 0x23
-    title: "Run!!"
+    title: "21 Run!!"
   - id: 0x24
-    title: "Cid's Theme"
+    title: "24 Cid's Theme"
   - id: 0x25
-    title: "Cave"
+    title: "12 Into the Darkness"
   - id: 0x26
     title: "Dance"
   - id: 0x27
-    title: "Battle"
+    title: "08 Battle 1"
   - id: 0x28
-    title: "Damcyan"
+    title: "16 Damcyan Castle"
   - id: 0x29
-    title: "Fanfare"
+    title: "09 Fanfare"
   - id: 0x2A
-    title: "Sorrow"
+    title: "17 Sorrow and Loss"
   - id: 0x2B
     title: "Chocobo Forest"
   - id: 0x2C
-    title: "Red Wings"
+    title: "02 Red Wings"
   - id: 0x2D
-    title: "Suspicion"
+    title: "22 Suspicion"
   - id: 0x2E
-    title: "Fabul"
+    title: "20 Fabul"
   - id: 0x2F
     title: "Cecil becomes a Paladin"
   - id: 0x30
-    title: "Big Chocobo"
+    title: "10 Enter Big Chocobo"
   - id: 0x31
     title: "Moon"
   - id: 0x32
-    title: "Toroia Castle"
+    title: "30 Toroian Beauty"
   - id: 0x33
-    title: "Mysidia"
+    title: "25 Mysidia"
   - id: 0x34
     title: "Castle - Red Wings 2"
   - id: 0x35
