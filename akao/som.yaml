@@ -1,0 +1,217 @@
+game: "Secret of Mana (SNES)"
+format: "snes_unified"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "som1.smc"
+
+# Base address for song data (SNES address C3/0000 - HiROM)
+base_address: 0xC30000
+
+# Song pointer table configuration
+song_pointer_table:
+  style: "direct"  # SoM uses direct pointers like FF3
+  offset: 0x3D39   # Offset from base_address (base + 0x3d39 per sommus.pl line 65)
+  count: 64        # Number of songs (0x40 per sommus.pl line 62)
+
+# Instrument table configuration
+# Instrument table is at C3/3F22 + song_id * 0x20 (per sommus.pl line 100)
+instrument_table_offset: 0x3F22  # Offset from base_address for instrument tables
+instrument_table_stride: 0x20    # 32 bytes per song's instrument table
+
+# PHASE 1: Config-driven parameters for SNESUnified
+spc_load_address: 0x1A00   # SPC-700 RAM load address (per sommus.pl line 140: $vstart[$v] - 0x1a00)
+note_divisor: 15           # Note encoding: note = cmd / 15, duration = cmd % 15 (per sommus.pl line 146)
+first_opcode: 0xD2         # First command opcode (< 0xD2 are notes, per sommus.pl line 144)
+
+# Voice addressing formula for SoM
+vaddroffset_formula:
+  type: "subtract_constant"
+  constant: 0x11A14  # Per sommus.pl line 103: $vaddroffset = (0x11a14 - $vaddroffset) & 0xffff
+
+# PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
+opcodes:
+  0xD2: {semantic: "volume", params: 1}          # Voice volume (per sommus.pl line 197)
+  0xD3: {semantic: "volume_fade", params: 2}     # Volume fade (per sommus.pl line 205)
+  0xD4: {semantic: "pan", params: 1}             # Balance/pan (per sommus.pl line 224)
+  0xD5: {semantic: "pan_fade", params: 2}        # Balance/pan fade (per sommus.pl line 228)
+  0xD6: {semantic: "portamento_on", params: 3}   # Portamento (unimplemented in Perl)
+  0xD7: {semantic: "vibrato_on", params: 3}      # Vibrato (unimplemented in Perl)
+  0xD8: {semantic: "vibrato_off", params: 0}     # Vibrato off (unimplemented in Perl)
+  0xD9: {semantic: "tremolo_on", params: 3}      # Tremolo (unimplemented in Perl)
+  0xDA: {semantic: "tremolo_off", params: 0}     # Tremolo off (unimplemented in Perl)
+  0xDB: {semantic: "pan_sweep_on", params: 3}    # Pan Sweep (unimplemented in Perl)
+  0xDC: {semantic: "pan_sweep_off", params: 0}   # Pan Sweep off (unimplemented in Perl)
+  0xDD: {semantic: "noise_clock", params: 1}     # Set Noise Clock (unimplemented in Perl)
+  0xDE: {semantic: "noise_on", params: 0}        # Enable Noise (unimplemented in Perl)
+  0xDF: {semantic: "noise_off", params: 0}       # Disable Noise (unimplemented in Perl)
+  0xE0: {semantic: "pitchmod_on", params: 0}     # Enable Pitchmod (unimplemented in Perl)
+  0xE1: {semantic: "pitchmod_off", params: 0}    # Disable Pitchmod (unimplemented in Perl)
+  0xE2: {semantic: "echo_on", params: 0}         # Enable Echo (unimplemented in Perl)
+  0xE3: {semantic: "echo_off", params: 0}        # Disable Echo (unimplemented in Perl)
+  0xE4: {semantic: "octave_set", params: 1}      # Set octave (per sommus.pl line 277)
+  0xE5: {semantic: "octave_inc", params: 0}      # Increment octave (per sommus.pl line 279)
+  0xE6: {semantic: "octave_dec", params: 0}      # Decrement octave (per sommus.pl line 282)
+  0xE7: {semantic: "transpose_set", params: 1}   # Set transpose (per sommus.pl line 272)
+  0xE8: {semantic: "transpose_change", params: 1} # Change transpose (per sommus.pl line 274)
+  0xE9: {semantic: "detune", params: 1}          # Detune (unimplemented in Perl)
+  0xEA: {semantic: "patch_change", params: 1, handler: "inst_table"}  # Patch change (per sommus.pl line 243)
+  0xEB: {semantic: "adsr_attack", params: 1}     # ADSR Attack (unimplemented in Perl)
+  0xEC: {semantic: "adsr_decay", params: 1}      # ADSR Decay (unimplemented in Perl)
+  0xED: {semantic: "adsr_sustain", params: 1}    # ADSR Sustain (unimplemented in Perl)
+  0xEE: {semantic: "adsr_release", params: 1}    # ADSR Release (unimplemented in Perl)
+  0xEF: {semantic: "adsr_default", params: 0}    # Default ADSR (unimplemented in Perl)
+  0xF0: {semantic: "loop_start", params: 1}      # Begin repeat (per sommus.pl line 292)
+  0xF1: {semantic: "loop_end", params: 0}        # End repeat (per sommus.pl line 296)
+  0xF2: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+  0xF3: {semantic: "tempo", params: 1}           # Tempo change (per sommus.pl line 177)
+  0xF4: {semantic: "tempo_fade", params: 2}      # Tempo fade (per sommus.pl line 183)
+  0xF5: {semantic: "echo_volume", params: 1}     # Echo Volume (unimplemented in Perl)
+  0xF6: {semantic: "echo_volume_fade", params: 2} # Echo Volume Fade (unimplemented in Perl)
+  0xF7: {semantic: "echo_feedback", params: 1}   # Echo Feedback (unimplemented in Perl)
+  0xF8: {semantic: "master_volume", params: 1}   # Set master volume (per sommus.pl line 286)
+  0xF9: {semantic: "loop_break", params: 3, handler: "vaddroffset"}  # Conditional loop (per sommus.pl line 322)
+  0xFA: {semantic: "goto", params: 2, handler: "vaddroffset"}        # Goto with vaddroffset (per sommus.pl line 305)
+  0xFB: {semantic: "master_volume_ignore", params: 1}  # Ignore master volume for patch (per sommus.pl line 288)
+  0xFC: {semantic: "reset_crpt", params: 0}      # Reset conditional repeat counter (per sommus.pl line 320)
+  0xFD: {semantic: "halt", params: 0}            # Halt (unimplemented in Perl)
+  0xFE: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+  0xFF: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+
+# Tempo calculation parameters
+# Per sommus.pl line 15: $tempo_factor = 55_296_000  # timer0 period 4.5ms * 96/2 ticks * 256
+timer_period_us: 4500     # Timer period in microseconds (timer0 period: 4.5ms)
+timer_count: 48           # Number of timer counts per sound processing loop (96/2)
+tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
+
+# Default state values
+default_tempo: 120
+default_octave: 4
+default_velocity: 100
+
+# Duration table (per sommus.pl line 77-79)
+# seek ROM, $spcbase + 0x152c, 0; read ROM, $buf, 15
+# where $spcbase = $base + 0x748 + 2 - 0x200 = C3/0000 + 0x748 + 2 - 0x200 = C3/054A
+duration_table:
+  address: 0xC3076C  # spcbase + 0x152c where spcbase = C3/054A
+  size: 15
+  type: "byte"
+
+# Music opcode lengths (per sommus.pl line 69-71)
+# seek ROM, $spcbase + 0x1484, 0; read ROM, $buf, 46
+opcode_table:
+  address: 0xC319CE  # spcbase + 0x1484 where spcbase = C3/054A
+  size: 46
+  type: "byte"
+
+# Pitch table (per sommus.pl line 73-75)
+# seek ROM, $spcbase + 0x14f2, 0; read ROM, $buf, 26 (13 ushorts)
+pitch_table:
+  address: 0xC31A3C  # spcbase + 0x14f2 where spcbase = C3/054A
+  size: 13
+  type: "ushort"
+
+# Patch mapping: instrument_id -> General MIDI patch (per sommus.pl lines 44-49)
+# Negative values indicate percussion (GM drum key number)
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x01: {gm_patch: 25, transpose: -2, name: "Acoustic Guitar (steel)"}
+  0x02: {gm_patch: 39, transpose: -2, name: "Synth Bass 1"}
+  0x03: {gm_patch: 5, transpose: 0, name: "Electric Piano 1"}
+  0x04: {gm_patch: 61, transpose: 0, name: "Brass Section"}
+  0x05: {gm_patch: 52, transpose: 0, name: "Choir Aahs"}
+  0x06: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}  # Percussion
+  0x07: {gm_patch: 14, transpose: 0, name: "Tubular Bells"}
+  0x08: {gm_patch: 33, transpose: -2, name: "Acoustic Bass"}
+  0x09: {gm_patch: 63, transpose: 0, name: "Synth Brass 1"}
+  0x0A: {gm_patch: 37, transpose: -2, name: "Slap Bass 1"}
+  0x0B: {gm_patch: 55, transpose: 0, name: "Orchestra Hit"}
+  0x0C: {gm_patch: 73, transpose: 0, name: "Piccolo"}
+  0x0D: {gm_patch: 21, transpose: 0, name: "Accordion"}
+  0x0E: {gm_patch: 92, transpose: 0, name: "Pad 5 (bowed)"}
+  0x0F: {gm_patch: 18, transpose: 0, name: "Rock Organ"}
+  0x10: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x11: {gm_patch: 4, transpose: 0, name: "Electric Piano 1"}
+  0x12: {gm_patch: 23, transpose: 0, name: "Tango Accordion"}
+  0x13: {gm_patch: 48, transpose: 0, name: "String Ensemble 1"}
+  0x14: {gm_patch: 30, transpose: -1, name: "Distortion Guitar"}
+  0x15: {gm_patch: -42, transpose: 0, name: "Closed Hi-Hat"}  # Percussion
+  0x16: {gm_patch: -46, transpose: 0, name: "Open Hi-Hat"}    # Percussion
+  0x17: {gm_patch: -36, transpose: 0, name: "Bass Drum"}      # Percussion
+  0x18: {gm_patch: -35, transpose: 0, name: "Acoustic Bass Drum"}  # Percussion
+  0x19: {gm_patch: -40, transpose: 0, name: "Snare Drum"}     # Percussion
+  0x1A: {gm_patch: -37, transpose: 0, name: "Side Stick"}     # Percussion
+  0x1B: {gm_patch: -39, transpose: 0, name: "Hand Clap"}      # Percussion
+  0x1C: {gm_patch: -49, transpose: 0, name: "Crash Cymbal 1"} # Percussion
+  0x1D: {gm_patch: 13, transpose: 0, name: "Xylophone"}
+  0x1E: {gm_patch: -37, transpose: 0, name: "Side Stick"}     # Percussion
+  0x1F: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}  # Sample 0x1F is mana beast roar
+  0x20: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x21: {gm_patch: 8, transpose: 0, name: "Celesta"}
+
+# Song titles (per sommus.pl lines 17-39)
+songs:
+  - {id: 0x00, title: "Secret of the Arid Sands"}
+  - {id: 0x01, title: "Flight Bound for the Unknown"}
+  - {id: 0x02, title: "Star of Darkness"}
+  - {id: 0x03, title: "Prophecy"}
+  - {id: 0x04, title: "Danger"}
+  - {id: 0x05, title: "Far Thunder"}
+  - {id: 0x06, title: "Where the Wind Ends"}
+  - {id: 0x07, title: "Close Your Eyelids"}
+  - {id: 0x08, title: "Spirit of the Night"}
+  - {id: 0x09, title: "The Fairy Child"}
+  - {id: 0x0A, title: "What the Forest Taught Me"}
+  - {id: 0x0B, title: "Eternal Recurrance"}
+  - {id: 0x0C, title: "Oracle"}
+  - {id: 0x0D, title: "Tell a Strange Tale"}
+  - {id: 0x0E, title: "The Boy Aims for Wild Fields"}
+  - {id: 0x0F, title: "Rose and Ghost"}
+  - {id: 0x10, title: "Did You See the Sea"}
+  - {id: 0x11, title: "Color of the Summer Sky"}
+  - {id: 0x12, title: "Main Menu"}
+  - {id: 0x13, title: "The Legend"}
+  - {id: 0x14, title: "Orphan of the Storm"}
+  - {id: 0x15, title: "Eight Ringing Bells"}
+  - {id: 0x16, title: "Dancing Beasts"}
+  - {id: 0x17, title: "Boss Beaten"}
+  - {id: 0x18, title: "18"}
+  - {id: 0x19, title: "19"}
+  - {id: 0x1A, title: "Cannon Flight"}
+  - {id: 0x1B, title: "Ceremony"}
+  - {id: 0x1C, title: "Always Together"}
+  - {id: 0x1D, title: "A Prayer and a Whisper"}
+  - {id: 0x1E, title: "1E"}
+  - {id: 0x1F, title: "Happenings on a Moonlit Night"}
+  - {id: 0x20, title: "A Curious Happening"}
+  - {id: 0x21, title: "Got an Item"}
+  - {id: 0x22, title: "Midge Mallet"}
+  - {id: 0x23, title: "23"}
+  - {id: 0x24, title: "A Wish"}
+  - {id: 0x25, title: "Monarch on the Shore"}
+  - {id: 0x26, title: "Steel and Traps"}
+  - {id: 0x27, title: "Pure Night"}
+  - {id: 0x28, title: "28"}
+  - {id: 0x29, title: "Kind Memories"}
+  - {id: 0x2A, title: "The Holy Intruder"}
+  - {id: 0x2B, title: "In the Darkness Depths"}
+  - {id: 0x2C, title: "Angels Fear"}
+  - {id: 0x2D, title: "2D"}
+  - {id: 0x2E, title: "Key"}
+  - {id: 0x2F, title: "2F"}
+  - {id: 0x30, title: "30"}
+  - {id: 0x31, title: "Give Love its Rightful Time"}
+  - {id: 0x32, title: "The Second Truth from the Left"}
+  - {id: 0x33, title: "33"}
+  - {id: 0x34, title: "I Wont Forget"}
+  - {id: 0x35, title: "Ally Joins"}
+  - {id: 0x36, title: "To Reach Tomorrow"}
+  - {id: 0x37, title: "One of Them Is Hope"}
+  - {id: 0x38, title: "A Conclusion"}
+  - {id: 0x39, title: "Meridian Dance"}
+  - {id: 0x3A, title: "3A"}
+  - {id: 0x3B, title: "3B"}
+  - {id: 0x3C, title: "3C"}
+  - {id: 0x3D, title: "3D"}
+  - {id: 0x3E, title: "3E"}
+  - {id: 0x3F, title: "3F"}
