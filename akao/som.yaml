@@ -17,7 +17,6 @@ song_pointer_table:
 # Instrument table configuration
 # Instrument table is at C3/3F22 + song_id * 0x20 (per sommus.pl line 100)
 instrument_table_offset: 0x3F22  # Offset from base_address for instrument tables
-instrument_table_stride: 0x20    # 32 bytes per song's instrument table
 
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x1A00   # SPC-700 RAM load address (per sommus.pl line 140: $vstart[$v] - 0x1a00)
@@ -35,12 +34,12 @@ opcodes:
   0xD3: {semantic: "volume_fade", params: 2}     # Volume fade (per sommus.pl line 205)
   0xD4: {semantic: "pan", params: 1}             # Balance/pan (per sommus.pl line 224)
   0xD5: {semantic: "pan_fade", params: 2}        # Balance/pan fade (per sommus.pl line 228)
-  0xD6: {semantic: "portamento_on", params: 3}   # Portamento (unimplemented in Perl)
+  0xD6: {semantic: "portamento_on", params: 2}   # Portamento (unimplemented in Perl)
   0xD7: {semantic: "vibrato_on", params: 3}      # Vibrato (unimplemented in Perl)
   0xD8: {semantic: "vibrato_off", params: 0}     # Vibrato off (unimplemented in Perl)
   0xD9: {semantic: "tremolo_on", params: 3}      # Tremolo (unimplemented in Perl)
   0xDA: {semantic: "tremolo_off", params: 0}     # Tremolo off (unimplemented in Perl)
-  0xDB: {semantic: "pan_sweep_on", params: 3}    # Pan Sweep (unimplemented in Perl)
+  0xDB: {semantic: "pan_sweep_on", params: 2}    # Pan Sweep (unimplemented in Perl)
   0xDC: {semantic: "pan_sweep_off", params: 0}   # Pan Sweep off (unimplemented in Perl)
   0xDD: {semantic: "noise_clock", params: 1}     # Set Noise Clock (unimplemented in Perl)
   0xDE: {semantic: "noise_on", params: 0}        # Enable Noise (unimplemented in Perl)
@@ -68,13 +67,13 @@ opcodes:
   0xF4: {semantic: "tempo_fade", params: 2}      # Tempo fade (per sommus.pl line 183)
   0xF5: {semantic: "echo_volume", params: 1}     # Echo Volume (unimplemented in Perl)
   0xF6: {semantic: "echo_volume_fade", params: 2} # Echo Volume Fade (unimplemented in Perl)
-  0xF7: {semantic: "echo_feedback", params: 1}   # Echo Feedback (unimplemented in Perl)
+  0xF7: {semantic: "echo_feedback", params: 2}   # Echo Feedback (unimplemented in Perl)
   0xF8: {semantic: "master_volume", params: 1}   # Set master volume (per sommus.pl line 286)
   0xF9: {semantic: "loop_break", params: 3, handler: "vaddroffset"}  # Conditional loop (per sommus.pl line 322)
   0xFA: {semantic: "goto", params: 2, handler: "vaddroffset"}        # Goto with vaddroffset (per sommus.pl line 305)
-  0xFB: {semantic: "master_volume_ignore", params: 1}  # Ignore master volume for patch (per sommus.pl line 288)
+  0xFB: {semantic: "goto_if_c4", params: 2}  # conditional goto based on memory c4
   0xFC: {semantic: "reset_crpt", params: 0}      # Reset conditional repeat counter (per sommus.pl line 320)
-  0xFD: {semantic: "halt", params: 0}            # Halt (unimplemented in Perl)
+  0xFD: {semantic: "master_volume_ignore", params: 1}            # Halt (unimplemented in Perl)
   0xFE: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
   0xFF: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
 

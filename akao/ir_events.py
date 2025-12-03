@@ -60,7 +60,7 @@ class IREvent:
     duration: Optional[int] = None  # In MIDI ticks
 
     # State change events
-    value: Optional[int] = None  # Generic value field
+    value: Optional[int|float] = None  # Generic value field
     operands: List[int] = field(default_factory=list)  # Raw operand bytes
 
     # For loop events

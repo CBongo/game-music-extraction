@@ -1172,6 +1172,8 @@ class SNESUnified(SequenceFormat):
         self.spc_load_address = config.get('spc_load_address', 0x2000)
         self.note_divisor = config.get('note_divisor', 15)
         self.first_opcode = config.get('first_opcode', 0xD2)
+        self.tie_note_value = config.get('tie_note_value', 12)
+        self.rest_note_value = config.get('rest_note_value', 13)  
 
         # Auto-detect ROM mapping mode (LoROM vs HiROM)
         self.rom_mapping = self._detect_rom_mapping()
@@ -1181,7 +1183,7 @@ class SNESUnified(SequenceFormat):
             table_cfg = config['duration_table']
             self.duration_table = self._read_rom_table(
                 table_cfg.get('address'),
-                table_cfg.get('size', 15),
+                table_cfg.get('size', self.note_divisor),
                 table_cfg.get('type', 'B')
             )
         else:
@@ -2017,23 +2019,24 @@ class SNESUnified(SequenceFormat):
         """Read song pointer table - supports both FF2 and FF3 styles via config."""
         ptr_table_config = self.config.get('song_pointer_table')
 
-        if ptr_table_config and ptr_table_config.get('style') == 'direct':
+        if ptr_table_config:
             # FF3/SoM style: Direct song pointers at base + offset
             base_offset = self._snes_addr_to_offset(self.base_address)
             table_offset = ptr_table_config.get('offset', 0x3E96)
             song_count = ptr_table_config.get('count', 85)
             song_pointers = {}
+            raw_song_pointers = self._read_3byte_pointers(base_offset + table_offset, song_count)
 
             for i in range(song_count):
-                ptr_offset = base_offset + table_offset + (i * 3)
-                if ptr_offset + 3 > len(self.rom_data):
-                    break
+                if ptr_table_config.get('style') == 'direct':
+                    rom_offset = self._snes_addr_to_offset(raw_song_pointers[i])
 
-                addr_low = self.rom_data[ptr_offset]
-                addr_high = self.rom_data[ptr_offset + 1]
-                bank = self.rom_data[ptr_offset + 2]
-                snes_addr = (bank << 16) | (addr_high << 8) | addr_low
-                rom_offset = self._snes_addr_to_offset(snes_addr)
+                elif ptr_table_config.get('style') == 'offsets':
+                    # FF2 style: song offsets from base table method
+                    rom_offset = base_offset + raw_song_pointers[i]
+                
+                else:
+                    raise ValueError(f"Unknown song pointer table style: {ptr_table_config.get('style')}")
 
                 # Read actual length from 2-byte size field at start of song data
                 if rom_offset + 2 <= len(self.rom_data):
@@ -2041,36 +2044,9 @@ class SNESUnified(SequenceFormat):
                     song_pointers[i] = (rom_offset, length)
 
             return song_pointers
+ 
         else:
-            # FF2 style: Indirection table method
-            base_offset = self._snes_addr_to_offset(self.base_address)
-
-            # Read the master pointer table (5 pointers at base address)
-            master_ptrs_rel = self._read_3byte_pointers(base_offset, 5)
-            master_ptrs_abs = [base_offset + ptr for ptr in master_ptrs_rel]
-
-            # Store important table offsets
-            song_table_offset = master_ptrs_abs[0]
-            self.instrument_table_offset = master_ptrs_abs[2]  # Song instrument table
-
-            # Read song pointers from the song table
-            songs = self.config.get('songs', [])
-            if not songs:
-                return {}
-
-            song_ptrs_rel = self._read_3byte_pointers(song_table_offset, len(songs))
-            song_ptrs_abs = [base_offset + ptr for ptr in song_ptrs_rel]
-
-            # Calculate song data offsets and lengths
-            song_data = {}
-            for i in range(len(song_ptrs_abs)):
-                song_offset = song_ptrs_abs[i]
-                if song_offset + 2 <= len(self.rom_data):
-                    song_length_bytes = self.rom_data[song_offset:song_offset + 2]
-                    song_length = struct.unpack('<H', song_length_bytes)[0]
-                    song_data[i] = (song_offset, song_length)
-
-            return song_data
+            raise ValueError("Song pointer table configuration missing in YAML")
 
     def _snes_addr_to_offset(self, snes_addr: int) -> int:
         """Convert SNES address (bank/addr format) to ROM file offset.
@@ -2278,18 +2254,22 @@ class SNESUnified(SequenceFormat):
                     else:
                         line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
 
-                elif note_num == 12:
+                elif note_num == self.rest_note_value:
                     # Rest - create IR event
                     event = make_rest(p, dur)
                     ir_events.append(event)
                     line += f"           Rest         Dur {dur}"
 
-                else:
+                elif note_num == self.tie_note_value:
                     # Tie - create IR event
                     event = make_tie(p, dur)
                     ir_events.append(event)
                     line += f"           Tie          Dur {dur}"
 
+                else:
+                    # Unknown note value
+                    line += f"           OP_NOTE_UNKNOWN ({note_num:02}) Dur {dur}"
+                
                 p += 1
                 disasm.append(line)
 

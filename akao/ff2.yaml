@@ -8,10 +8,22 @@ rom_file: "ff2.smc"
 # Base address for song data (SNES address 04/C000)
 base_address: 0x04C000
 
+# Song pointer table configuration
+song_pointer_table:
+  style: "offsets" 
+  offset: 0x1321d   # Offset from base_address for song pointer table
+  count: 0x46        # Number of songs 
+
+# Instrument table configuration
+# Instrument table is at 04/C00F + song_id * 0x20
+instrument_table_offset: 0x000F  # Offset from base_address for instrument tables
+
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x2000   # SPC-700 RAM load address
 note_divisor: 15           # Note encoding: note = cmd / 15, duration = cmd % 15
 first_opcode: 0xD2         # First command opcode (< 0xD2 are notes)
+rest_note_value: 12     # Note value indicating a rest (per ff2mus.pl line 182)
+tie_note_value: 13      # Note value indicating a tie (per ff2mus.pl line 184)
 
 # PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
 opcodes:
@@ -61,10 +73,6 @@ opcodes:
   0xFD: {semantic: "halt", params: 0}            # Halt
   0xFE: {semantic: "halt", params: 0}            # Halt
   0xFF: {semantic: "halt", params: 0}            # Halt
-
-# Song pointer table location (SNES address)
-# The first 3-byte pointer at base_address points to the song table
-song_table_address: 0x04C000
 
 # Tempo calculation parameters
 # BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
