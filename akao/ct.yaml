@@ -1,0 +1,372 @@
+game: "Chrono Trigger (SNES)"
+format: "snes_unified"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "chrono.smc"
+
+# Base address for song data (SNES address C7/0000 - HiROM)
+base_address: 0xC70000
+
+# Song pointer table configuration
+song_pointer_table:
+  style: "direct"  # Uses 3-byte pointers like FF3
+  offset: 0x0D18   # Offset from base_address
+  count: 0x53      # 83 songs (hardcoded, value from C7/0AE9)
+
+has_alternate_voice_pointers: true  # Like FF3
+
+# Instrument table configuration
+instrument_table_offset: 0x0E11  # Offset from base_address
+instrument_table_stride: 0x20    # 32 bytes per song
+
+# Percussion table configuration (CT-specific)
+percussion_table_offset: 0x1871  # Offset from base_address for percussion tables
+percussion_table_stride: 0x24    # 36 bytes per song (12 entries × 3 bytes)
+
+# PHASE 1: Config-driven parameters for SNESUnified
+spc_load_address: 0x2000   # SPC-700 RAM load address
+note_divisor: 14           # Note encoding: note = cmd / 14, duration = cmd % 14 (same as FF3)
+first_opcode: 0xC4         # First command opcode (< 0xC4 are notes)
+rest_note_value: 13        # Note value indicating a rest
+tie_note_value: 12         # Note value indicating a tie
+
+# Voice addressing formula (vaddroffset)
+vaddroffset_formula:
+  type: "subtract_constant"
+  constant: 0x12024
+
+# PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
+opcodes:
+  0xC4: {semantic: "volume", params: 1}
+  0xC5: {semantic: "volume_fade", params: 2}
+  0xC6: {semantic: "pan", params: 1}
+  0xC7: {semantic: "pan_fade", params: 2}
+  0xC8: {semantic: "portamento_on", params: 2}
+  0xC9: {semantic: "vibrato_on", params: 3}
+  0xCA: {semantic: "vibrato_off", params: 0}
+  0xCB: {semantic: "tremolo_on", params: 3}
+  0xCC: {semantic: "tremolo_off", params: 0}
+  0xCD: {semantic: "pan_sweep_on", params: 3}
+  0xCE: {semantic: "pan_sweep_off", params: 0}
+  0xCF: {semantic: "noise_clock", params: 1}
+  0xD0: {semantic: "noise_on", params: 0}
+  0xD1: {semantic: "noise_off", params: 0}
+  0xD2: {semantic: "pitchmod_on", params: 0}
+  0xD3: {semantic: "pitchmod_off", params: 0}
+  0xD4: {semantic: "echo_on", params: 0}
+  0xD5: {semantic: "echo_off", params: 0}
+  0xD6: {semantic: "octave_set", params: 1}
+  0xD7: {semantic: "octave_inc", params: 0}
+  0xD8: {semantic: "octave_dec", params: 0}
+  0xD9: {semantic: "transpose_set", params: 1}
+  0xDA: {semantic: "transpose_change", params: 1}
+  0xDB: {semantic: "detune", params: 1}
+  0xDC: {semantic: "patch_change", params: 1, handler: {type: "dual_map", param: 0x20}}
+  0xDD: {semantic: "adsr_attack", params: 1}
+  0xDE: {semantic: "adsr_decay", params: 1}
+  0xDF: {semantic: "adsr_sustain", params: 1}
+  0xE0: {semantic: "adsr_release", params: 1}
+  0xE1: {semantic: "adsr_default", params: 0}
+  0xE2: {semantic: "loop_start", params: 1}
+  0xE3: {semantic: "loop_end", params: 0}
+  0xE4: {semantic: "slur_on", params: 0}
+  0xE5: {semantic: "slur_off", params: 0}
+  0xE6: {semantic: "roll_on", params: 0}
+  0xE7: {semantic: "roll_off", params: 0}
+  0xE8: {semantic: "utility_duration", params: 1}
+  0xE9: {semantic: "play_sfx", params: 1}
+  0xEA: {semantic: "play_sfx", params: 1}
+  0xEB: {semantic: "halt", params: 0}
+  0xEC: {semantic: "halt", params: 0}
+  0xED: {semantic: "halt", params: 0}
+  0xEE: {semantic: "halt", params: 0}
+  0xEF: {semantic: "halt", params: 0}
+  0xF0: {semantic: "tempo", params: 1}
+  0xF1: {semantic: "tempo_fade", params: 2}
+  0xF2: {semantic: "echo_volume", params: 1}
+  0xF3: {semantic: "echo_volume_fade", params: 2}
+  0xF4: {semantic: "master_volume", params: 1}
+  0xF5: {semantic: "loop_break", params: 3, handler: "vaddroffset"}
+  0xF6: {semantic: "goto", params: 2, handler: "vaddroffset"}
+  0xF7: {semantic: "echo_feedback_fade", params: 3}
+  0xF8: {semantic: "filter_fade", params: 3}
+  0xF9: {semantic: "unknown_f9", params: 0}
+  0xFA: {semantic: "unknown_fa", params: 0}
+  0xFB: {semantic: "percussion_mode_on", params: 0}
+  0xFC: {semantic: "percussion_mode_off", params: 0}
+  0xFD: {semantic: "volume_multiplier", params: 1}
+  0xFE: {semantic: "halt", params: 0}
+  0xFF: {semantic: "halt", params: 0}
+
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# where tempo_factor = timer_period_us * timer_count * tempo_resolution
+# NOTE: CT-specific tempo adjustment formula not yet implemented: adjusted = int(tempo * 0x14 / 0x100) + tempo
+timer_period_us: 5250      # Timer period: 5.25ms (vs 4.5ms for FF2, 4.875ms for FF3)
+timer_count: 48            # Number of timer counts per sound processing loop
+tempo_resolution: 256      # 8-bit tempo operands (range 0-255)
+
+# Default state values
+default_tempo: 255
+default_octave: 4
+default_velocity: 64
+
+# Table addresses (spcbase = base + 0x24C3 + 2 - 0x200 = 0xC722C5)
+duration_table:
+  address: 0xC74078  # spcbase + 0x1DB3 = 0xC722C5 + 0x1DB3
+  size: 14
+  type: "byte"
+
+opcode_table:
+  address: 0xC73891  # spcbase + 0x15CC = 0xC722C5 + 0x15CC
+  size: 60
+  type: "byte"
+
+pitch_table:
+  address: 0xC74032  # spcbase + 0x1D6D = 0xC722C5 + 0x1D6D
+  size: 13
+  type: "ushort"
+
+# Patch mapping: SNES instrument -> General MIDI patch
+# Negative values indicate percussion (GM drum key number)
+# From ctmus.pl lines 44-52
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x01: {gm_patch: -39, transpose: 0, name: "Hand Clap"}
+  0x02: {gm_patch: -64, transpose: 0, name: "Low Conga"}
+  0x03: {gm_patch: -62, transpose: 0, name: "Mute Hi Conga"}
+  0x04: {gm_patch: -54, transpose: 0, name: "Tambourine"}
+  0x05: {gm_patch: -35, transpose: 0, name: "Acoustic Bass Drum"}
+  0x06: {gm_patch: -40, transpose: 0, name: "Electric Snare"}
+  0x07: {gm_patch: -42, transpose: 0, name: "Closed Hi-Hat"}
+  0x08: {gm_patch: -46, transpose: 0, name: "Open Hi-Hat"}
+  0x09: {gm_patch: 47, transpose: 1, name: "Timpani"}
+  0x0A: {gm_patch: -75, transpose: 0, name: "Claves"}
+  0x0B: {gm_patch: -48, transpose: 0, name: "Hi Mid Tom"}
+  0x0C: {gm_patch: -45, transpose: 0, name: "Low Tom"}
+  0x0D: {gm_patch: -62, transpose: 0, name: "Mute Hi Conga"}
+  0x0E: {gm_patch: -63, transpose: 0, name: "Open Hi Conga"}
+  0x0F: {gm_patch: -76, transpose: 0, name: "High Wood Block"}
+  0x10: {gm_patch: -64, transpose: 0, name: "Low Conga"}
+  0x11: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x12: {gm_patch: 66, transpose: -1, name: "Tenor Sax"}
+  0x13: {gm_patch: 0, transpose: 2, name: "Acoustic Grand Piano"}
+  0x14: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x15: {gm_patch: 45, transpose: 0, name: "Pizzicato Strings"}
+  0x16: {gm_patch: 19, transpose: 0, name: "Church Organ"}
+  0x17: {gm_patch: 73, transpose: 1, name: "Piccolo"}
+  0x18: {gm_patch: 4, transpose: 1, name: "Electric Piano 1"}
+  0x19: {gm_patch: 33, transpose: -2, name: "Acoustic Bass"}
+  0x1A: {gm_patch: 32, transpose: -2, name: "Acoustic Bass"}
+  0x1B: {gm_patch: 54, transpose: 0, name: "Synth Voice"}
+  0x1C: {gm_patch: 5, transpose: 0, name: "Electric Piano 2"}
+  0x1D: {gm_patch: 21, transpose: 0, name: "Accordion"}
+  0x1E: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x1F: {gm_patch: -69, transpose: 0, name: "Cabasa"}
+  0x20: {gm_patch: -51, transpose: 0, name: "Ride Cymbal 1"}
+  0x21: {gm_patch: 10, transpose: 1, name: "Glockenspiel"}
+  0x22: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x23: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x24: {gm_patch: 56, transpose: 0, name: "Trumpet"}
+  0x25: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}
+  0x26: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x27: {gm_patch: -49, transpose: 0, name: "Crash Cymbal 1"}
+  0x28: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x29: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x2A: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x2B: {gm_patch: 13, transpose: 1, name: "Xylophone"}
+  0x2C: {gm_patch: 48, transpose: 1, name: "String Ensemble 1"}
+  0x2D: {gm_patch: 11, transpose: 0, name: "Vibraphone"}
+  0x2E: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x2F: {gm_patch: 7, transpose: -1, name: "Harpsichord"}
+  0x30: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x31: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x32: {gm_patch: 75, transpose: 1, name: "Pan Flute"}
+  0x33: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x34: {gm_patch: 17, transpose: 1, name: "Percussive Organ"}
+  0x35: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x36: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x37: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x38: {gm_patch: 73, transpose: 0, name: "Piccolo"}
+  0x39: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x3A: {gm_patch: 52, transpose: 0, name: "Choir Aahs"}
+  0x3B: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x3C: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x3D: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x3E: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x3F: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+
+# Low patch map for operands < 0x20
+patch_map_low:
+  0x00: {gm_patch: 80, transpose: 0, name: "Square Lead"}
+  0x01: {gm_patch: 81, transpose: 0, name: "Saw Lead"}
+
+# Song list (from ctmus.pl lines 15-42)
+songs:
+  - id: 0x00
+    title: "00"
+  - id: 0x01
+    title: "Memories of Green"
+  - id: 0x02
+    title: "Wind Scene"
+  - id: 0x03
+    title: "Corridors of Time"
+  - id: 0x04
+    title: "Rhythm of Wind, Sky, and Earth"
+  - id: 0x05
+    title: "Ruined World"
+  - id: 0x06
+    title: "Guardia Millenial Fair"
+  - id: 0x07
+    title: "Far Off Promise"
+  - id: 0x08
+    title: "Secret of the Forest"
+  - id: 0x09
+    title: "Zeal Palace"
+  - id: 0x0A
+    title: "Remains of Factory"
+  - id: 0x0B
+    title: "Ayla's Theme"
+  - id: 0x0C
+    title: "Courage and Pride"
+  - id: 0x0D
+    title: "Lavos' Theme"
+  - id: 0x0E
+    title: "Robo's Theme"
+  - id: 0x0F
+    title: "Morning Sunlight"
+  - id: 0x10
+    title: "Manoria Cathedral"
+  - id: 0x11
+    title: "11"
+  - id: 0x12
+    title: "FX-Leene's Bell"
+  - id: 0x13
+    title: "Wings That Cross Time"
+  - id: 0x14
+    title: "Schala's Theme"
+  - id: 0x15
+    title: "Delightful Spekkio"
+  - id: 0x16
+    title: "A Shot of Crisis"
+  - id: 0x17
+    title: "Kingdom Trial"
+  - id: 0x18
+    title: "Chrono Trigger (a)"
+  - id: 0x19
+    title: "FX-19"
+  - id: 0x1A
+    title: "FX-1a"
+  - id: 0x1B
+    title: "Fanfare 1"
+  - id: 0x1C
+    title: "Fanfare 2"
+  - id: 0x1D
+    title: "At the Bottom of Night"
+  - id: 0x1E
+    title: "Peaceful Day"
+  - id: 0x1F
+    title: "A Strange Happening"
+  - id: 0x20
+    title: "FX-Drips"
+  - id: 0x21
+    title: "FX-21"
+  - id: 0x22
+    title: "FX-22"
+  - id: 0x23
+    title: "The Hidden Truth"
+  - id: 0x24
+    title: "A Prayer to the Road That Leads"
+  - id: 0x25
+    title: "Huh"
+  - id: 0x26
+    title: "The Day the World Revived"
+  - id: 0x27
+    title: "Robo Gang Johnny"
+  - id: 0x28
+    title: "Battle with Magus"
+  - id: 0x29
+    title: "Boss Battle 1"
+  - id: 0x2A
+    title: "Kaeru's Theme"
+  - id: 0x2B
+    title: "Goodnight"
+  - id: 0x2C
+    title: "Bike Chase"
+  - id: 0x2D
+    title: "People Who Threw Away the Will to Live"
+  - id: 0x2E
+    title: "Mystery of the Past"
+  - id: 0x2F
+    title: "Underground Sewer"
+  - id: 0x30
+    title: "Presentiment"
+  - id: 0x31
+    title: "Undersea Palace"
+  - id: 0x32
+    title: "Last Battle"
+  - id: 0x33
+    title: "Dome 16's Ruin"
+  - id: 0x34
+    title: "FX-Heartbeat (Slow)"
+  - id: 0x35
+    title: "FX-35"
+  - id: 0x36
+    title: "Burn Bobonga"
+  - id: 0x37
+    title: "FX-37"
+  - id: 0x38
+    title: "Primitive Mountain"
+  - id: 0x39
+    title: "World Revolution"
+  - id: 0x3A
+    title: "FX-3a"
+  - id: 0x3B
+    title: "Sealed Door"
+  - id: 0x3C
+    title: "Silent Light"
+  - id: 0x3D
+    title: "Fanfare 3"
+  - id: 0x3E
+    title: "The Brink of Time"
+  - id: 0x3F
+    title: "To Far Away Times"
+  - id: 0x40
+    title: "Confusing Melody"
+  - id: 0x41
+    title: "FX-41"
+  - id: 0x42
+    title: "Gonzalez' Song"
+  - id: 0x43
+    title: "FX-43"
+  - id: 0x44
+    title: "Black Dream"
+  - id: 0x45
+    title: "Battle 1"
+  - id: 0x46
+    title: "Tyran Castle"
+  - id: 0x47
+    title: "FX-47"
+  - id: 0x48
+    title: "Magus' Castle"
+  - id: 0x49
+    title: "First Festival of Stars"
+  - id: 0x4A
+    title: "FX-4a"
+  - id: 0x4B
+    title: "FX-4b"
+  - id: 0x4C
+    title: "FX-4c"
+  - id: 0x4D
+    title: "Epilogue - To Good Friends"
+  - id: 0x4E
+    title: "Boss Battle 2"
+  - id: 0x4F
+    title: "Lose"
+  - id: 0x50
+    title: "Determination"
+  - id: 0x51
+    title: "Battle 2"
+  - id: 0x52
+    title: "Singing Mountain"

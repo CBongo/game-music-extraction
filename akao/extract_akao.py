@@ -27,7 +27,9 @@ from ir_events import (
     make_octave_set, make_octave_inc, make_octave_dec, make_volume,
     make_loop_start, make_loop_end, make_loop_break, make_goto, make_halt,
     make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
-    make_portamento_on, make_portamento_off
+    make_portamento_on, make_portamento_off,
+    make_slur_on, make_slur_off, make_roll_on, make_roll_off,
+    make_percussion_mode_on, make_percussion_mode_off
 )
 
 
@@ -255,7 +257,8 @@ class SequenceFormat(ABC):
     @abstractmethod
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
                           instrument_table: List[int], vaddroffset: int = 0,
-                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None,
+                          percussion_table: Optional[List[Dict]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         Args:
@@ -581,7 +584,8 @@ class AKAONewStyle(SequenceFormat):
     
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
                           instrument_table: List[int], vaddroffset: int = 0,
-                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None,
+                          percussion_table: Optional[List[Dict]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         Args:
@@ -589,6 +593,7 @@ class AKAONewStyle(SequenceFormat):
             offset: Offset into data where this track starts
             track_num: Track/voice number
             instrument_table: List of instrument IDs for this song
+            percussion_table: Unused for AKAO format (SNES-specific)
             vaddroffset: Address offset for target address calculations (unused for PSX)
             track_boundaries: Track boundaries for GOTO validation (unused for PSX)
 
@@ -958,7 +963,9 @@ class AKAONewStyle(SequenceFormat):
 
         # Gate timing (native ticks before full duration when note-off happens)
         gate_time = 2  # Default: 2 native ticks from end
-                       # Can be modified by slur/legato opcodes
+                       # Can be modified by slur/roll opcodes
+        slur_enabled = False  # Track slur state
+        roll_enabled = False  # Track roll state
 
         # Tick scaling factor (native ticks -> MIDI ticks)
         tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
@@ -1005,7 +1012,9 @@ class AKAONewStyle(SequenceFormat):
                 midi_dur = dur * tick_scale
 
                 # Apply gate timing (note-off before full duration)
-                gate_adjusted_dur = (dur - gate_time) * tick_scale
+                # If slur or roll is active, use 0 gate time (notes play full duration)
+                effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
+                gate_adjusted_dur = (dur - effective_gate_time) * tick_scale
 
                 midi_events.append({
                     'type': 'note',
@@ -1077,6 +1086,30 @@ class AKAONewStyle(SequenceFormat):
 
             elif event.type == IREventType.VOLUME:
                 velocity = event.value
+                i += 1
+
+            elif event.type == IREventType.SLUR_ON:
+                slur_enabled = True
+                i += 1
+
+            elif event.type == IREventType.SLUR_OFF:
+                slur_enabled = False
+                i += 1
+
+            elif event.type == IREventType.ROLL_ON:
+                roll_enabled = True
+                i += 1
+
+            elif event.type == IREventType.ROLL_OFF:
+                roll_enabled = False
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_ON:
+                # Percussion mode handling is done in Pass 1
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_OFF:
+                # Percussion mode handling is done in Pass 1
                 i += 1
 
             elif event.type == IREventType.LOOP_START:
@@ -1242,14 +1275,26 @@ class SNESUnified(SequenceFormat):
         # PHASE 2: Build opcode dispatch table from config
         self.opcode_dispatch = self._build_opcode_dispatch()
 
+        # Calculate base_offset once for reuse
+        base_offset = self._snes_addr_to_offset(self.base_address)
+
         # Set instrument table offset
         # FF3/SoM-style: offset from base_address (configured in YAML)
         # FF2-style: read from master pointer table (handled in _read_song_pointer_table)
         inst_table_offset_config = config.get('instrument_table_offset')
         if inst_table_offset_config is not None:
             # FF3/SoM style: base + offset
-            base_offset = self._snes_addr_to_offset(self.base_address)
             self.instrument_table_offset = base_offset + inst_table_offset_config
+
+        # Percussion table configuration (CT/FF3-specific)
+        # Apply same base_offset adjustment as instrument_table_offset
+        perc_table_offset_config = config.get('percussion_table_offset')
+        if perc_table_offset_config is not None:
+            self.percussion_table_offset = base_offset + perc_table_offset_config
+            self.percussion_table_stride = config.get('percussion_table_stride', 0x24)
+        else:
+            self.percussion_table_offset = None
+            self.percussion_table_stride = 0x24
 
         # Read song pointer table (may set instrument_table_offset for FF2 style)
         self.song_pointers = self._read_song_pointer_table()
@@ -1557,6 +1602,50 @@ class SNESUnified(SequenceFormat):
         return instruments
 
 
+    def _read_song_percussion_table(self, song_id: int) -> List[Dict]:
+        """Read the percussion table for a specific song (CT/FF3-specific).
+
+        Returns a list of 12 percussion entries, each with:
+            - instrument_id: Instrument ID (applies patch mapping)
+            - note: Note value (may override mapped note)
+            - volume: Volume for this percussion note
+
+        In Perl (ctmus.pl lines 194-211):
+            my (@perc) = map { [$_ >> 16, ($_ >> 8) & 0xff, $_ & 0xff] }
+                        &readptrs($ptr{percmap} + $i * 0x24, 0xc);
+        """
+        if self.percussion_table_offset is None:
+            return []
+
+        # Each song has 12 (0xC) 3-byte percussion entries at percussion_table_offset + song_id * stride
+        offset = self.percussion_table_offset + song_id * self.percussion_table_stride
+        percussion_entries = []
+
+        for i in range(0xC):  # 12 percussion notes
+            entry_offset = offset + i * 3
+            entry_bytes = self.rom_data[entry_offset:entry_offset + 3]
+            if len(entry_bytes) < 3:
+                break
+
+            # Perl code: map { [$_ >> 16, ($_ >> 8) & 0xff, $_ & 0xff] } &readptrs(...)
+            # readptrs reads 3-byte little-endian values
+            # Bytes in ROM: [instrument_id, note, volume]
+            # When read as 24-bit LE and shifted: [volume, note, instrument_id]
+            # But the result array is [instrument_id, note, volume] so the Perl is returning
+            # the values in the order they appear in ROM
+            instrument_id = entry_bytes[0]  # Byte 0 = instrument_id
+            note = entry_bytes[1]           # Byte 1 = note
+            volume = entry_bytes[2]         # Byte 2 = volume
+
+            percussion_entries.append({
+                'instrument_id': instrument_id,
+                'note': note,
+                'volume': volume
+            })
+
+        return percussion_entries
+
+
     def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
         """Analyze track for backwards GOTO loops and calculate timing.
 
@@ -1767,6 +1856,8 @@ class SNESUnified(SequenceFormat):
         perc_key = 0
         transpose_octaves = 0
         current_channel = start_voice_num
+        slur_enabled = False  # Track slur state
+        roll_enabled = False  # Track roll state
 
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
@@ -1827,7 +1918,9 @@ class SNESUnified(SequenceFormat):
                 midi_dur = event.duration * tick_scale
 
                 # Apply gate timing (note-off before full duration)
-                gate_adjusted_dur = (event.duration - gate_time) * tick_scale
+                # If slur or roll is active, use 0 gate time (notes play full duration)
+                effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
+                gate_adjusted_dur = (event.duration - effective_gate_time) * tick_scale
 
                 # Add MIDI note event
                 midi_events.append({
@@ -1906,6 +1999,30 @@ class SNESUnified(SequenceFormat):
 
             elif event.type == IREventType.VOLUME:
                 velocity = event.value
+                i += 1
+
+            elif event.type == IREventType.SLUR_ON:
+                slur_enabled = True
+                i += 1
+
+            elif event.type == IREventType.SLUR_OFF:
+                slur_enabled = False
+                i += 1
+
+            elif event.type == IREventType.ROLL_ON:
+                roll_enabled = True
+                i += 1
+
+            elif event.type == IREventType.ROLL_OFF:
+                roll_enabled = False
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_ON:
+                # Percussion mode handling is done in Pass 1
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_OFF:
+                # Percussion mode handling is done in Pass 1
                 i += 1
 
             elif event.type == IREventType.LOOP_START:
@@ -2133,10 +2250,14 @@ class SNESUnified(SequenceFormat):
             # Read instrument table
             instrument_table = self._read_song_instrument_table(song_id)
 
+            # Read percussion table (CT/FF3-specific)
+            percussion_table = self._read_song_percussion_table(song_id)
+
             return {
                 'track_offsets': track_offsets,
                 'voice_pointers': adjusted_voice_pointers,
                 'instrument_table': instrument_table,
+                'percussion_table': percussion_table,
                 'vaddroffset': vaddroffset
             }
         else:
@@ -2182,14 +2303,84 @@ class SNESUnified(SequenceFormat):
                 offsets.append(buffer_offset)
         return offsets
 
+    def _resolve_patch(self, inst_id: int, handler: Optional[Dict] = None,
+                      instrument_table: Optional[List[int]] = None) -> tuple[int, int, int]:
+        """Resolve an instrument ID to GM patch, transpose, and percussion key.
+
+        This centralizes the patch mapping logic used by both patch_change and percussion mode.
+
+        Args:
+            inst_id: Raw instrument ID (from operand or percussion table)
+            handler: Optional handler config (for patch_change opcodes with inst_table lookup)
+            instrument_table: Instrument table for inst_table lookups
+
+        Returns:
+            Tuple of (gm_patch, transpose_octaves, perc_key)
+            - gm_patch: General MIDI patch number (negative = percussion GM key)
+            - transpose_octaves: Octave transpose for this instrument
+            - perc_key: Percussion key (0 if not percussion, abs(gm_patch) if percussion)
+        """
+        actual_inst_id = inst_id
+        patch_map_to_use = self.patch_map
+
+        # If handler is provided, resolve inst_id through instrument_table
+        if handler and instrument_table:
+            handler_type = handler.get('type', 'inst_table')
+            handler_param = handler.get('param', 0)
+
+            if handler_type == "inst_table":
+                # FF2/SoM style: inst_id is index into inst_table
+                patch_index = inst_id - handler_param
+                if 0 <= patch_index < len(instrument_table):
+                    actual_inst_id = instrument_table[patch_index]
+                else:
+                    actual_inst_id = 0
+            elif handler_type == "dual_map":
+                # FF3/CT style: inst_id >= 0x20 uses high map, < 0x20 uses low map
+                if inst_id >= handler_param:
+                    patch_index = inst_id - handler_param
+                    if 0 <= patch_index < len(instrument_table):
+                        actual_inst_id = instrument_table[patch_index]
+                    else:
+                        actual_inst_id = 0
+                else:
+                    # Use low patch map directly (inst_id stays the same)
+                    actual_inst_id = inst_id
+                    if self.patch_map_low:
+                        patch_map_to_use = self.patch_map_low
+
+        # Note: When called without handler (e.g., percussion mode), always use patch_map
+        # patch_map_low is only for opcodes with dual_map handler
+
+        # Look up in patch map
+        if actual_inst_id in patch_map_to_use:
+            patch_info = patch_map_to_use[actual_inst_id]
+            gm_patch = patch_info['gm_patch']
+            transpose_octaves = patch_info.get('transpose', 0)
+
+            # Check if this is percussion (negative GM patch number)
+            if gm_patch < 0:
+                perc_key = abs(gm_patch)
+            else:
+                perc_key = 0
+
+            return (gm_patch, transpose_octaves, perc_key)
+        else:
+            # Instrument not found in patch map
+            return (0, 0, 0)
+
     def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
                           instrument_table: List[int], vaddroffset: int = 0,
-                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None) -> Tuple[List, List[IREvent]]:
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None,
+                          percussion_table: Optional[List[Dict]] = None) -> Tuple[List, List[IREvent]]:
         """Pass 1: Linear parse to build disassembly and intermediate representation.
 
         This pass does NOT execute loops or generate MIDI events. It simply parses
         the opcode stream linearly, building IR events that represent the sequence
         structure. Disassembly is generated with loop awareness to avoid duplicates.
+
+        Args:
+            percussion_table: List of percussion entries for CT/FF3 (12 entries with instrument_id, note, volume)
 
         Returns:
             Tuple of (disassembly_lines, ir_events)
@@ -2201,8 +2392,8 @@ class SNESUnified(SequenceFormat):
         octave = self.default_octave
         velocity = self.default_velocity
         tempo = self.default_tempo
-        current_patch = 0
         perc_key = 0
+        percussion_mode = False  # Track percussion mode state
         transpose_octaves = 0
         inst_id = 0  # Current instrument ID from table
 
@@ -2233,29 +2424,78 @@ class SNESUnified(SequenceFormat):
                 dur = self.duration_table[dur_idx]
 
                 if note_num < 12:
-                    # Regular note - create IR event
-                    event = make_note(p, note_num, dur)
-                    # Store current state in event for pass 2
-                    # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
-                    # because loops can modify octave during execution
-                    event.metadata = {
-                        'velocity': velocity,
-                        'patch': current_patch,
-                        'perc_key': perc_key,
-                        'transpose': transpose_octaves,
-                        'track_num': track_num,
-                        'inst_id': inst_id
-                    }
-                    ir_events.append(event)
-                    has_timing_events = True
+                    # Check if percussion mode is active
+                    if percussion_mode and percussion_table and note_num < len(percussion_table):
+                        # Percussion mode: lookup in percussion table
+                        perc_entry = percussion_table[note_num]
+                        perc_inst_id = perc_entry['instrument_id']
+                        perc_note = perc_entry['note']
+                        perc_vol = perc_entry['volume']
 
-                    # Build disassembly line
-                    # Format: "4E            Note F  (05) Dur 48"
-                    note_name = NOTE_NAMES[note_num]
-                    if perc_key:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC key={perc_key}]"
+                        # Resolve patch mapping for percussion instrument
+                        # Use the same handler as patch_change opcode (e.g., dual_map for CT/FF3)
+                        perc_handler = None
+                        patch_change_opcode = None
+                        # Find the patch_change opcode configuration
+                        for opcode, op_cfg in self.opcode_dispatch.items():
+                            if op_cfg.get('semantic') == 'patch_change':
+                                perc_handler = op_cfg.get('handler')
+                                patch_change_opcode = opcode
+                                break
+
+                        gm_patch, perc_transpose, resolved_perc_key = self._resolve_patch(
+                            perc_inst_id, perc_handler, instrument_table
+                        )
+
+                        # Override note if percussion table specifies it (non-zero)
+                        if perc_note != 0:
+                            # Percussion table provides explicit note value
+                            actual_note_num = perc_note % 12  # Extract note within octave
+                            actual_octave_offset = perc_note // 12  # Extract octave offset
+                        else:
+                            # Use original note value
+                            actual_note_num = note_num
+                            actual_octave_offset = 0
+
+                        # Create IR event for percussion note
+                        event = make_note(p, actual_note_num, dur)
+                        event.metadata = {
+                            'velocity': perc_vol,  # Use volume from percussion table
+                            'perc_key': resolved_perc_key,  # GM percussion key
+                            'transpose': perc_transpose + actual_octave_offset,  # Apply transpose + octave offset
+                            'track_num': 9,  # MIDI percussion channel
+                            'inst_id': perc_inst_id,
+                            'percussion_mode': True
+                        }
+                        ir_events.append(event)
+                        has_timing_events = True
+
+                        # Build disassembly line - show original note value from the score
+                        note_name = NOTE_NAMES[note_num]
+                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC inst={perc_inst_id:02X} vol={perc_vol} key={resolved_perc_key}]"
                     else:
-                        line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
+                        # Normal note - create IR event
+                        event = make_note(p, note_num, dur)
+                        # Store current state in event for pass 2
+                        # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
+                        # because loops can modify octave during execution
+                        event.metadata = {
+                            'velocity': velocity,
+                            'perc_key': perc_key,
+                            'transpose': transpose_octaves,
+                            'track_num': track_num,
+                            'inst_id': inst_id
+                        }
+                        ir_events.append(event)
+                        has_timing_events = True
+
+                        # Build disassembly line
+                        # Format: "4E            Note F  (05) Dur 48"
+                        note_name = NOTE_NAMES[note_num]
+                        if perc_key:
+                            line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur:<3} [PERC key={perc_key}]"
+                        else:
+                            line += f"           Note {note_name:<2} ({note_num:02}) Dur {dur}"
 
                 elif note_num == self.rest_note_value:
                     # Rest - create IR event
@@ -2306,60 +2546,24 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "patch_change" and len(operands) >= 1:
                     if handler is None:
                         handler = {'type': 'inst_table', 'param': 0} # Default handler
-                    # Patch change - handler determines how to map operand to inst_id
-                    handler_type = handler.get('type', 'inst_table')
-                    handler_param = handler.get('param', 0)
-                    patch_map_to_use = self.patch_map
-                    
-                    if handler_type == "inst_table":
-                        # FF2/SoM style: operand is index into inst_table
-                        patch_index = operands[0] - handler_param
-                        if 0 <= patch_index < len(instrument_table):
-                            inst_id = instrument_table[patch_index]
-                        else:
-                            inst_id = 0
-                    elif handler_type == "dual_map":
-                        # FF3 style: operand >= 0x20 uses high map, < 0x20 uses low map
-                        if operands[0] >= handler_param:
-                            patch_index = operands[0] - handler_param
-                            if 0 <= patch_index < len(instrument_table):
-                                inst_id = instrument_table[patch_index]
-                            else:
-                                inst_id = 0
-                        else:
-                            # Use low patch map directly
-                            inst_id = operands[0]
-                    else:
-                        raise ValueError(f"Unknown patch change handler: {handler_type}")
-                    current_patch = operands[0]
 
-                    # Look up instrument in patch map
-                    # FF3 dual_map: if operand < 0x20, use patch_map_low
-                    if handler == "dual_map" and operands[0] < handler_param and self.patch_map_low:
-                        patch_map_to_use = self.patch_map_low
+                    # Use helper function to resolve patch mapping
+                    inst_id = operands[0]
+                    gm_patch, transpose_octaves, perc_key = self._resolve_patch(
+                        inst_id, handler, instrument_table
+                    )
 
-                    if inst_id in patch_map_to_use:
-                        patch_info = patch_map_to_use[inst_id]
-                        gm_patch = patch_info['gm_patch']
-                        transpose_octaves = patch_info.get('transpose', 0)
+                    # Add disassembly annotation
+                    if gm_patch < 0:
+                        # Percussion mode
+                        line += f" -> PERC key={perc_key}"
+                    elif gm_patch > 0:
+                        # Regular instrument
+                        line += f" -> GM patch {gm_patch}"
 
-                        # Check if this is percussion (negative GM patch number)
-                        if gm_patch < 0:
-                            # Percussion mode
-                            perc_key = abs(gm_patch)
-                            line += f" -> PERC key={perc_key}"
-                        else:
-                            # Regular instrument
-                            perc_key = 0
-                            line += f" -> GM patch {gm_patch}"
-
-                        # Create IR event for patch change
-                        event = make_patch_change(p, inst_id, gm_patch, transpose_octaves, operands)
-                        ir_events.append(event)
-                    else:
-                        # Instrument not in patch map, use default
-                        perc_key = 0
-                        transpose_octaves = 0
+                    # Create IR event for patch change
+                    event = make_patch_change(p, inst_id, gm_patch, transpose_octaves, operands)
+                    ir_events.append(event)
 
                 elif semantic == "octave_set" and len(operands) >= 1:
                     # Set octave
@@ -2448,6 +2652,38 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "portamento_off":
                     # Portamento off
                     event = make_portamento_off(p)
+                    ir_events.append(event)
+
+                elif semantic == "slur_on":
+                    # Slur on - legato articulation
+                    event = make_slur_on(p)
+                    ir_events.append(event)
+
+                elif semantic == "slur_off":
+                    # Slur off - restore normal articulation
+                    event = make_slur_off(p)
+                    ir_events.append(event)
+
+                elif semantic == "roll_on":
+                    # Roll on - similar to slur, notes play full duration
+                    event = make_roll_on(p)
+                    ir_events.append(event)
+
+                elif semantic == "roll_off":
+                    # Roll off - restore normal articulation
+                    event = make_roll_off(p)
+                    ir_events.append(event)
+
+                elif semantic == "percussion_mode_on":
+                    # Percussion mode on - notes will index percussion table
+                    percussion_mode = True
+                    event = make_percussion_mode_on(p)
+                    ir_events.append(event)
+
+                elif semantic == "percussion_mode_off":
+                    # Percussion mode off - restore normal note handling
+                    percussion_mode = False
+                    event = make_percussion_mode_off(p)
                     ir_events.append(event)
 
                 elif semantic == "goto" and len(operands) >= 2:
@@ -2831,6 +3067,15 @@ class SequenceExtractor:
                 # FF2 style: read from instrument_table_offset
                 instrument_table = self.format_handler._read_song_instrument_table(song.id)
 
+        # Read percussion table for SNES formats (CT/FF3-specific)
+        percussion_table = None
+        if isinstance(self.format_handler, SNESUnified):
+            # Check if percussion_table is in header (FF3/CT style) or needs to be read
+            percussion_table = header.get('percussion_table')
+            if percussion_table is None and self.format_handler.percussion_table_offset is not None:
+                # Read from percussion_table_offset
+                percussion_table = self.format_handler._read_song_percussion_table(song.id)
+
         # Get vaddroffset for formats that use it (FF3, SoM)
         vaddroffset = header.get('vaddroffset', 0)
 
@@ -2841,7 +3086,8 @@ class SequenceExtractor:
             # Returns: (disasm_lines, ir_events)
             disasm_lines, ir_events = self.format_handler._parse_track_pass1(
                 data, offset, voice_num, instrument_table or [], vaddroffset,
-                track_boundaries=header.get('track_boundaries')
+                track_boundaries=header.get('track_boundaries'),
+                percussion_table=percussion_table
             )
 
             tracks[voice_num] = {
@@ -2941,6 +3187,14 @@ class SequenceExtractor:
             if instrument_table:
                 inst_str = ' '.join(f"{inst:02X}" for inst in instrument_table)
                 output.append(f"  Instruments: {inst_str}")
+
+            # Read and display percussion table (CT/FF3-specific)
+            percussion_table = header.get('percussion_table', [])
+            if percussion_table:
+                output.append("  Percussion:")
+                for i, entry in enumerate(percussion_table):
+                    if entry['instrument_id'] != 0 or entry['note'] != 0 or entry['volume'] != 0:
+                        output.append(f"    {i:02X}: instr {entry['instrument_id']:02X}, note {entry['note']:02X}, vol {entry['volume']:02X}")
 
             # Voice start addresses
             output.append("  Voice start addresses:")

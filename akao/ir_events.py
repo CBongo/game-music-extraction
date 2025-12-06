@@ -27,6 +27,12 @@ class IREventType(Enum):
     TREMOLO_OFF = "tremolo_off"
     PORTAMENTO_ON = "portamento_on"
     PORTAMENTO_OFF = "portamento_off"
+    SLUR_ON = "slur_on"
+    SLUR_OFF = "slur_off"
+    ROLL_ON = "roll_on"
+    ROLL_OFF = "roll_off"
+    PERCUSSION_MODE_ON = "percussion_mode_on"
+    PERCUSSION_MODE_OFF = "percussion_mode_off"
     LOOP_START = "loop_start"
     LOOP_END = "loop_end"
     LOOP_BREAK = "loop_break"  # Selective repeat / conditional jump
@@ -316,3 +322,33 @@ def make_portamento_on(offset: int, operands: Optional[List[int]] = None) -> IRE
 def make_portamento_off(offset: int) -> IREvent:
     """Create a portamento off event."""
     return IREvent(type=IREventType.PORTAMENTO_OFF, offset=offset)
+
+
+def make_slur_on(offset: int) -> IREvent:
+    """Create a slur on event."""
+    return IREvent(type=IREventType.SLUR_ON, offset=offset)
+
+
+def make_slur_off(offset: int) -> IREvent:
+    """Create a slur off event."""
+    return IREvent(type=IREventType.SLUR_OFF, offset=offset)
+
+
+def make_roll_on(offset: int) -> IREvent:
+    """Create a roll on event."""
+    return IREvent(type=IREventType.ROLL_ON, offset=offset)
+
+
+def make_roll_off(offset: int) -> IREvent:
+    """Create a roll off event."""
+    return IREvent(type=IREventType.ROLL_OFF, offset=offset)
+
+
+def make_percussion_mode_on(offset: int) -> IREvent:
+    """Create a percussion mode on event."""
+    return IREvent(type=IREventType.PERCUSSION_MODE_ON, offset=offset)
+
+
+def make_percussion_mode_off(offset: int) -> IREvent:
+    """Create a percussion mode off event."""
+    return IREvent(type=IREventType.PERCUSSION_MODE_OFF, offset=offset)
