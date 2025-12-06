@@ -36,7 +36,7 @@ opcodes:
   0xD8: {semantic: "vibrato_on", params: 3}      # Vibrato settings
   0xD9: {semantic: "pan_sweep_on", params: 3}    # Pan Sweep Settings (per ff2mus.pl)
   0xDA: {semantic: "octave_set", params: 1}      # Set octave
-  0xDB: {semantic: "patch_change", params: 1}    # Patch change (inst_table[operand - 0x40])
+  0xDB: {semantic: "patch_change", params: 1, handler: {type: 'inst_table', param: 0x40}}    # Patch change (inst_table[operand - 0x40])
   0xDC: {semantic: "adsr_set", params: 1}        # Set Envelope (per ff2mus.pl)
   0xDD: {semantic: "gain_set", params: 1}        # Set Gain (Exp Dec Time) (per ff2mus.pl)
   0xDE: {semantic: "staccato_set", params: 1}    # Set Staccato (note dur ratio) (per ff2mus.pl)

@@ -22,11 +22,13 @@ instrument_table_offset: 0x3F22  # Offset from base_address for instrument table
 spc_load_address: 0x1A00   # SPC-700 RAM load address (per sommus.pl line 140: $vstart[$v] - 0x1a00)
 note_divisor: 15           # Note encoding: note = cmd / 15, duration = cmd % 15 (per sommus.pl line 146)
 first_opcode: 0xD2         # First command opcode (< 0xD2 are notes, per sommus.pl line 144)
+vptr_offset:  2            # offset of voice pointers in song data (per sommus.pl line 104)
 
 # Voice addressing formula for SoM
 vaddroffset_formula:
   type: "subtract_constant"
   constant: 0x11A14  # Per sommus.pl line 103: $vaddroffset = (0x11a14 - $vaddroffset) & 0xffff
+  emptyvoice_offset: 0x12 # offset of emptyvoice field in song data      
 
 # PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
 opcodes:
@@ -54,7 +56,7 @@ opcodes:
   0xE7: {semantic: "transpose_set", params: 1}   # Set transpose (per sommus.pl line 272)
   0xE8: {semantic: "transpose_change", params: 1} # Change transpose (per sommus.pl line 274)
   0xE9: {semantic: "detune", params: 1}          # Detune (unimplemented in Perl)
-  0xEA: {semantic: "patch_change", params: 1, handler: "inst_table"}  # Patch change (per sommus.pl line 243)
+  0xEA: {semantic: "patch_change", params: 1, handler: {type: "inst_table", param: 0x20}}  # Patch change (per sommus.pl line 243)
   0xEB: {semantic: "adsr_attack", params: 1}     # ADSR Attack (unimplemented in Perl)
   0xEC: {semantic: "adsr_decay", params: 1}      # ADSR Decay (unimplemented in Perl)
   0xED: {semantic: "adsr_sustain", params: 1}    # ADSR Sustain (unimplemented in Perl)
@@ -92,7 +94,7 @@ default_velocity: 100
 # seek ROM, $spcbase + 0x152c, 0; read ROM, $buf, 15
 # where $spcbase = $base + 0x748 + 2 - 0x200 = C3/0000 + 0x748 + 2 - 0x200 = C3/054A
 duration_table:
-  address: 0xC3076C  # spcbase + 0x152c where spcbase = C3/054A
+  address: 0xC31A76  # spcbase + 0x152c where spcbase = C3/054A
   size: 15
   type: "byte"
 

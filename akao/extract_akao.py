@@ -7,6 +7,7 @@ Chris Bongaarts - 2025-11-02 with help from Claude
 
 import sys
 import struct
+import traceback
 import yaml
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
@@ -2096,7 +2097,9 @@ class SNESUnified(SequenceFormat):
                 return {'track_offsets': [], 'instrument_table': [], 'vaddroffset': 0}
 
             # Read vaddroffset_raw and emptyvoice
-            vaddroffset_raw, emptyvoice = struct.unpack('<HH', data[0:4])
+            vaddroffset_raw = struct.unpack('<H', data[0:2])[0]
+            emptyvoice_offset = vaddroffset_config.get('emptyvoice_offset', 2)
+            emptyvoice = struct.unpack('<H', data[emptyvoice_offset:emptyvoice_offset+2])[0]
 
             # Apply vaddroffset formula from config
             formula_type = vaddroffset_config.get('type')
@@ -2107,11 +2110,11 @@ class SNESUnified(SequenceFormat):
                 vaddroffset = 0
 
             # Read both standard and alternate voice pointers
-            vstart = struct.unpack('<8H', data[4:20])
-            vstart2 = struct.unpack('<8H', data[20:36])
+            vptr_offset = self.config.get('vptr_offset', 4)
+            active_vstart = struct.unpack('<8H', data[vptr_offset:vptr_offset+0x10])
 
-            # Choose which set to use
-            active_vstart = vstart2 if use_alternate_pointers else vstart
+            if self.config.get('has_alternate_voice_pointers', False) and use_alternate_pointers:
+                active_vstart = struct.unpack('<8H', data[vptr_offset+0x10:vptr_offset+0x20])
 
             # Process active voice pointers
             track_offsets = []
@@ -2301,18 +2304,24 @@ class SNESUnified(SequenceFormat):
                         ir_events.append(event)
 
                 elif semantic == "patch_change" and len(operands) >= 1:
+                    if handler is None:
+                        handler = {'type': 'inst_table', 'param': 0} # Default handler
                     # Patch change - handler determines how to map operand to inst_id
-                    if handler == "inst_table":
-                        # SoM style: operand is index into inst_table
-                        patch_index = operands[0]
+                    handler_type = handler.get('type', 'inst_table')
+                    handler_param = handler.get('param', 0)
+                    patch_map_to_use = self.patch_map
+                    
+                    if handler_type == "inst_table":
+                        # FF2/SoM style: operand is index into inst_table
+                        patch_index = operands[0] - handler_param
                         if 0 <= patch_index < len(instrument_table):
                             inst_id = instrument_table[patch_index]
                         else:
                             inst_id = 0
-                    elif handler == "dual_map":
+                    elif handler_type == "dual_map":
                         # FF3 style: operand >= 0x20 uses high map, < 0x20 uses low map
-                        if operands[0] >= 0x20:
-                            patch_index = operands[0] - 0x20
+                        if operands[0] >= handler_param:
+                            patch_index = operands[0] - handler_param
                             if 0 <= patch_index < len(instrument_table):
                                 inst_id = instrument_table[patch_index]
                             else:
@@ -2321,20 +2330,13 @@ class SNESUnified(SequenceFormat):
                             # Use low patch map directly
                             inst_id = operands[0]
                     else:
-                        # FF2 style: operand - 0x40 indexes into inst_table
-                        patch_index = operands[0] - 0x40
-                        if 0 <= patch_index < len(instrument_table):
-                            inst_id = instrument_table[patch_index]
-                        else:
-                            inst_id = 0
-
+                        raise ValueError(f"Unknown patch change handler: {handler_type}")
                     current_patch = operands[0]
 
                     # Look up instrument in patch map
-                    patch_map_to_use = self.patch_map
                     # FF3 dual_map: if operand < 0x20, use patch_map_low
-                    if handler == "dual_map" and operands[0] < 0x20:
-                        patch_map_to_use = self.patch_map_low if self.patch_map_low else self.patch_map
+                    if handler == "dual_map" and operands[0] < handler_param and self.patch_map_low:
+                        patch_map_to_use = self.patch_map_low
 
                     if inst_id in patch_map_to_use:
                         patch_info = patch_map_to_use[inst_id]
@@ -3667,7 +3669,7 @@ class SequenceExtractor:
                     print(f"  OK: Generated alternate files for {alt_filename}")
 
             except Exception as e:
-                print(f"  ERROR: {e}")
+                print(f"  ERROR: {e} {traceback.format_exc()}")
         
         # Close the ISO and wrapper when done (SNES ROMs don't use ISO)
         if self.iso:

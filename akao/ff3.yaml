@@ -14,6 +14,8 @@ song_pointer_table:
   offset: 0x3E96   # Offset from base_address
   count: 85        # Number of songs
 
+has_alternate_voice_pointers: true  # Some songs have alternate versions
+
 # Instrument table configuration
 instrument_table_offset: 0x3F95  # Offset from base_address for instrument tables
 
@@ -54,7 +56,7 @@ opcodes:
   0xD9: {semantic: "transpose_set", params: 1}   # Set Transpose (per ff3mus.pl line 52)
   0xDA: {semantic: "transpose_change", params: 1}  # Change Transpose (per ff3mus.pl line 52)
   0xDB: {semantic: "detune", params: 1}          # Detune (per ff3mus.pl line 53)
-  0xDC: {semantic: "patch_change", params: 1, handler: "dual_map"}  # Patch change with dual map
+  0xDC: {semantic: "patch_change", params: 1, handler: {type: "dual_map", param: 0x20}}  # Patch change with dual map
   0xDD: {semantic: "adsr_attack", params: 1}     # Set ADSR Attack (per ff3mus.pl line 54)
   0xDE: {semantic: "adsr_decay", params: 1}      # Set ADSR Decay (per ff3mus.pl line 54)
   0xDF: {semantic: "adsr_sustain", params: 1}    # Set ADSR Sustain (per ff3mus.pl line 55)
