@@ -27,7 +27,7 @@ from ir_events import (
     make_patch_change,
     make_octave_set, make_octave_inc, make_octave_dec,
     make_volume, make_volume_fade, make_pan, make_pan_fade,
-    make_loop_start, make_loop_end, make_loop_break, make_goto, make_halt,
+    make_loop_start, make_loop_end, make_loop_mark, make_loop_break, make_goto, make_halt,
     make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
     make_portamento_on, make_portamento_off,
     make_slur_on, make_slur_off, make_roll_on, make_roll_off,
@@ -2887,6 +2887,11 @@ class SNESUnified(SequenceFormat):
                     # End repeat - just record it, don't execute
                     loop_depth = max(0, loop_depth - 1)
                     event = make_loop_end(p)
+                    ir_events.append(event)
+
+                elif semantic == "loop_mark":
+                    # Mark loop point (SD3-style) - used with goto for infinite loops
+                    event = make_loop_mark(p)
                     ir_events.append(event)
 
                 elif semantic == "loop_break" and len(operands) >= 3:

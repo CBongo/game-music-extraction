@@ -1,0 +1,276 @@
+game: "Final Fantasy V (SNES)"
+format: "snes_unified"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "ff5e.smc"
+
+# Base address for song data (SNES address C5/0000 - HiROM)
+base_address: 0xC40000
+
+# Song pointer table configuration
+song_pointer_table:
+  style: "direct"  # FF3 uses direct pointers (vs FF2's indirection table)
+  offset: 0x3b97   # Offset from base_address
+  count: 72        # Number of songs
+
+#has_alternate_voice_pointers: true  # Some songs have alternate versions
+
+# Instrument table configuration
+instrument_table_offset: 0x3daa  # Offset from base_address for instrument tables
+
+# Instrument mapping configuration
+instrument_mapping:
+  type: "dual_map"
+  param: 0x20
+
+# PHASE 1: Config-driven parameters for SNESUnified
+spc_load_address: 0x1C00   # SPC-700 RAM load address (different from FF2's 0x2000)
+note_divisor: 15           # Note encoding: note = cmd / 14, duration = cmd % 14 (different from FF2's 15)
+first_opcode: 0xD2         # First command opcode (< 0xC4 are notes, different from FF2's 0xD2)
+vptr_offset:  2            # offset of voice pointers in song data (per sommus.pl line 104)
+
+# Voice addressing formula for FF3
+vaddroffset_formula:
+  type: "subtract_constant"
+  constant: 0x11C14
+  emptyvoice_offset: 0x12 # offset of emptyvoice field in song data      
+
+# PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
+# FF5 similar to SOM
+opcodes:
+  0xD2: {semantic: "volume", params: 1}          # Voice volume (per sommus.pl line 197)
+  0xD3: {semantic: "volume_fade", params: 2}     # Volume fade (per sommus.pl line 205)
+  0xD4: {semantic: "pan", params: 1}             # Balance/pan (per sommus.pl line 224)
+  0xD5: {semantic: "pan_fade", params: 2}        # Balance/pan fade (per sommus.pl line 228)
+  0xD6: {semantic: "portamento_on", params: 2}   # Portamento (unimplemented in Perl)
+  0xD7: {semantic: "vibrato_on", params: 3}      # Vibrato (unimplemented in Perl)
+  0xD8: {semantic: "vibrato_off", params: 0}     # Vibrato off (unimplemented in Perl)
+  0xD9: {semantic: "tremolo_on", params: 3}      # Tremolo (unimplemented in Perl)
+  0xDA: {semantic: "tremolo_off", params: 0}     # Tremolo off (unimplemented in Perl)
+  0xDB: {semantic: "pan_sweep_on", params: 2}    # Pan Sweep (unimplemented in Perl)
+  0xDC: {semantic: "pan_sweep_off", params: 0}   # Pan Sweep off (unimplemented in Perl)
+  0xDD: {semantic: "noise_clock", params: 1}     # Set Noise Clock (unimplemented in Perl)
+  0xDE: {semantic: "noise_on", params: 0}        # Enable Noise (unimplemented in Perl)
+  0xDF: {semantic: "noise_off", params: 0}       # Disable Noise (unimplemented in Perl)
+  0xE0: {semantic: "pitchmod_on", params: 0}     # Enable Pitchmod (unimplemented in Perl)
+  0xE1: {semantic: "pitchmod_off", params: 0}    # Disable Pitchmod (unimplemented in Perl)
+  0xE2: {semantic: "echo_on", params: 0}         # Enable Echo (unimplemented in Perl)
+  0xE3: {semantic: "echo_off", params: 0}        # Disable Echo (unimplemented in Perl)
+  0xE4: {semantic: "octave_set", params: 1}      # Set octave (per sommus.pl line 277)
+  0xE5: {semantic: "octave_inc", params: 0}      # Increment octave (per sommus.pl line 279)
+  0xE6: {semantic: "octave_dec", params: 0}      # Decrement octave (per sommus.pl line 282)
+  0xE7: {semantic: "transpose_set", params: 1}   # Set transpose (per sommus.pl line 272)
+  0xE8: {semantic: "transpose_change", params: 1} # Change transpose (per sommus.pl line 274)
+  0xE9: {semantic: "detune", params: 1}          # Detune (unimplemented in Perl)
+  0xEA: {semantic: "patch_change", params: 1}  # Patch change (uses instrument_mapping)
+  0xEB: {semantic: "adsr_attack", params: 1}     # ADSR Attack (unimplemented in Perl)
+  0xEC: {semantic: "adsr_decay", params: 1}      # ADSR Decay (unimplemented in Perl)
+  0xED: {semantic: "adsr_sustain", params: 1}    # ADSR Sustain (unimplemented in Perl)
+  0xEE: {semantic: "adsr_release", params: 1}    # ADSR Release (unimplemented in Perl)
+  0xEF: {semantic: "adsr_default", params: 0}    # Default ADSR (unimplemented in Perl)
+  0xF0: {semantic: "loop_start", params: 1}      # Begin repeat (per sommus.pl line 292)
+  0xF1: {semantic: "loop_end", params: 0}        # End repeat (per sommus.pl line 296)
+  0xF2: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+  0xF3: {semantic: "tempo", params: 1}           # Tempo change (per sommus.pl line 177)
+  0xF4: {semantic: "tempo_fade", params: 2}      # Tempo fade (per sommus.pl line 183)
+  0xF5: {semantic: "echo_volume", params: 1}     # Echo Volume (unimplemented in Perl)
+  0xF6: {semantic: "echo_volume_fade", params: 2} # Echo Volume Fade (unimplemented in Perl)
+  0xF7: {semantic: "echo_feedback", params: 2}   # Echo Feedback (unimplemented in Perl)
+  0xF8: {semantic: "master_volume", params: 1}   # Set master volume (per sommus.pl line 286)
+  0xF9: {semantic: "loop_break", params: 3, handler: "vaddroffset"}  # Conditional loop (per sommus.pl line 322)
+  0xFA: {semantic: "goto", params: 2, handler: "vaddroffset"}        # Goto with vaddroffset (per sommus.pl line 305)
+  0xFB: {semantic: "goto_if_c4", params: 2}  # conditional goto based on memory c4 (actually d1 for ff5)
+  0xFC: {semantic: "halt", params: 0}      # Reset conditional repeat counter (per sommus.pl line 320)
+  0xFD: {semantic: "halt", params: 0}            # Halt (unimplemented in Perl)
+  0xFE: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+  0xFF: {semantic: "halt", params: 0}            # Halt (per sommus.pl line 327)
+
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# where tempo_factor = timer_period_us * timer_count * tempo_resolution
+timer_period_us: 4500     # Timer period in microseconds (timer0 period: 4.5ms)
+timer_count: 48           # Number of timer counts per sound processing loop
+tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
+
+# Default state values
+default_tempo: 120
+default_octave: 4
+default_velocity: 100
+
+# Duration table
+duration_table:
+  address: 0xC41F7E  # spcbase + 0x192f where spcbase = C4/064F
+  size: 15
+  type: "byte"
+
+# Music opcode lengths - 60 opcodes starting from 0xC4
+opcode_table:
+  address: 0xC41ED6 # spcbase + 0x1887 where spcbase = C4/064F
+  size: 46
+  type: "byte"
+
+# Pitch table
+pitch_table:
+  address: 0xC41F44  # spcbase + 0x18f5 where spcbase = C4/064F
+  size: 13
+  type: "ushort"
+
+# Patch mapping: instrument_id -> General MIDI patch
+# Negative values indicate percussion (GM drum key number)
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x01: {gm_patch: 24, transpose: 0, name: "Acoustic Guitar (nylon)"}
+  0x02: {gm_patch: 33, transpose: -3, name: "Acoustic Bass"}
+  0x03: {gm_patch: 75, transpose: 1, name: "Pan Flute"}
+  0x04: {gm_patch: 105, transpose: -1, name: "Banjo"}
+  0x05: {gm_patch: 42, transpose: -1, name: "Cello"}
+  0x06: {gm_patch: 52, transpose: 0, name: "Choir Aahs"}
+  0x07: {gm_patch: 73, transpose: 1, name: "Piccolo"}
+  0x08: {gm_patch: 60, transpose: 0, name: "French Horn"}
+  0x09: {gm_patch: 80, transpose: 0, name: "Square Lead"}
+  0x0A: {gm_patch: 68, transpose: 0, name: "Oboe"}
+  0x0B: {gm_patch: 17, transpose: 0, name: "Drawbar Organ"}
+  0x0C: {gm_patch: 1, transpose: 0, name: "Bright Acoustic Piano"}
+  0x0D: {gm_patch: 48, transpose: 0, name: "String Ensemble 1"}
+  0x0E: {gm_patch: 56, transpose: -1, name: "Trumpet"}
+  0x0F: {gm_patch: -42, transpose: 0, name: "Closed Hi-Hat"}  # Percussion
+  0x10: {gm_patch: 104, transpose: 0, name: "Sitar"}
+  0x11: {gm_patch: -46, transpose: 0, name: "Open Hi-Hat"}  # Percussion
+  0x12: {gm_patch: -49, transpose: 0, name: "Crash Cymbal 1"}  # Percussion
+  0x13: {gm_patch: 121, transpose: 0, name: "Breath Noise"}
+  0x14: {gm_patch: -40, transpose: 0, name: "Snare Drum"}  # Percussion
+  0x15: {gm_patch: -39, transpose: 0, name: "Hand Clap"}  # Percussion
+  0x16: {gm_patch: 47, transpose: 0, name: "Timpani"}
+  0x17: {gm_patch: 117, transpose: 0, name: "Melodic Tom"}
+  0x18: {gm_patch: 32, transpose: -2, name: "Acoustic Bass"}
+  0x19: {gm_patch: 45, transpose: 1, name: "Pizzicato Strings"}
+  0x1A: {gm_patch: 58, transpose: -2, name: "Trombone"}
+  0x1B: {gm_patch: 46, transpose: 0, name: "Orchestral Harp"}
+  0x1C: {gm_patch: 34, transpose: -2, name: "Electric Bass (pick)"}
+  0x1D: {gm_patch: 27, transpose: -1, name: "Electric Guitar (clean)"}
+  0x1E: {gm_patch: 30, transpose: 0, name: "Distortion Guitar"}
+  0x1F: {gm_patch: 78, transpose: 1, name: "Whistle"}
+  0x20: {gm_patch: 11, transpose: 0, name: "Vibraphone"}
+  0x21: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}  # Percussion
+  0x22: {gm_patch: -35, transpose: 0, name: "Acoustic Bass Drum"}  # Percussion
+  0x23: {gm_patch: -56, transpose: 0, name: "Cowbell"}  # Percussion
+  0x24: {gm_patch: 14, transpose: -1, name: "Tubular Bells"}
+  0x25: {gm_patch: 19, transpose: 0, name: "Church Organ"}
+  0x26: {gm_patch: -78, transpose: 0, name: "Cuica"}  # Percussion (alternating 78/79)
+  0x27: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x28: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x29: {gm_patch: 54, transpose: -1, name: "Synth Voice"}
+  0x2A: {gm_patch: -39, transpose: 0, name: "Hand Clap"}  # Percussion
+  0x2B: {gm_patch: -37, transpose: 0, name: "Side Stick"}  # Percussion
+  0x2C: {gm_patch: 43, transpose: -3, name: "Contrabass"}
+  0x2D: {gm_patch: -74, transpose: 0, name: "Long Guiro"}  # Percussion
+  0x2E: {gm_patch: 116, transpose: 3, name: "Taiko Drum"}
+  0x2F: {gm_patch: -69, transpose: 0, name: "Cabasa"}  # Percussion
+  0x30: {gm_patch: 115, transpose: 3, name: "Woodblock"}
+  0x31: {gm_patch: 1, transpose: 1, name: "Bright Acoustic Piano"}
+  0x32: {gm_patch: 25, transpose: 0, name: "Acoustic Guitar (steel)"}
+  0x33: {gm_patch: 109, transpose: 0, name: "Bagpipe"}
+  0x34: {gm_patch: 77, transpose: 1, name: "Shakuhachi"}
+  0x35: {gm_patch: 64, transpose: -1, name: "Soprano Sax"}
+  0x36: {gm_patch: 64, transpose: 0, name: "Soprano Sax"}
+  0x37: {gm_patch: -53, transpose: 0, name: "Ride Bell"}  # Percussion
+  0x38: {gm_patch: 52, transpose: -1, name: "Choir Aahs"}
+  0x39: {gm_patch: 52, transpose: -2, name: "Choir Aahs"}
+  0x3A: {gm_patch: 52, transpose: 1, name: "Choir Aahs"}
+  0x3B: {gm_patch: 19, transpose: 0, name: "Church Organ"}
+  0x3C: {gm_patch: -65, transpose: 0, name: "Timbale"}  # Percussion
+  0x3D: {gm_patch: -66, transpose: 0, name: "Low Timbale"}  # Percussion
+  0x3E: {gm_patch: 13, transpose: 0, name: "Xylophone"}
+  0x3F: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x40: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x41: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x42: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x43: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  0x44: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+
+# Low patch variants (patches 0x00-0x1F when accessed directly)
+patch_map_low:
+  0x00: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x01: {gm_patch: 6, transpose: 0, name: "Harpsichord"}
+  0x02: {gm_patch: 59, transpose: 0, name: "Muted Trumpet"}
+  0x03: {gm_patch: 26, transpose: 0, name: "Electric Guitar (jazz)"}
+  0x04: {gm_patch: 127, transpose: 3, name: "Gunshot"}
+  0x05: {gm_patch: 98, transpose: 0, name: "FX 3 (crystal)"}
+  0x06: {gm_patch: 33, transpose: 1, name: "Acoustic Bass"}
+  0x07: {gm_patch: 122, transpose: 0, name: "Seashore"}
+
+# Songs list
+songs:
+  - {id: 0x00, title: "00"}
+  - {id: 0x01, title: "01"}
+  - {id: 0x02, title: "02"}
+  - {id: 0x03, title: "03"}
+  - {id: 0x04, title: "04"}
+  - {id: 0x05, title: "05"}
+  - {id: 0x06, title: "06"}
+  - {id: 0x07, title: "07"}
+  - {id: 0x08, title: "08"}
+  - {id: 0x09, title: "09"}
+  - {id: 0x0A, title: "0a"}
+  - {id: 0x0B, title: "0b"}
+  - {id: 0x0C, title: "0c"}
+  - {id: 0x0D, title: "0d"}
+  - {id: 0x0E, title: "0e"}
+  - {id: 0x0F, title: "0f"}
+  - {id: 0x10, title: "10"}
+  - {id: 0x11, title: "11"}
+  - {id: 0x12, title: "12"}
+  - {id: 0x13, title: "13"}
+  - {id: 0x14, title: "14"}
+  - {id: 0x15, title: "15"}
+  - {id: 0x16, title: "16"}
+  - {id: 0x17, title: "17"}
+  - {id: 0x18, title: "18"}
+  - {id: 0x19, title: "19"}
+  - {id: 0x1A, title: "1a"}
+  - {id: 0x1B, title: "1b"}
+  - {id: 0x1C, title: "1c"}
+  - {id: 0x1D, title: "1d"}
+  - {id: 0x1E, title: "1e"}
+  - {id: 0x1F, title: "1f"}
+  - {id: 0x20, title: "20"}
+  - {id: 0x21, title: "21"}
+  - {id: 0x22, title: "22"}
+  - {id: 0x23, title: "23"}
+  - {id: 0x24, title: "24"}
+  - {id: 0x25, title: "25"}
+  - {id: 0x26, title: "26"}
+  - {id: 0x27, title: "27"}
+  - {id: 0x28, title: "28"}
+  - {id: 0x29, title: "29"}
+  - {id: 0x2A, title: "2a"}
+  - {id: 0x2B, title: "2b"}
+  - {id: 0x2C, title: "2c"}
+  - {id: 0x2D, title: "2d"}
+  - {id: 0x2E, title: "2e"}
+  - {id: 0x2F, title: "2f"}
+  - {id: 0x30, title: "30"}
+  - {id: 0x31, title: "31"}
+  - {id: 0x32, title: "32"}
+  - {id: 0x33, title: "33"}
+  - {id: 0x34, title: "34"}
+  - {id: 0x35, title: "35"}
+  - {id: 0x36, title: "36"}
+  - {id: 0x37, title: "37"}
+  - {id: 0x38, title: "38"}
+  - {id: 0x39, title: "39"}
+  - {id: 0x3A, title: "3a"}
+  - {id: 0x3B, title: "3b"}
+  - {id: 0x3C, title: "3c"}
+  - {id: 0x3D, title: "3d"}
+  - {id: 0x3E, title: "3e"}
+  - {id: 0x3F, title: "3f"}
+  - {id: 0x40, title: "40"}
+  - {id: 0x41, title: "41"}
+  - {id: 0x42, title: "42"}
+  - {id: 0x43, title: "43"}
+  - {id: 0x44, title: "44"}
+  - {id: 0x45, title: "45"}
+  - {id: 0x46, title: "46"}
+  - {id: 0x47, title: "47"}

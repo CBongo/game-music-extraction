@@ -1,0 +1,244 @@
+game: "Seiken Densetsu 3 (SNES)"
+format: "snes_unified"
+console_type: "snes"
+
+# SNES ROM file
+rom_file: "seiken3e.smc"
+
+# Base address for song data (SNES address C5/0000 - HiROM)
+base_address: 0xC50000
+
+# Song pointer table configuration
+song_pointer_table:
+  style: "direct"  # SD3 uses direct 3-byte pointers
+  offset: 0x2065   # Offset from base_address
+  count: 73        # Number of songs (read from base+0x2064)
+
+# Instrument table configuration
+# SD3 has both song-embedded instrument tables AND percussion tables
+instrument_table_offset: 0x0000  # Embedded in each song
+
+# Instrument mapping configuration
+instrument_mapping:
+  type: "direct_map"  # SD3 uses patchmap array with 0x10 offset
+
+# PHASE 1: Config-driven parameters for SNESUnified
+spc_load_address: 0x2000   # SPC-700 RAM load address (voice addresses relative to 0x2000)
+note_divisor: 14           # Note encoding: note = cmd / 14, duration = cmd % 14
+first_opcode: 0xC4         # First command opcode (< 0xC4 are notes)
+
+# Voice addressing formula for SD3
+vaddroffset_formula:
+  type: "subtract_constant"
+  constant: 0x1C00  # Addresses adjusted by -0x1C00 for goto operations
+
+# PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
+# NOTE: Parameter counts are read from ROM's opcode_table, not specified here
+opcodes:
+  0xC4: {semantic: "octave_inc"}      # Increment octave
+  0xC5: {semantic: "octave_dec"}      # Decrement octave
+  0xC6: {semantic: "octave_set"}      # Set octave
+  0xC7: {semantic: "nop"}             # No operation
+  0xC8: {semantic: "nop"}             # Set noise frequency (SPC hardware - skip)
+  0xC9: {semantic: "nop"}             # Enable noise (SPC hardware - skip)
+  0xCA: {semantic: "nop"}             # Disable noise (SPC hardware - skip)
+  0xCB: {semantic: "nop"}             # Pitch modulation on (SPC hardware - skip)
+  0xCC: {semantic: "nop"}             # Pitch modulation off (SPC hardware - skip)
+  0xCD: {semantic: "nop"}             # Jump to SFX (sound effects - skip)
+  0xCE: {semantic: "nop"}             # Jump to SFX (sound effects - skip)
+  0xCF: {semantic: "nop"}             # Set detune (fine tuning - skip for MIDI)
+  0xD0: {semantic: "halt"}            # End/Return/Goto (checks for loop marker)
+  0xD1: {semantic: "tempo"}           # Set tempo
+  0xD2: {semantic: "loop_start"}      # Begin repeat (variant 1)
+  0xD3: {semantic: "loop_start"}      # Begin repeat (variant 2)
+  0xD4: {semantic: "loop_start"}      # Begin repeat (variant 3)
+  0xD5: {semantic: "loop_end"}        # End repeat
+  0xD6: {semantic: "nop"}             # Alternate repeat (not implemented in Perl)
+  0xD7: {semantic: "loop_mark"}       # Mark return point for loop
+  0xD8: {semantic: "nop"}             # Default ADSR (SPC hardware - skip)
+  0xD9: {semantic: "nop"}             # ADSR Attack (SPC hardware - skip)
+  0xDA: {semantic: "nop"}             # ADSR Decay (SPC hardware - skip)
+  0xDB: {semantic: "nop"}             # ADSR Sustain (SPC hardware - skip)
+  0xDC: {semantic: "nop"}             # ADSR Release (SPC hardware - skip)
+  0xDD: {semantic: "nop"}             # Note length percentage (not implemented in Perl)
+  0xDE: {semantic: "patch_change"}    # Instrument/patch change
+  0xDF: {semantic: "nop"}             # Change noise frequency (SPC hardware - skip)
+  0xE0: {semantic: "volume"}          # Set voice volume
+  0xE1: {semantic: "nop"}             # Unused
+  0xE2: {semantic: "volume"}          # Set voice volume (variant)
+  0xE3: {semantic: "nop"}             # Change volume (not implemented in Perl)
+  0xE4: {semantic: "volume_fade"}     # Volume fade over time
+  0xE5: {semantic: "portamento_on"}   # Portamento (pitch bend)
+  0xE6: {semantic: "nop"}             # Toggle portamento (not implemented)
+  0xE7: {semantic: "pan"}             # Set pan/balance
+  0xE8: {semantic: "pan_fade"}        # Pan/balance fade
+  0xE9: {semantic: "nop"}             # Ping-pong mode (not implemented in Perl)
+  0xEA: {semantic: "nop"}             # Restart ping-pong (not implemented in Perl)
+  0xEB: {semantic: "nop"}             # Ping-pong off (not implemented in Perl)
+  0xEC: {semantic: "nop"}             # Set detune (fine tuning - skip for MIDI)
+  0xED: {semantic: "nop"}             # Change detune (fine tuning - skip for MIDI)
+  0xEE: {semantic: "percussion_mode_on"}   # Percussion mode on
+  0xEF: {semantic: "percussion_mode_off"}  # Percussion mode off
+  0xF0: {semantic: "nop"}             # Vibrato on (not implemented in Perl)
+  0xF1: {semantic: "nop"}             # Vibrato on with delay (not implemented in Perl)
+  0xF2: {semantic: "nop"}             # Change tempo (not implemented in Perl)
+  0xF3: {semantic: "nop"}             # Vibrato off (not implemented in Perl)
+  0xF4: {semantic: "nop"}             # Tremolo on (not implemented in Perl)
+  0xF5: {semantic: "nop"}             # Tremolo on with delay (not implemented in Perl)
+  0xF6: {semantic: "octave_inc"}      # Increment octave (duplicate)
+  0xF7: {semantic: "nop"}             # Tremolo off (not implemented in Perl)
+  0xF8: {semantic: "slur_on"}         # Begin slur
+  0xF9: {semantic: "slur_off"}        # End slur
+  0xFA: {semantic: "nop"}             # Echo on (SPC hardware - skip)
+  0xFB: {semantic: "nop"}             # Echo off (SPC hardware - skip)
+  0xFC: {semantic: "nop"}             # Call SFX (sound effects - skip)
+  0xFD: {semantic: "nop"}             # Call SFX (sound effects - skip)
+  0xFE: {semantic: "octave_inc"}      # Increment octave (duplicate)
+  0xFF: {semantic: "octave_inc"}      # Increment octave (duplicate)
+
+# Tempo calculation parameters
+# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
+# SD3 uses: tempo_factor = 125 * 48 = 6000
+timer_period_us: 125      # Effective timer period from Perl code
+timer_count: 48           # Timer counts per processing loop
+tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
+
+# Default state values
+default_tempo: 120
+default_octave: 4
+default_velocity: 100
+
+# Duration table
+duration_table:
+  address: 0xC51E60  # spcbase + 0x17a1 where spcbase = C5/06BF
+  size: 14
+  type: "byte"
+
+# Music opcode lengths - 60 opcodes starting from 0xC4
+opcode_table:
+  address: 0xC51E24  # spcbase + 0x1765 where spcbase = C5/06BF
+  size: 60
+  type: "byte"
+
+# Pitch table
+pitch_table:
+  address: 0xC51E6E  # spcbase + 0x17af where spcbase = C5/06BF
+  size: 13
+  type: "ushort"
+
+# Patch mapping: instrument_id -> General MIDI patch
+# Negative values indicate percussion (GM drum key number)
+# SD3 patch indices range from 0x10-0x33
+patch_map:
+  0x10: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x11: {gm_patch: -40, transpose: 0, name: "Snare Drum"}
+  0x12: {gm_patch: -36, transpose: 0, name: "Bass Drum"}
+  0x13: {gm_patch: -44, transpose: 0, name: "Pedal Hi-Hat"}
+  0x14: {gm_patch: 0, transpose: 1, name: "Piano +1"}
+  0x15: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x16: {gm_patch: 4, transpose: 2, name: "Electric Piano 1"}
+  0x17: {gm_patch: 73, transpose: 1, name: "Piccolo"}
+  0x18: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x19: {gm_patch: 108, transpose: 0, name: "Kalimba"}
+  0x1A: {gm_patch: 12, transpose: -1, name: "Vibraphone"}
+  0x1B: {gm_patch: 24, transpose: 0, name: "Acoustic Guitar (nylon)"}
+  0x1C: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x1D: {gm_patch: 116, transpose: -1, name: "Taiko Drum"}
+  0x1E: {gm_patch: 32, transpose: 0, name: "Acoustic Bass"}
+  0x1F: {gm_patch: 33, transpose: -3, name: "Electric Bass (finger)"}
+  0x20: {gm_patch: -54, transpose: 0, name: "Tambourine"}
+  0x21: {gm_patch: 43, transpose: -1, name: "Contrabass"}
+  0x22: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x23: {gm_patch: 52, transpose: 0, name: "Choir Aahs"}
+  0x24: {gm_patch: 48, transpose: 1, name: "String Ensemble 1"}
+  0x25: {gm_patch: 14, transpose: 0, name: "Xylophone"}
+  0x26: {gm_patch: 86, transpose: 0, name: "Lead 7 (fifths)"}
+  0x27: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x28: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x29: {gm_patch: -38, transpose: 0, name: "Acoustic Snare"}
+  0x2A: {gm_patch: -40, transpose: 0, name: "Electric Snare"}
+  0x2B: {gm_patch: 63, transpose: 1, name: "Synth Brass 1"}
+  0x2C: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x2D: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x2E: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x2F: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x30: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x31: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x32: {gm_patch: 0, transpose: 0, name: "Piano"}
+  0x33: {gm_patch: 0, transpose: 0, name: "Piano"}
+
+# Songs list
+songs:
+  - {id: 0x00, title: "00"}
+  - {id: 0x01, title: "Whiz Kid"}
+  - {id: 0x02, title: "Left-Handed Wolf"}
+  - {id: 0x03, title: "Raven"}
+  - {id: 0x04, title: "Witchmakers"}
+  - {id: 0x05, title: "Evening Star"}
+  - {id: 0x06, title: "Female Turbulence"}
+  - {id: 0x07, title: "Three of Darkside"}
+  - {id: 0x08, title: "Ordinary People"}
+  - {id: 0x09, title: "Ancient Dolphin"}
+  - {id: 0x0A, title: "Political Pressure"}
+  - {id: 0x0B, title: "Few Paths Forbidden"}
+  - {id: 0x0C, title: "Little Sweet Cafe"}
+  - {id: 0x0D, title: "Swivel"}
+  - {id: 0x0E, title: "Harvest November"}
+  - {id: 0x0F, title: "Walls and Steels"}
+  - {id: 0x10, title: "Powell"}
+  - {id: 0x11, title: "Damn Damn Drum"}
+  - {id: 0x12, title: "Don't Hunt the Fairy"}
+  - {id: 0x13, title: "Another Winter"}
+  - {id: 0x14, title: "Different Road"}
+  - {id: 0x15, title: "Weird Counterpoint"}
+  - {id: 0x16, title: "Electric Talk"}
+  - {id: 0x17, title: "Hope Isolation Pray"}
+  - {id: 0x18, title: "Intolerance"}
+  - {id: 0x19, title: "Fable"}
+  - {id: 0x1A, title: "Innocent Sea"}
+  - {id: 0x1B, title: "Delicate Affection"}
+  - {id: 0x1C, title: "Meridian Child"}
+  - {id: 0x1D, title: "Nuclear Fusion"}
+  - {id: 0x1E, title: "Sacrifice, Part 1"}
+  - {id: 0x1F, title: "Strange Medicine"}
+  - {id: 0x20, title: "Obsession"}
+  - {id: 0x21, title: "Rolling Cradle"}
+  - {id: 0x22, title: "High Tension Wire"}
+  - {id: 0x23, title: "Faith Total Machine"}
+  - {id: 0x24, title: "Secret of Mana"}
+  - {id: 0x25, title: "Black Soup"}
+  - {id: 0x26, title: "Frenzy"}
+  - {id: 0x27, title: "Innocent Water"}
+  - {id: 0x28, title: "Can You Fly, Sister"}
+  - {id: 0x29, title: "Splash Hop"}
+  - {id: 0x2A, title: "Closed Garden"}
+  - {id: 0x2B, title: "Where Angels Fear to Tread"}
+  - {id: 0x2C, title: "Farewell Song"}
+  - {id: 0x2D, title: "Positive"}
+  - {id: 0x2E, title: "And Other"}
+  - {id: 0x2F, title: "Long Goodbye"}
+  - {id: 0x30, title: "Axe Bring Storm"}
+  - {id: 0x31, title: "Last Audience"}
+  - {id: 0x32, title: "(fx) Wind"}
+  - {id: 0x33, title: "Oh I'm a Flamelet"}
+  - {id: 0x34, title: "(fx) Heartbeat"}
+  - {id: 0x35, title: "(fx) Ghost Ship"}
+  - {id: 0x36, title: "(fx) Drumroll"}
+  - {id: 0x37, title: "(fx) Cannon"}
+  - {id: 0x38, title: "(fx) Flammie"}
+  - {id: 0x39, title: "Person's Die"}
+  - {id: 0x3A, title: "Angel's Fear"}
+  - {id: 0x3B, title: "Religion Thunder"}
+  - {id: 0x3C, title: "Sacrifice, Part 2"}
+  - {id: 0x3D, title: "(fx) Sleeping"}
+  - {id: 0x3E, title: "3e"}
+  - {id: 0x3F, title: "Legend"}
+  - {id: 0x40, title: "Decision Bell"}
+  - {id: 0x41, title: "(fx) Level Up"}
+  - {id: 0x42, title: "Not Awaken"}
+  - {id: 0x43, title: "Sacrifice, Part 3"}
+  - {id: 0x44, title: "(fx) Pihyara Flute"}
+  - {id: 0x45, title: "(fx) Wind Drum"}
+  - {id: 0x46, title: "Breezin"}
+  - {id: 0x47, title: "Return to Forever"}
+  - {id: 0x48, title: "48"}

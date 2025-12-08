@@ -39,6 +39,7 @@ class IREventType(Enum):
     LOOP_START = "loop_start"
     LOOP_END = "loop_end"
     LOOP_BREAK = "loop_break"  # Selective repeat / conditional jump
+    LOOP_MARK = "loop_mark"  # Mark loop point for goto (SD3-style)
     GOTO = "goto"
     HALT = "halt"
     ENVELOPE = "envelope"
@@ -95,7 +96,7 @@ class IREvent:
     def is_loop_event(self) -> bool:
         """Check if this is a loop control event."""
         return self.type in (IREventType.LOOP_START, IREventType.LOOP_END,
-                           IREventType.LOOP_BREAK, IREventType.GOTO)
+                           IREventType.LOOP_BREAK, IREventType.LOOP_MARK, IREventType.GOTO)
 
 
 @dataclass
@@ -319,6 +320,11 @@ def make_loop_start(offset: int, count: int, operands: Optional[List[int]] = Non
 def make_loop_end(offset: int) -> IREvent:
     """Create a loop end event."""
     return IREvent(type=IREventType.LOOP_END, offset=offset)
+
+
+def make_loop_mark(offset: int) -> IREvent:
+    """Create a loop mark event (marks loop point for goto)."""
+    return IREvent(type=IREventType.LOOP_MARK, offset=offset)
 
 
 def make_loop_break(offset: int, condition: int, target_offset: int,
