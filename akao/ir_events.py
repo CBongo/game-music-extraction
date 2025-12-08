@@ -15,12 +15,15 @@ class IREventType(Enum):
     REST = "rest"
     TIE = "tie"
     TEMPO = "tempo"
+    TEMPO_FADE = "tempo_fade"
     PATCH_CHANGE = "patch_change"
     OCTAVE_SET = "octave_set"
     OCTAVE_INC = "octave_inc"
     OCTAVE_DEC = "octave_dec"
     VOLUME = "volume"
+    VOLUME_FADE = "volume_fade"
     PAN = "pan"
+    PAN_FADE = "pan_fade"
     VIBRATO_ON = "vibrato_on"
     VIBRATO_OFF = "vibrato_off"
     TREMOLO_ON = "tremolo_on"
@@ -41,6 +44,9 @@ class IREventType(Enum):
     ENVELOPE = "envelope"
     GAIN = "gain"
     STACCATO = "staccato"
+    UTILITY_DURATION = "utility_duration"
+    MASTER_VOLUME = "master_volume"
+    VOLUME_MULTIPLIER = "volume_multiplier"
     ECHO_VOLUME = "echo_volume"
     ECHO_SETTINGS = "echo_settings"
     PAN_SWEEP = "pan_sweep"
@@ -190,6 +196,25 @@ def make_tempo(offset: int, bpm: float, operands: Optional[List[int]] = None) ->
     )
 
 
+def make_tempo_fade(offset: int, duration: int, target_bpm: float,
+                    operands: Optional[List[int]] = None) -> IREvent:
+    """Create a tempo fade event.
+
+    Args:
+        offset: Byte offset in original data
+        duration: Fade duration in native ticks
+        target_bpm: Target tempo in beats per minute (floating point)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.TEMPO_FADE,
+        offset=offset,
+        duration=duration,
+        value=target_bpm,
+        operands=operands or []
+    )
+
+
 def make_patch_change(offset: int, inst_id: int, gm_patch: int,
                      transpose: int = 0, operands: Optional[List[int]] = None) -> IREvent:
     """Create a patch change event."""
@@ -229,6 +254,54 @@ def make_volume(offset: int, volume: int, operands: Optional[List[int]] = None) 
         type=IREventType.VOLUME,
         offset=offset,
         value=volume,
+        operands=operands or []
+    )
+
+
+def make_volume_fade(offset: int, duration: int, target_volume: int,
+                     operands: Optional[List[int]] = None) -> IREvent:
+    """Create a volume fade event.
+
+    Args:
+        offset: Byte offset in original data
+        duration: Fade duration in native ticks
+        target_volume: Target volume value (0-127 MIDI scale)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.VOLUME_FADE,
+        offset=offset,
+        duration=duration,
+        value=target_volume,
+        operands=operands or []
+    )
+
+
+def make_pan(offset: int, pan: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a pan change event."""
+    return IREvent(
+        type=IREventType.PAN,
+        offset=offset,
+        value=pan,
+        operands=operands or []
+    )
+
+
+def make_pan_fade(offset: int, duration: int, target_pan: int,
+                  operands: Optional[List[int]] = None) -> IREvent:
+    """Create a pan fade event.
+
+    Args:
+        offset: Byte offset in original data
+        duration: Fade duration in native ticks
+        target_pan: Target pan value (0-127 MIDI scale)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.PAN_FADE,
+        offset=offset,
+        duration=duration,
+        value=target_pan,
         operands=operands or []
     )
 
@@ -352,3 +425,75 @@ def make_percussion_mode_on(offset: int) -> IREvent:
 def make_percussion_mode_off(offset: int) -> IREvent:
     """Create a percussion mode off event."""
     return IREvent(type=IREventType.PERCUSSION_MODE_OFF, offset=offset)
+
+
+def make_staccato(offset: int, percentage: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a staccato event.
+
+    Args:
+        offset: Byte offset in original data
+        percentage: Note duration multiplier (0-100+)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.STACCATO,
+        offset=offset,
+        value=percentage,
+        operands=operands or []
+    )
+
+
+def make_utility_duration(offset: int, duration: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a utility duration event.
+
+    This overrides the duration table for the next note only.
+
+    Args:
+        offset: Byte offset in original data
+        duration: Duration value to use for next note (in native ticks)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.UTILITY_DURATION,
+        offset=offset,
+        value=duration,
+        operands=operands or []
+    )
+
+
+def make_master_volume(offset: int, volume: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a master volume event.
+
+    Sets a global volume multiplier that affects all subsequent volume changes.
+    Used in SoM (0xF8).
+
+    Args:
+        offset: Byte offset in original data
+        volume: Master volume value (0-255 native scale)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.MASTER_VOLUME,
+        offset=offset,
+        value=volume,
+        operands=operands or []
+    )
+
+
+def make_volume_multiplier(offset: int, multiplier: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a volume multiplier event.
+
+    Sets a per-track volume multiplier that affects note velocities.
+    Used in CT/FF3 (0xF4).
+
+    Args:
+        offset: Byte offset in original data
+        multiplier: Volume multiplier value (0-255 native scale)
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.VOLUME_MULTIPLIER,
+        offset=offset,
+        value=multiplier,
+        operands=operands or []
+    )

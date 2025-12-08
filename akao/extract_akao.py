@@ -23,13 +23,17 @@ from xml.dom import minidom
 # Import IR event classes
 from ir_events import (
     IREvent, IRVoice, IRSequence, IREventType,
-    make_note, make_rest, make_tie, make_tempo, make_patch_change,
-    make_octave_set, make_octave_inc, make_octave_dec, make_volume,
+    make_note, make_rest, make_tie, make_tempo, make_tempo_fade,
+    make_patch_change,
+    make_octave_set, make_octave_inc, make_octave_dec,
+    make_volume, make_volume_fade, make_pan, make_pan_fade,
     make_loop_start, make_loop_end, make_loop_break, make_goto, make_halt,
     make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
     make_portamento_on, make_portamento_off,
     make_slur_on, make_slur_off, make_roll_on, make_roll_off,
-    make_percussion_mode_on, make_percussion_mode_off
+    make_percussion_mode_on, make_percussion_mode_off,
+    make_staccato, make_utility_duration,
+    make_master_volume, make_volume_multiplier
 )
 
 
@@ -966,6 +970,10 @@ class AKAONewStyle(SequenceFormat):
                        # Can be modified by slur/roll opcodes
         slur_enabled = False  # Track slur state
         roll_enabled = False  # Track roll state
+        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
+        utility_duration_override = None  # One-shot duration override for next note
+        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
+        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
 
         # Tick scaling factor (native ticks -> MIDI ticks)
         tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
@@ -1008,13 +1016,22 @@ class AKAONewStyle(SequenceFormat):
                 # Get velocity from event metadata or current state
                 vel = event.metadata.get('velocity', velocity)
 
+                # Apply utility duration override (one-shot for this note only)
+                native_duration = utility_duration_override if utility_duration_override is not None else dur
+                utility_duration_override = None  # Clear after use
+
+                # Apply staccato multiplier to duration
+                if staccato_percentage < 100:
+                    # Reduce duration by staccato percentage
+                    native_duration = int(native_duration * staccato_percentage / 100)
+
                 # Scale native duration to MIDI ticks
-                midi_dur = dur * tick_scale
+                midi_dur = native_duration * tick_scale
 
                 # Apply gate timing (note-off before full duration)
                 # If slur or roll is active, use 0 gate time (notes play full duration)
                 effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
-                gate_adjusted_dur = (dur - effective_gate_time) * tick_scale
+                gate_adjusted_dur = (native_duration - effective_gate_time) * tick_scale
 
                 midi_events.append({
                     'type': 'note',
@@ -1062,7 +1079,7 @@ class AKAONewStyle(SequenceFormat):
                 i += 1
 
             elif event.type == IREventType.TEMPO:
-                # Tempo change - add to midi_events for conductor track
+                # Tempo change - add to midi_events (will be placed on track 0)
                 assert event.value is not None, "TEMPO event must have value"
                 midi_events.append({
                     'type': 'tempo',
@@ -1070,6 +1087,33 @@ class AKAONewStyle(SequenceFormat):
                     'tempo': event.value
                 })
                 tempo = event.value
+                i += 1
+
+            elif event.type == IREventType.TEMPO_FADE:
+                # Tempo fade - generate tempo events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_tempo = event.value
+                start_tempo = tempo
+
+                # Generate tempo events at 2-tick intervals
+                num_steps = max(1, fade_duration // 2)
+                for step in range(num_steps + 1):
+                    step_time = total_time + (step * 2)
+                    # Linear interpolation
+                    if num_steps > 0:
+                        step_tempo = start_tempo + (target_tempo - start_tempo) * step / num_steps
+                    else:
+                        step_tempo = target_tempo
+
+                    midi_events.append({
+                        'type': 'tempo',
+                        'time': step_time,
+                        'tempo': step_tempo
+                    })
+
+                # Update current tempo to target
+                tempo = target_tempo
                 i += 1
 
             elif event.type == IREventType.OCTAVE_SET:
@@ -1088,12 +1132,81 @@ class AKAONewStyle(SequenceFormat):
                 velocity = event.value
                 i += 1
 
+            elif event.type == IREventType.VOLUME_FADE:
+                # Volume fade - generate CC 7 events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_volume = event.value
+                start_volume = velocity
+
+                # Generate volume events at 2-tick intervals
+                num_steps = max(1, fade_duration // 2)
+                for step in range(num_steps + 1):
+                    step_time = total_time + (step * 2)
+                    # Linear interpolation
+                    if num_steps > 0:
+                        step_volume = int(start_volume + (target_volume - start_volume) * step / num_steps)
+                    else:
+                        step_volume = target_volume
+
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': step_time,
+                        'controller': 7,  # Volume CC
+                        'value': step_volume
+                    })
+
+                # Update current velocity to target
+                velocity = target_volume
+                i += 1
+
+            elif event.type == IREventType.PAN_FADE:
+                # Pan fade - generate CC 10 events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_pan = event.value
+                # We need to track current pan value - for now use 64 (center) as default
+                start_pan = 64  # TODO: track pan state properly
+
+                # Generate pan events at 2-tick intervals
+                num_steps = max(1, fade_duration // 2)
+                for step in range(num_steps + 1):
+                    step_time = total_time + (step * 2)
+                    # Linear interpolation
+                    if num_steps > 0:
+                        step_pan = int(start_pan + (target_pan - start_pan) * step / num_steps)
+                    else:
+                        step_pan = target_pan
+
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': step_time,
+                        'controller': 10,  # Pan CC
+                        'value': step_pan
+                    })
+
+                i += 1
+
             elif event.type == IREventType.SLUR_ON:
                 slur_enabled = True
+                # Emit MIDI CC 68 (legato pedal) = 127
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 127
+                })
                 i += 1
 
             elif event.type == IREventType.SLUR_OFF:
                 slur_enabled = False
+                # Emit MIDI CC 68 (legato pedal) = 0
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 0
+                })
                 i += 1
 
             elif event.type == IREventType.ROLL_ON:
@@ -1102,6 +1215,30 @@ class AKAONewStyle(SequenceFormat):
 
             elif event.type == IREventType.ROLL_OFF:
                 roll_enabled = False
+                i += 1
+
+            elif event.type == IREventType.STACCATO:
+                # Set staccato percentage for all subsequent notes
+                assert event.value is not None, "STACCATO event must have value"
+                staccato_percentage = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.UTILITY_DURATION:
+                # Override duration for next note only
+                assert event.value is not None, "UTILITY_DURATION event must have value"
+                utility_duration_override = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.MASTER_VOLUME:
+                # Set master volume (SoM 0xF8) - global volume multiplier
+                assert event.value is not None, "MASTER_VOLUME event must have value"
+                master_volume = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.VOLUME_MULTIPLIER:
+                # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
+                assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
+                volume_multiplier = int(event.value)
                 i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_ON:
@@ -1295,6 +1432,11 @@ class SNESUnified(SequenceFormat):
         else:
             self.percussion_table_offset = None
             self.percussion_table_stride = 0x24
+
+        # Instrument mapping configuration (game-wide)
+        self.instrument_mapping = config.get('instrument_mapping')
+        if self.instrument_mapping is None:
+            self.instrument_mapping = {'type': 'direct', 'param': 0}
 
         # Read song pointer table (may set instrument_table_offset for FF2 style)
         self.song_pointers = self._read_song_pointer_table()
@@ -1858,6 +2000,10 @@ class SNESUnified(SequenceFormat):
         current_channel = start_voice_num
         slur_enabled = False  # Track slur state
         roll_enabled = False  # Track roll state
+        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
+        utility_duration_override = None  # One-shot duration override for next note
+        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
+        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
 
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration}
@@ -1914,13 +2060,22 @@ class SNESUnified(SequenceFormat):
                 else:
                     midi_channel = current_channel
 
+                # Apply utility duration override (one-shot for this note only)
+                native_duration = utility_duration_override if utility_duration_override is not None else event.duration
+                utility_duration_override = None  # Clear after use
+
+                # Apply staccato multiplier to duration
+                if staccato_percentage < 100:
+                    # Reduce duration by staccato percentage
+                    native_duration = int(native_duration * staccato_percentage / 100)
+
                 # Scale native duration to MIDI ticks
-                midi_dur = event.duration * tick_scale
+                midi_dur = native_duration * tick_scale
 
                 # Apply gate timing (note-off before full duration)
                 # If slur or roll is active, use 0 gate time (notes play full duration)
                 effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
-                gate_adjusted_dur = (event.duration - effective_gate_time) * tick_scale
+                gate_adjusted_dur = (native_duration - effective_gate_time) * tick_scale
 
                 # Add MIDI note event
                 midi_events.append({
@@ -2001,12 +2156,81 @@ class SNESUnified(SequenceFormat):
                 velocity = event.value
                 i += 1
 
+            elif event.type == IREventType.VOLUME_FADE:
+                # Volume fade - generate CC 7 events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_volume = event.value
+                start_volume = velocity
+
+                # Generate volume events at 2-tick intervals
+                num_steps = max(1, fade_duration // 2)
+                for step in range(num_steps + 1):
+                    step_time = total_time + (step * 2)
+                    # Linear interpolation
+                    if num_steps > 0:
+                        step_volume = int(start_volume + (target_volume - start_volume) * step / num_steps)
+                    else:
+                        step_volume = target_volume
+
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': step_time,
+                        'controller': 7,  # Volume CC
+                        'value': step_volume
+                    })
+
+                # Update current velocity to target
+                velocity = target_volume
+                i += 1
+
+            elif event.type == IREventType.PAN_FADE:
+                # Pan fade - generate CC 10 events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_pan = event.value
+                # We need to track current pan value - for now use 64 (center) as default
+                start_pan = 64  # TODO: track pan state properly
+
+                # Generate pan events at 2-tick intervals
+                num_steps = max(1, fade_duration // 2)
+                for step in range(num_steps + 1):
+                    step_time = total_time + (step * 2)
+                    # Linear interpolation
+                    if num_steps > 0:
+                        step_pan = int(start_pan + (target_pan - start_pan) * step / num_steps)
+                    else:
+                        step_pan = target_pan
+
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': step_time,
+                        'controller': 10,  # Pan CC
+                        'value': step_pan
+                    })
+
+                i += 1
+
             elif event.type == IREventType.SLUR_ON:
                 slur_enabled = True
+                # Emit MIDI CC 68 (legato pedal) = 127
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 127
+                })
                 i += 1
 
             elif event.type == IREventType.SLUR_OFF:
                 slur_enabled = False
+                # Emit MIDI CC 68 (legato pedal) = 0
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 0
+                })
                 i += 1
 
             elif event.type == IREventType.ROLL_ON:
@@ -2015,6 +2239,30 @@ class SNESUnified(SequenceFormat):
 
             elif event.type == IREventType.ROLL_OFF:
                 roll_enabled = False
+                i += 1
+
+            elif event.type == IREventType.STACCATO:
+                # Set staccato percentage for all subsequent notes
+                assert event.value is not None, "STACCATO event must have value"
+                staccato_percentage = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.UTILITY_DURATION:
+                # Override duration for next note only
+                assert event.value is not None, "UTILITY_DURATION event must have value"
+                utility_duration_override = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.MASTER_VOLUME:
+                # Set master volume (SoM 0xF8) - global volume multiplier
+                assert event.value is not None, "MASTER_VOLUME event must have value"
+                master_volume = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.VOLUME_MULTIPLIER:
+                # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
+                assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
+                volume_multiplier = int(event.value)
                 i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_ON:
@@ -2433,18 +2681,9 @@ class SNESUnified(SequenceFormat):
                         perc_vol = perc_entry['volume']
 
                         # Resolve patch mapping for percussion instrument
-                        # Use the same handler as patch_change opcode (e.g., dual_map for CT/FF3)
-                        perc_handler = None
-                        patch_change_opcode = None
-                        # Find the patch_change opcode configuration
-                        for opcode, op_cfg in self.opcode_dispatch.items():
-                            if op_cfg.get('semantic') == 'patch_change':
-                                perc_handler = op_cfg.get('handler')
-                                patch_change_opcode = opcode
-                                break
-
+                        # Use game-wide instrument mapping
                         gm_patch, perc_transpose, resolved_perc_key = self._resolve_patch(
-                            perc_inst_id, perc_handler, instrument_table
+                            perc_inst_id, self.instrument_mapping, instrument_table
                         )
 
                         # Override note if percussion table specifies it (non-zero)
@@ -2543,9 +2782,20 @@ class SNESUnified(SequenceFormat):
                         event = make_tempo(p, bpm, operands)
                         ir_events.append(event)
 
+                elif semantic == "tempo_fade" and len(operands) >= 2:
+                    # Tempo Fade - duration and target tempo
+                    # Operands: [duration, target_tempo]
+                    duration = operands[0]
+                    target_tempo = operands[1]
+                    # Calculate target BPM using same formula
+                    target_bpm = (60_000_000.0 * target_tempo) / self.tempo_factor
+                    event = make_tempo_fade(p, duration, target_bpm, operands)
+                    ir_events.append(event)
+
                 elif semantic == "patch_change" and len(operands) >= 1:
+                    # Use game-wide mapping, fall back to opcode-specific
                     if handler is None:
-                        handler = {'type': 'inst_table', 'param': 0} # Default handler
+                        handler = self.instrument_mapping
 
                     # Use helper function to resolve patch mapping
                     inst_id = operands[0]
@@ -2592,6 +2842,40 @@ class SNESUnified(SequenceFormat):
                         velocity = operands[value_idx] >> 1
                         event = make_volume(p, velocity, operands)
                         ir_events.append(event)
+
+                elif semantic == "volume_fade" and len(operands) >= 2:
+                    # Volume Fade - duration and target volume
+                    # Operands: [duration, target_volume]
+                    # Scale target from 0-255 to MIDI 0-127
+                    duration = operands[0]
+                    target_volume = operands[1] >> 1
+                    event = make_volume_fade(p, duration, target_volume, operands)
+                    ir_events.append(event)
+
+                elif semantic == "pan" and len(operands) >= 1:
+                    # Voice Pan/Balance
+                    # Use value_param if specified, otherwise use last operand
+                    value_idx = op_info.get('value_param', len(operands) - 1) if op_info else len(operands) - 1
+                    if len(operands) > value_idx:
+                        # Pan: 0=left, 64=center, 127=right (MIDI convention)
+                        # SNES uses 0-127 scale, so map directly or scale if needed
+                        pan = operands[value_idx]
+                        # Some games may use 0-255 scale, check if > 127
+                        if pan > 127:
+                            pan = pan >> 1  # Scale from 0-255 to 0-127
+                        event = make_pan(p, pan, operands)
+                        ir_events.append(event)
+
+                elif semantic == "pan_fade" and len(operands) >= 2:
+                    # Pan Fade - duration and target pan
+                    # Operands: [duration, target_pan]
+                    duration = operands[0]
+                    target_pan = operands[1]
+                    # Scale if needed (some games may use 0-255)
+                    if target_pan > 127:
+                        target_pan = target_pan >> 1
+                    event = make_pan_fade(p, duration, target_pan, operands)
+                    ir_events.append(event)
 
                 elif semantic == "loop_start" and len(operands) >= 1:
                     # Begin repeat - just record it, don't execute
@@ -2672,6 +2956,30 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "roll_off":
                     # Roll off - restore normal articulation
                     event = make_roll_off(p)
+                    ir_events.append(event)
+
+                elif semantic == "staccato_set" and len(operands) >= 1:
+                    # Staccato - set note duration multiplier (percentage)
+                    percentage = operands[0]
+                    event = make_staccato(p, percentage, operands)
+                    ir_events.append(event)
+
+                elif semantic == "utility_duration" and len(operands) >= 1:
+                    # Utility duration - override duration table for next note
+                    duration_value = operands[0]
+                    event = make_utility_duration(p, duration_value, operands)
+                    ir_events.append(event)
+
+                elif semantic == "master_volume" and len(operands) >= 1:
+                    # Master volume (SoM 0xF8) - global volume multiplier
+                    master_vol = operands[0]
+                    event = make_master_volume(p, master_vol, operands)
+                    ir_events.append(event)
+
+                elif semantic == "volume_multiplier" and len(operands) >= 1:
+                    # Volume multiplier (CT/FF3 0xF4) - per-track volume multiplier
+                    vol_mult = operands[0]
+                    event = make_volume_multiplier(p, vol_mult, operands)
                     ir_events.append(event)
 
                 elif semantic == "percussion_mode_on":
@@ -3368,23 +3676,19 @@ class SequenceExtractor:
             # Create MIDI file
             # Use 96 ticks per quarter note to match Perl MIDI module default
             # SNES duration_table values are already in this resolution
-            num_tracks = len(tracks_to_write) + 1  # +1 for conductor track
+            num_tracks = len(tracks_to_write)
             midi = MIDIFile(num_tracks, file_format=1, ticks_per_quarternote=96)
 
-            # Conductor track
-            midi.addTrackName(0, 0, "Conductor")
-            # Note: Don't add a default tempo - the sequence will have its own tempo events
-
-            # Add conductor events (tempo changes)
+            # Add tempo events to first track (tempo events apply globally in MIDI format 1)
             for event in conductor_events:
                 time_beats = event['time'] / 96.0
                 # Use BPM directly from IR event (already calculated in Pass 1)
                 bpm = event['tempo']
                 midi.addTempo(0, time_beats, bpm)
 
-            # Add tracks
+            # Add tracks (now starting from 0 instead of 1)
             for track_idx, track_info in enumerate(tracks_to_write):
-                self._write_midi_track(midi, track_idx + 1, track_info)
+                self._write_midi_track(midi, track_idx, track_info, conductor_events if track_idx == 0 else [])
 
             # Disable deinterleaving to avoid "pop from empty list" errors in MIDIUtil
             # See: https://github.com/DataGreed/polyendtracker-midi-export/pull/5
@@ -3406,7 +3710,7 @@ class SequenceExtractor:
         """Reorganize events by patch instead of voice.
 
         Returns:
-            Tuple of (patch_tracks, conductor_events) where conductor_events are tempo changes
+            Tuple of (patch_tracks, tempo_events) where tempo_events are placed on track 0
         """
         # Collect all events across all voices
         patch_events: Dict[int, List] = {}
@@ -3420,7 +3724,7 @@ class SequenceExtractor:
                         patch_events[patch] = []
                     patch_events[patch].append(event)
                 elif event['type'] == 'tempo':
-                    # Collect tempo events separately - they go on conductor track
+                    # Collect tempo events separately - they go on track 0
                     conductor_events.append(event)
 
         # Create track info for each patch
@@ -3440,15 +3744,13 @@ class SequenceExtractor:
         import json
 
         debug_data = {
-            'conductor_track': {
-                'events': conductor_events
-            },
+            'tempo_events': conductor_events,  # Tempo events now on track 0
             'tracks': []
         }
 
         for track_idx, track_info in enumerate(tracks_to_write):
             track_data = {
-                'track_num': track_idx + 1,
+                'track_num': track_idx,  # Now 0-based
                 'is_patch_based': track_info.get('is_patch_based', False),
             }
 
@@ -3467,7 +3769,7 @@ class SequenceExtractor:
                 if patch_info.is_percussion():
                     channel = 9
                 else:
-                    channel = (track_idx + 1) - 1  # track_num - 1
+                    channel = track_idx  # Now 0-based
                     if channel >= 9:
                         channel += 1
                 track_data['channel'] = channel
@@ -3494,8 +3796,18 @@ class SequenceExtractor:
         with open(output_path, 'w') as f:
             json.dump(debug_data, f, indent=2)
 
-    def _write_midi_track(self, midi: MIDIFile, track_num: int, track_info: Dict):
-        """Write a single track to MIDI file."""
+    def _write_midi_track(self, midi: MIDIFile, track_num: int, track_info: Dict, tempo_events: Optional[List[Dict]] = None):
+        """Write a single track to MIDI file.
+
+        Args:
+            midi: MIDIFile object
+            track_num: Track number (0-based)
+            track_info: Track information dict
+            tempo_events: Optional list of tempo events (only for track 0)
+        """
+        if tempo_events is None:
+            tempo_events = []
+
         is_patch_based = track_info.get('is_patch_based', False)
 
         if is_patch_based:
@@ -3511,10 +3823,10 @@ class SequenceExtractor:
                 channel = 9  # GM percussion channel
             else:
                 # Use channel based on track position (skip channel 9 for percussion)
-                # track_num is 1-based (0 is conductor), so subtract 1 for 0-based channel
-                channel = track_num - 1
+                # track_num is now 0-based
+                channel = track_num
                 if channel >= 9:
-                    channel += 1  # Skip channel 9 by mapping tracks 10+ to channels 10+
+                    channel += 1  # Skip channel 9 by mapping tracks 9+ to channels 10+
 
             # Set program
             if not patch_info.is_percussion():
@@ -3601,7 +3913,7 @@ class SequenceExtractor:
                         midi.addNote(track_num, channel, note,
                                    time_beats, duration_beats, event['velocity'])
 
-                # Tempo events are now handled on conductor track, not here
+                # Tempo events are now handled on track 0, not per-track
 
     def generate_musicxml(self, song: SongMetadata, track_data: Dict, loop_analysis: Dict, output_path: Path):
         """Generate MusicXML from sequence data.

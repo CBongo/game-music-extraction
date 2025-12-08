@@ -24,6 +24,11 @@ instrument_table_stride: 0x20    # 32 bytes per song
 percussion_table_offset: 0x1871  # Offset from base_address for percussion tables
 percussion_table_stride: 0x24    # 36 bytes per song (12 entries × 3 bytes)
 
+# Instrument mapping configuration
+instrument_mapping:
+  type: "dual_map"
+  param: 0x20
+
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x2000   # SPC-700 RAM load address
 note_divisor: 14           # Note encoding: note = cmd / 14, duration = cmd % 14 (same as FF3)
@@ -62,7 +67,7 @@ opcodes:
   0xD9: {semantic: "transpose_set", params: 1}
   0xDA: {semantic: "transpose_change", params: 1}
   0xDB: {semantic: "detune", params: 1}
-  0xDC: {semantic: "patch_change", params: 1, handler: {type: "dual_map", param: 0x20}}
+  0xDC: {semantic: "patch_change", params: 1}
   0xDD: {semantic: "adsr_attack", params: 1}
   0xDE: {semantic: "adsr_decay", params: 1}
   0xDF: {semantic: "adsr_sustain", params: 1}

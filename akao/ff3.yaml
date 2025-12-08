@@ -19,6 +19,11 @@ has_alternate_voice_pointers: true  # Some songs have alternate versions
 # Instrument table configuration
 instrument_table_offset: 0x3F95  # Offset from base_address for instrument tables
 
+# Instrument mapping configuration
+instrument_mapping:
+  type: "dual_map"
+  param: 0x20
+
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x1C00   # SPC-700 RAM load address (different from FF2's 0x2000)
 note_divisor: 14           # Note encoding: note = cmd / 14, duration = cmd % 14 (different from FF2's 15)
@@ -42,7 +47,7 @@ opcodes:
   0xCB: {semantic: "tremolo_on", params: 3}      # Tremolo settings
   0xCC: {semantic: "tremolo_off", params: 0}     # Tremolo off
   0xCD: {semantic: "pan_sweep", params: 3}       # Pan Sweep (per ff3mus.pl line 46)
-  0xCE: {semantic: "portamento_off", params: 0}  # Pan Sweep off (maps to portamento off)
+  0xCE: {semantic: "pan_sweep_off", params: 0}  # Pan Sweep off
   0xCF: {semantic: "noise_clock", params: 1}     # Set Noise Clock (per ff3mus.pl line 47)
   0xD0: {semantic: "noise_on", params: 0}        # Enable Noise (per ff3mus.pl line 48)
   0xD1: {semantic: "noise_off", params: 0}       # Disable Noise (per ff3mus.pl line 48)
@@ -56,7 +61,7 @@ opcodes:
   0xD9: {semantic: "transpose_set", params: 1}   # Set Transpose (per ff3mus.pl line 52)
   0xDA: {semantic: "transpose_change", params: 1}  # Change Transpose (per ff3mus.pl line 52)
   0xDB: {semantic: "detune", params: 1}          # Detune (per ff3mus.pl line 53)
-  0xDC: {semantic: "patch_change", params: 1, handler: {type: "dual_map", param: 0x20}}  # Patch change with dual map
+  0xDC: {semantic: "patch_change", params: 1}  # Patch change (uses instrument_mapping)
   0xDD: {semantic: "adsr_attack", params: 1}     # Set ADSR Attack (per ff3mus.pl line 54)
   0xDE: {semantic: "adsr_decay", params: 1}      # Set ADSR Decay (per ff3mus.pl line 54)
   0xDF: {semantic: "adsr_sustain", params: 1}    # Set ADSR Sustain (per ff3mus.pl line 55)
@@ -68,7 +73,7 @@ opcodes:
   0xE5: {semantic: "slur_off", params: 0}        # End Slur (per ff3mus.pl line 57)
   0xE6: {semantic: "roll_on", params: 0}         # Begin Roll (per ff3mus.pl line 58)
   0xE7: {semantic: "roll_off", params: 0}        # End Roll (per ff3mus.pl line 58)
-  0xE8: {semantic: "utility_rest", params: 0}    # Utility Rest (per ff3mus.pl line 58)
+  0xE8: {semantic: "utility_duration", params: 1}    # Utility Duration (per ff3mus.pl line 58)
   0xE9: {semantic: "play_sfx", params: 1}        # Play SFX (E9) (per ff3mus.pl line 59)
   0xEA: {semantic: "play_sfx", params: 1}        # Play SFX (EA) (per ff3mus.pl line 59)
   0xEB: {semantic: "halt", params: 0}            # Halt

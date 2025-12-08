@@ -18,6 +18,11 @@ song_pointer_table:
 # Instrument table is at 04/C00F + song_id * 0x20
 instrument_table_offset: 0x000F  # Offset from base_address for instrument tables
 
+# Instrument mapping configuration
+instrument_mapping:
+  type: "inst_table"
+  param: 0x40
+
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x2000   # SPC-700 RAM load address
 note_divisor: 15           # Note encoding: note = cmd / 15, duration = cmd % 15
@@ -36,7 +41,7 @@ opcodes:
   0xD8: {semantic: "vibrato_on", params: 3}      # Vibrato settings
   0xD9: {semantic: "pan_sweep_on", params: 3}    # Pan Sweep Settings (per ff2mus.pl)
   0xDA: {semantic: "octave_set", params: 1}      # Set octave
-  0xDB: {semantic: "patch_change", params: 1, handler: {type: 'inst_table', param: 0x40}}    # Patch change (inst_table[operand - 0x40])
+  0xDB: {semantic: "patch_change", params: 1}    # Patch change (uses instrument_mapping)
   0xDC: {semantic: "adsr_set", params: 1}        # Set Envelope (per ff2mus.pl)
   0xDD: {semantic: "gain_set", params: 1}        # Set Gain (Exp Dec Time) (per ff2mus.pl)
   0xDE: {semantic: "staccato_set", params: 1}    # Set Staccato (note dur ratio) (per ff2mus.pl)
