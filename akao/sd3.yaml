@@ -138,6 +138,7 @@ opcode_table:
   address: 0xC51E24  # spcbase + 0x1765 where spcbase = C5/06BF
   size: 60
   type: "byte"
+  includes_opcode: true  # SD3's table includes the opcode byte itself (1-based)
 
 # Pitch table
 pitch_table:
