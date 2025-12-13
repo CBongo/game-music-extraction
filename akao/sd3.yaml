@@ -15,8 +15,13 @@ song_pointer_table:
   count: 73        # Number of songs (read from base+0x2064)
 
 # Instrument table configuration
-# SD3 has both song-embedded instrument tables AND percussion tables
-instrument_table_offset: 0x0000  # Embedded in each song
+# SD3 stores instrument table at the START of each song's data
+# Format: pairs of (instrument_id, volume) bytes, terminated by 0xFF
+# After 0xFF: 2-byte length field, then actual song data starts
+instrument_table:
+  location: "song_prefix"  # Instrument table is at start of song data
+  format: "pairs_with_length"  # Pairs of bytes terminated by 0xFF, followed by 2-byte length
+  # Song data offset = num_instruments * 2 + 3 (for 0xFF + length)
 
 # Instrument mapping configuration
 instrument_mapping:
@@ -24,13 +29,27 @@ instrument_mapping:
 
 # PHASE 1: Config-driven parameters for SNESUnified
 spc_load_address: 0x2000   # SPC-700 RAM load address (voice addresses relative to 0x2000)
-note_divisor: 14           # Note encoding: note = cmd / 14, duration = cmd % 14
+note_divisor: 14           # Note encoding divisor
 first_opcode: 0xC4         # First command opcode (< 0xC4 are notes)
 
-# Voice addressing formula for SD3
-vaddroffset_formula:
-  type: "subtract_constant"
-  constant: 0x1C00  # Addresses adjusted by -0x1C00 for goto operations
+# SD3 note encoding is BACKWARDS from other games:
+# note = cmd % 14 (remainder), duration = cmd / 14 (quotient)
+# Other games use: note = cmd / 15, duration = cmd % 15
+note_encoding: "inverted"  # Duration is quotient, note is remainder
+
+# SD3 special note values (different from other games)
+tie_note_value: 13         # Note value for tie (extends previous note)
+rest_note_value: 12        # Note value for rest (silence)
+# Note: utility duration occurs when dur_idx == 13 (reads next byte)
+
+# SD3 duration formula: dur = durtbl[dur_idx] + 1
+# The << 1 shift is tick scaling (happens in Pass 2), not part of duration value
+# This differs from other games which use durtbl values directly (no +1)
+duration_formula: "sd3"    # Apply +1 transformation to duration table values
+
+# SD3 uses FF2-style voice pointers (simple SPC addresses at start of song data)
+# NOT FF3/SoM-style with vaddroffset calculation
+# The 0x1C00 adjustment is only used within goto/loop operations (see handler below)
 
 # PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
 # NOTE: Parameter counts are read from ROM's opcode_table, not specified here
@@ -47,7 +66,7 @@ opcodes:
   0xCD: {semantic: "nop"}             # Jump to SFX (sound effects - skip)
   0xCE: {semantic: "nop"}             # Jump to SFX (sound effects - skip)
   0xCF: {semantic: "nop"}             # Set detune (fine tuning - skip for MIDI)
-  0xD0: {semantic: "halt"}            # End/Return/Goto (checks for loop marker)
+  0xD0: {semantic: "halt_or_loop"}    # End/Return/Goto (converts to GOTO if preceded by LOOP_MARK)
   0xD1: {semantic: "tempo"}           # Set tempo
   0xD2: {semantic: "loop_start"}      # Begin repeat (variant 1)
   0xD3: {semantic: "loop_start"}      # Begin repeat (variant 2)

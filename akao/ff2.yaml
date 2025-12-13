@@ -32,52 +32,52 @@ tie_note_value: 13      # Note value indicating a tie (per ff2mus.pl line 184)
 
 # PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
 opcodes:
-  0xD2: {semantic: "tempo", params: 3, value_param: 2}  # Tempo change (operand 2 = tempo value)
-  0xD3: {semantic: "nop", params: 0}             # No operation (per ff2mus.pl)
-  0xD4: {semantic: "echo_volume", params: 1}     # Echo Volume (per ff2mus.pl)
-  0xD5: {semantic: "echo_settings", params: 2}   # Echo Settings (per ff2mus.pl)
-  0xD6: {semantic: "portamento_on", params: 3}   # Portamento settings
-  0xD7: {semantic: "tremolo_on", params: 3}      # Tremolo settings
-  0xD8: {semantic: "vibrato_on", params: 3}      # Vibrato settings
-  0xD9: {semantic: "pan_sweep_on", params: 3}    # Pan Sweep Settings (per ff2mus.pl)
-  0xDA: {semantic: "octave_set", params: 1}      # Set octave
-  0xDB: {semantic: "patch_change", params: 1}    # Patch change (uses instrument_mapping)
-  0xDC: {semantic: "adsr_set", params: 1}        # Set Envelope (per ff2mus.pl)
-  0xDD: {semantic: "gain_set", params: 1}        # Set Gain (Exp Dec Time) (per ff2mus.pl)
-  0xDE: {semantic: "staccato_set", params: 1}    # Set Staccato (note dur ratio) (per ff2mus.pl)
-  0xDF: {semantic: "noise_clock", params: 1}     # Set Noise Clock (per ff2mus.pl)
-  0xE0: {semantic: "loop_start", params: 1}      # Begin repeat
-  0xE1: {semantic: "octave_inc", params: 0}      # Increment octave
-  0xE2: {semantic: "octave_dec", params: 0}      # Decrement octave
-  0xE3: {semantic: "nop", params: 0}             # No operation (per ff2mus.pl)
-  0xE4: {semantic: "nop", params: 0}             # No operation (per ff2mus.pl)
-  0xE5: {semantic: "nop", params: 0}             # No operation (per ff2mus.pl)
-  0xE6: {semantic: "portamento_off", params: 0}  # Portamento off
-  0xE7: {semantic: "tremolo_off", params: 0}     # Tremolo off
-  0xE8: {semantic: "vibrato_off", params: 0}     # Vibrato off
-  0xE9: {semantic: "pan_sweep_off", params: 0}   # Pan Sweep Off (per ff2mus.pl)
-  0xEA: {semantic: "echo_on", params: 0}         # Enable Echo (per ff2mus.pl)
-  0xEB: {semantic: "echo_off", params: 0}        # Disable Echo (per ff2mus.pl)
-  0xEC: {semantic: "noise_on", params: 0}        # Enable Noise (per ff2mus.pl)
-  0xED: {semantic: "noise_off", params: 0}       # Disable Noise (per ff2mus.pl)
-  0xEE: {semantic: "pitchmod_on", params: 0}     # Enable Pitchmod (per ff2mus.pl)
-  0xEF: {semantic: "pitchmod_off", params: 0}    # Disable Pitchmod (per ff2mus.pl)
-  0xF0: {semantic: "loop_end", params: 0}        # End repeat
-  0xF1: {semantic: "halt", params: 0}            # Halt (end of track)
-  0xF2: {semantic: "volume", params: 3, value_param: 2}  # Voice volume (operand 2 = volume)
-  0xF3: {semantic: "pan", params: 3, value_param: 2}     # Voice Balance (operand 2 = pan) (per ff2mus.pl)
-  0xF4: {semantic: "goto", params: 2}            # Goto address
-  0xF5: {semantic: "loop_break", params: 3}      # Conditional jump/selective repeat
-  0xF6: {semantic: "goto_indexed", params: 1}    # Goto 0760+X (per ff2mus.pl)
-  0xF7: {semantic: "halt", params: 0}            # Halt
-  0xF8: {semantic: "halt", params: 0}            # Halt
-  0xF9: {semantic: "halt", params: 0}            # Halt
-  0xFA: {semantic: "halt", params: 0}            # Halt
-  0xFB: {semantic: "halt", params: 0}            # Halt
-  0xFC: {semantic: "halt", params: 0}            # Halt
-  0xFD: {semantic: "halt", params: 0}            # Halt
-  0xFE: {semantic: "halt", params: 0}            # Halt
-  0xFF: {semantic: "halt", params: 0}            # Halt
+  0xD2: {semantic: "tempo", value_param: 2}  # Tempo change (operand 2 = tempo value)
+  0xD3: {semantic: "nop"}             # No operation (per ff2mus.pl)
+  0xD4: {semantic: "echo_volume"}     # Echo Volume (per ff2mus.pl)
+  0xD5: {semantic: "echo_settings"}   # Echo Settings (per ff2mus.pl)
+  0xD6: {semantic: "portamento_on"}   # Portamento settings
+  0xD7: {semantic: "tremolo_on"}      # Tremolo settings
+  0xD8: {semantic: "vibrato_on"}      # Vibrato settings
+  0xD9: {semantic: "pan_sweep_on"}    # Pan Sweep Settings (per ff2mus.pl)
+  0xDA: {semantic: "octave_set"}      # Set octave
+  0xDB: {semantic: "patch_change"}    # Patch change (uses instrument_mapping)
+  0xDC: {semantic: "adsr_set"}        # Set Envelope (per ff2mus.pl)
+  0xDD: {semantic: "gain_set"}        # Set Gain (Exp Dec Time) (per ff2mus.pl)
+  0xDE: {semantic: "staccato_set"}    # Set Staccato (note dur ratio) (per ff2mus.pl)
+  0xDF: {semantic: "noise_clock"}     # Set Noise Clock (per ff2mus.pl)
+  0xE0: {semantic: "loop_start"}      # Begin repeat
+  0xE1: {semantic: "octave_inc"}      # Increment octave
+  0xE2: {semantic: "octave_dec"}      # Decrement octave
+  0xE3: {semantic: "nop"}             # No operation (per ff2mus.pl)
+  0xE4: {semantic: "nop"}             # No operation (per ff2mus.pl)
+  0xE5: {semantic: "nop"}             # No operation (per ff2mus.pl)
+  0xE6: {semantic: "portamento_off"}  # Portamento off
+  0xE7: {semantic: "tremolo_off"}     # Tremolo off
+  0xE8: {semantic: "vibrato_off"}     # Vibrato off
+  0xE9: {semantic: "pan_sweep_off"}   # Pan Sweep Off (per ff2mus.pl)
+  0xEA: {semantic: "echo_on"}         # Enable Echo (per ff2mus.pl)
+  0xEB: {semantic: "echo_off"}        # Disable Echo (per ff2mus.pl)
+  0xEC: {semantic: "noise_on"}        # Enable Noise (per ff2mus.pl)
+  0xED: {semantic: "noise_off"}       # Disable Noise (per ff2mus.pl)
+  0xEE: {semantic: "pitchmod_on"}     # Enable Pitchmod (per ff2mus.pl)
+  0xEF: {semantic: "pitchmod_off"}    # Disable Pitchmod (per ff2mus.pl)
+  0xF0: {semantic: "loop_end"}        # End repeat
+  0xF1: {semantic: "halt"}            # Halt (end of track)
+  0xF2: {semantic: "volume", value_param: 2}  # Voice volume (operand 2 = volume)
+  0xF3: {semantic: "pan", value_param: 2}     # Voice Balance (operand 2 = pan) (per ff2mus.pl)
+  0xF4: {semantic: "goto"}            # Goto address
+  0xF5: {semantic: "loop_break"}      # Conditional jump/selective repeat
+  0xF6: {semantic: "goto_indexed"}    # Goto 0760+X (per ff2mus.pl)
+  0xF7: {semantic: "halt"}            # Halt
+  0xF8: {semantic: "halt"}            # Halt
+  0xF9: {semantic: "halt"}            # Halt
+  0xFA: {semantic: "halt"}            # Halt
+  0xFB: {semantic: "halt"}            # Halt
+  0xFC: {semantic: "halt"}            # Halt
+  0xFD: {semantic: "halt"}            # Halt
+  0xFE: {semantic: "halt"}            # Halt
+  0xFF: {semantic: "halt"}            # Halt
 
 # Tempo calculation parameters
 # BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor

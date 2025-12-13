@@ -1728,7 +1728,14 @@ class SNESUnified(SequenceFormat):
         Returns a list of instrument IDs (indexes into the patch_map).
         In Perl: my (@inst) = map { $_ == 0 ? () : ($_) }
                    &read2ptrs($ptr{songinst} + $i * 0x20, 0x10);
+
+        Note: For SD3-style games with song-embedded instrument tables,
+        this returns an empty list since the table is parsed during song loading.
         """
+        # SD3-style: Instrument table is embedded in song data, not in a separate location
+        if not hasattr(self, 'instrument_table_offset') or self.instrument_table_offset is None:
+            return []
+
         # Each song has 16 (0x10) 2-byte instrument pointers at songinst + song_id * 0x20
         offset = self.instrument_table_offset + song_id * 0x20
         instruments = []
@@ -2664,12 +2671,36 @@ class SNESUnified(SequenceFormat):
 
             # Check if it's a note (< first_opcode, config-driven)
             if cmd < self.first_opcode:
-                # Note encoding: note = cmd / note_divisor, duration = cmd % note_divisor (config-driven)
-                note_num = cmd // self.note_divisor
-                dur_idx = cmd % self.note_divisor
-                # Store native duration (no scaling)
-                # Scaling will be applied in Pass 2
-                dur = self.duration_table[dur_idx]
+                # Note encoding: check if inverted (SD3-style) or normal
+                note_encoding = self.config.get('note_encoding', 'normal')
+                if note_encoding == 'inverted':
+                    # SD3-style: duration = cmd / divisor, note = cmd % divisor
+                    dur_idx = cmd // self.note_divisor
+                    note_num = cmd % self.note_divisor
+                else:
+                    # Normal: note = cmd / divisor, duration = cmd % divisor
+                    note_num = cmd // self.note_divisor
+                    dur_idx = cmd % self.note_divisor
+
+                # Handle utility duration (SD3-style: dur_idx == 13 means read next byte)
+                # Check if this is configured (SD3 uses dur_idx == 13 for utility duration)
+                utility_dur_idx = self.note_divisor - 1  # For divisor 14, utility is index 13
+                if dur_idx == utility_dur_idx and p + 1 < len(data):
+                    # Read next byte as raw duration value
+                    p += 1
+                    cmd2 = data[p]
+                    dur = cmd2  # Raw duration from next byte
+                    line = f"      {spc_addr:04X}: {cmd:02X} {cmd2:02X}"
+                else:
+                    # Store native duration (no scaling)
+                    # Scaling will be applied in Pass 2
+                    dur = self.duration_table[dur_idx]
+
+                # Apply game-specific duration formula if configured
+                duration_formula = self.config.get('duration_formula')
+                if duration_formula == 'sd3':
+                    # SD3 formula: dur = dur + 1 (shift is tick scaling, happens in Pass 2)
+                    dur = dur + 1
 
                 if note_num < 12:
                     # Check if percussion mode is active
@@ -2757,8 +2788,16 @@ class SNESUnified(SequenceFormat):
 
             else:
                 # Command opcode (config-driven first_opcode)
-                oplen = self.opcode_table[cmd - self.first_opcode]
-                operands = list(data[p+1:p+1+oplen])
+                raw_oplen = self.opcode_table[cmd - self.first_opcode]
+                # SD3 uses 0xFF as a magic value meaning "no parameters" (treat as oplen=1)
+                # Also treat 0 as 1 to prevent infinite loops
+                if raw_oplen == 0xFF or raw_oplen == 0:
+                    oplen = 1
+                else:
+                    oplen = raw_oplen
+                # oplen includes the opcode byte, so parameter count is oplen-1
+                num_params = oplen - 1 if oplen > 0 else 0
+                operands = list(data[p+1:p+1+num_params])
 
                 # Format operands with proper spacing
                 operand_str = ' '.join(f"{op:02X}" for op in operands)
@@ -3026,6 +3065,32 @@ class SNESUnified(SequenceFormat):
                     # (Both backwards GOTOs for loops and forward GOTOs end the track)
                     break
 
+                elif semantic == "halt_or_loop":
+                    # SD3-specific: D0 opcode can be either HALT or LOOP depending on context
+                    # Check if a LOOP_MARK event precedes this opcode anywhere in the track
+                    # If so, convert to a GOTO that loops back to the mark
+                    loop_mark_event = None
+                    for prev_event in reversed(ir_events):
+                        if prev_event.type == IREventType.LOOP_MARK:
+                            loop_mark_event = prev_event
+                            break
+
+                    if loop_mark_event is not None:
+                        # SD3-style loop: D0 after LOOP_MARK becomes GOTO to marked position
+                        target_offset = loop_mark_event.offset
+                        target_spc_addr = target_offset + self.spc_load_address
+                        line = f"      {spc_addr:04X}: {cmd:02X}         Loop -> ${target_spc_addr:04X}"
+                        event = make_goto(p, target_offset, operands)
+                        ir_events.append(event)
+                        disasm.append(line)
+                    else:
+                        # Normal halt - no loop mark
+                        line = f"      {spc_addr:04X}: {cmd:02X}         Halt"
+                        event = make_halt(p, operands)
+                        ir_events.append(event)
+                        disasm.append(line)
+                    break
+
                 elif semantic == "halt":
                     # Halt - end of track
                     event = make_halt(p, operands)
@@ -3042,7 +3107,7 @@ class SNESUnified(SequenceFormat):
                         ir_events.append(event)
                     # If no semantic at all, don't create IR event (truly unknown)
 
-                p += oplen + 1
+                p += oplen  # oplen includes the opcode byte itself
                 disasm.append(line)
 
         return disasm, ir_events
@@ -3271,8 +3336,28 @@ class SequenceExtractor:
             if hasattr(self.format_handler, 'song_pointers'):
                 if song.id in self.format_handler.song_pointers:  # type: ignore[attr-defined]
                     offset, length = self.format_handler.song_pointers[song.id]  # type: ignore[attr-defined]
-                    # Skip the 2-byte size field at the start - we only want the actual music data
-                    return self.rom_data[offset + 2:offset + 2 + length]
+
+                    # Check if game has song-embedded instrument table (SD3-style)
+                    inst_table_config = self.config.get('instrument_table', {})
+                    if inst_table_config.get('location') == 'song_prefix':
+                        # SD3-style: Instrument table at start of song data
+                        # Format: pairs of (instrument_id, volume) terminated by 0xFF, then 2-byte length, then song data
+                        # Parse instrument table to find where song data starts
+                        p = 0
+                        while p < len(self.rom_data) - offset - 3:
+                            inst_byte = self.rom_data[offset + p]
+                            if inst_byte == 0xFF:
+                                # Found terminator
+                                # Read 2-byte length after 0xFF
+                                song_length = struct.unpack('<H', self.rom_data[offset + p + 1:offset + p + 3])[0]
+                                # Song data starts after: instrument_pairs + 0xFF + length_field
+                                song_data_offset = p + 3
+                                return self.rom_data[offset + song_data_offset:offset + song_data_offset + song_length]
+                            p += 2  # Skip instrument pair
+                        raise ValueError(f"Song {song.id:02X}: Could not find instrument table terminator (0xFF)")
+                    else:
+                        # Standard format: Skip the 2-byte size field at the start
+                        return self.rom_data[offset + 2:offset + 2 + length]
                 else:
                     raise ValueError(f"Song {song.id:02X} not found in song pointer table")
             else:

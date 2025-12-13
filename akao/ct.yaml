@@ -43,66 +43,66 @@ vaddroffset_formula:
 
 # PHASE 2: Opcode dispatch table - maps opcode bytes to semantic meanings
 opcodes:
-  0xC4: {semantic: "volume", params: 1}
-  0xC5: {semantic: "volume_fade", params: 2}
-  0xC6: {semantic: "pan", params: 1}
-  0xC7: {semantic: "pan_fade", params: 2}
-  0xC8: {semantic: "portamento_on", params: 2}
-  0xC9: {semantic: "vibrato_on", params: 3}
-  0xCA: {semantic: "vibrato_off", params: 0}
-  0xCB: {semantic: "tremolo_on", params: 3}
-  0xCC: {semantic: "tremolo_off", params: 0}
-  0xCD: {semantic: "pan_sweep_on", params: 3}
-  0xCE: {semantic: "pan_sweep_off", params: 0}
-  0xCF: {semantic: "noise_clock", params: 1}
-  0xD0: {semantic: "noise_on", params: 0}
-  0xD1: {semantic: "noise_off", params: 0}
-  0xD2: {semantic: "pitchmod_on", params: 0}
-  0xD3: {semantic: "pitchmod_off", params: 0}
-  0xD4: {semantic: "echo_on", params: 0}
-  0xD5: {semantic: "echo_off", params: 0}
-  0xD6: {semantic: "octave_set", params: 1}
-  0xD7: {semantic: "octave_inc", params: 0}
-  0xD8: {semantic: "octave_dec", params: 0}
-  0xD9: {semantic: "transpose_set", params: 1}
-  0xDA: {semantic: "transpose_change", params: 1}
-  0xDB: {semantic: "detune", params: 1}
-  0xDC: {semantic: "patch_change", params: 1}
-  0xDD: {semantic: "adsr_attack", params: 1}
-  0xDE: {semantic: "adsr_decay", params: 1}
-  0xDF: {semantic: "adsr_sustain", params: 1}
-  0xE0: {semantic: "adsr_release", params: 1}
-  0xE1: {semantic: "adsr_default", params: 0}
-  0xE2: {semantic: "loop_start", params: 1}
-  0xE3: {semantic: "loop_end", params: 0}
-  0xE4: {semantic: "slur_on", params: 0}
-  0xE5: {semantic: "slur_off", params: 0}
-  0xE6: {semantic: "roll_on", params: 0}
-  0xE7: {semantic: "roll_off", params: 0}
-  0xE8: {semantic: "utility_duration", params: 1}
-  0xE9: {semantic: "play_sfx", params: 1}
-  0xEA: {semantic: "play_sfx", params: 1}
-  0xEB: {semantic: "halt", params: 0}
-  0xEC: {semantic: "halt", params: 0}
-  0xED: {semantic: "halt", params: 0}
-  0xEE: {semantic: "halt", params: 0}
-  0xEF: {semantic: "halt", params: 0}
-  0xF0: {semantic: "tempo", params: 1}
-  0xF1: {semantic: "tempo_fade", params: 2}
-  0xF2: {semantic: "echo_volume", params: 1}
-  0xF3: {semantic: "echo_volume_fade", params: 2}
-  0xF4: {semantic: "master_volume", params: 1}
-  0xF5: {semantic: "loop_break", params: 3, handler: "vaddroffset"}
-  0xF6: {semantic: "goto", params: 2, handler: "vaddroffset"}
-  0xF7: {semantic: "echo_feedback_fade", params: 3}
-  0xF8: {semantic: "filter_fade", params: 3}
-  0xF9: {semantic: "unknown_f9", params: 0}
-  0xFA: {semantic: "unknown_fa", params: 0}
-  0xFB: {semantic: "percussion_mode_on", params: 0}
-  0xFC: {semantic: "percussion_mode_off", params: 0}
-  0xFD: {semantic: "volume_multiplier", params: 1}
-  0xFE: {semantic: "halt", params: 0}
-  0xFF: {semantic: "halt", params: 0}
+  0xC4: {semantic: "volume"}
+  0xC5: {semantic: "volume_fade"}
+  0xC6: {semantic: "pan"}
+  0xC7: {semantic: "pan_fade"}
+  0xC8: {semantic: "portamento_on"}
+  0xC9: {semantic: "vibrato_on"}
+  0xCA: {semantic: "vibrato_off"}
+  0xCB: {semantic: "tremolo_on"}
+  0xCC: {semantic: "tremolo_off"}
+  0xCD: {semantic: "pan_sweep_on"}
+  0xCE: {semantic: "pan_sweep_off"}
+  0xCF: {semantic: "noise_clock"}
+  0xD0: {semantic: "noise_on"}
+  0xD1: {semantic: "noise_off"}
+  0xD2: {semantic: "pitchmod_on"}
+  0xD3: {semantic: "pitchmod_off"}
+  0xD4: {semantic: "echo_on"}
+  0xD5: {semantic: "echo_off"}
+  0xD6: {semantic: "octave_set"}
+  0xD7: {semantic: "octave_inc"}
+  0xD8: {semantic: "octave_dec"}
+  0xD9: {semantic: "transpose_set"}
+  0xDA: {semantic: "transpose_change"}
+  0xDB: {semantic: "detune"}
+  0xDC: {semantic: "patch_change"}
+  0xDD: {semantic: "adsr_attack"}
+  0xDE: {semantic: "adsr_decay"}
+  0xDF: {semantic: "adsr_sustain"}
+  0xE0: {semantic: "adsr_release"}
+  0xE1: {semantic: "adsr_default"}
+  0xE2: {semantic: "loop_start"}
+  0xE3: {semantic: "loop_end"}
+  0xE4: {semantic: "slur_on"}
+  0xE5: {semantic: "slur_off"}
+  0xE6: {semantic: "roll_on"}
+  0xE7: {semantic: "roll_off"}
+  0xE8: {semantic: "utility_duration"}
+  0xE9: {semantic: "play_sfx"}
+  0xEA: {semantic: "play_sfx"}
+  0xEB: {semantic: "halt"}
+  0xEC: {semantic: "halt"}
+  0xED: {semantic: "halt"}
+  0xEE: {semantic: "halt"}
+  0xEF: {semantic: "halt"}
+  0xF0: {semantic: "tempo"}
+  0xF1: {semantic: "tempo_fade"}
+  0xF2: {semantic: "echo_volume"}
+  0xF3: {semantic: "echo_volume_fade"}
+  0xF4: {semantic: "master_volume"}
+  0xF5: {semantic: "loop_break", handler: "vaddroffset"}
+  0xF6: {semantic: "goto", handler: "vaddroffset"}
+  0xF7: {semantic: "echo_feedback_fade"}
+  0xF8: {semantic: "filter_fade"}
+  0xF9: {semantic: "unknown_f9"}
+  0xFA: {semantic: "unknown_fa"}
+  0xFB: {semantic: "percussion_mode_on"}
+  0xFC: {semantic: "percussion_mode_off"}
+  0xFD: {semantic: "volume_multiplier"}
+  0xFE: {semantic: "halt"}
+  0xFF: {semantic: "halt"}
 
 # Tempo calculation parameters
 # BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
