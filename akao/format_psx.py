@@ -317,7 +317,7 @@ class AKAONewStyle(SequenceFormat):
         return file_offset
 
     def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
-        """Parse AKAO sequence header."""
+        """Parse AKAO sequence header and compute track offsets."""
         if len(data) < 0x40:
             raise ValueError("Data too short for AKAO header")
 
@@ -334,6 +334,18 @@ class AKAONewStyle(SequenceFormat):
         patch_offset = struct.unpack('<I', data[0x30:0x34])[0]
         perc_offset = struct.unpack('<I', data[0x34:0x38])[0]
 
+        # Compute track offsets from voice mask
+        track_offsets = []
+        ptr = 0x40  # Voice pointers start at 0x40
+        for v in range(32):
+            if voice_mask & (1 << v):
+                if ptr + 2 <= len(data):
+                    # Pointer value is relative to its own position
+                    track_offset_rel = struct.unpack('<H', data[ptr:ptr+2])[0]
+                    absolute_offset = ptr + track_offset_rel
+                    track_offsets.append(absolute_offset)
+                    ptr += 2
+
         return {
             'magic': magic,
             'id': seq_id,
@@ -341,7 +353,8 @@ class AKAONewStyle(SequenceFormat):
             'voice_mask': voice_mask,
             'voice_count': voice_count,
             'patch_offset': patch_offset,
-            'perc_offset': perc_offset
+            'perc_offset': perc_offset,
+            'track_offsets': track_offsets
         }
 
     def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
@@ -797,29 +810,34 @@ class AKAONewStyle(SequenceFormat):
                 native_duration = utility_duration_override if utility_duration_override is not None else dur
                 utility_duration_override = None  # Clear after use
 
-                # Apply staccato multiplier to duration
-                if staccato_percentage < 100:
-                    # Reduce duration by staccato percentage
-                    native_duration = int(native_duration * staccato_percentage / 100)
-
-                # Scale native duration to MIDI ticks
+                # Scale ORIGINAL native duration to MIDI ticks
+                # This is ALWAYS used for time advancement (next event timing)
                 midi_dur = native_duration * tick_scale
 
-                # Apply gate timing (note-off before full duration)
-                # If slur or roll is active, use 0 gate time (notes play full duration)
-                effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
-                gate_adjusted_dur = (native_duration - effective_gate_time) * tick_scale
+                # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
+                # Order of priority: slur/roll > staccato > gate
+                if slur_enabled or roll_enabled:
+                    # Slur/roll: play full duration (no gap before next note)
+                    gate_adjusted_dur = midi_dur
+                elif staccato_percentage < 100:
+                    # Staccato: apply percentage reduction (replaces gate timing)
+                    # Apply to ORIGINAL duration, not already-reduced duration
+                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
+                else:
+                    # Normal articulation: apply standard gate timing (2 native ticks before end)
+                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
 
                 midi_events.append({
                     'type': 'note',
                     'time': total_time,
-                    'duration': gate_adjusted_dur,  # Gate-adjusted MIDI duration
+                    'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
                     'velocity': vel,
                     'channel': current_channel
                 })
 
-                total_time += midi_dur  # Advance by FULL MIDI duration
+                # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
+                total_time += midi_dur
                 i += 1
 
             elif event.type == IREventType.REST:
