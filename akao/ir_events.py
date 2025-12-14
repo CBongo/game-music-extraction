@@ -80,6 +80,7 @@ class IREvent:
     loop_count: Optional[int] = None
     target_offset: Optional[int] = None  # Jump target for goto/loop_break
     condition: Optional[int] = None  # For conditional jumps (selective repeat)
+    restore_octave: Optional[bool] = None  # For loop_end, restore octave to value at loop_start
 
     # For patch changes - track instrument context
     inst_id: Optional[int] = None  # Game-specific instrument ID
@@ -317,9 +318,13 @@ def make_loop_start(offset: int, count: int, operands: Optional[List[int]] = Non
     )
 
 
-def make_loop_end(offset: int) -> IREvent:
+def make_loop_end(offset: int, restore_octave: bool = False) -> IREvent:
     """Create a loop end event."""
-    return IREvent(type=IREventType.LOOP_END, offset=offset)
+    return IREvent(
+        type=IREventType.LOOP_END, 
+        offset=offset, 
+        restore_octave=restore_octave
+    )
 
 
 def make_loop_mark(offset: int) -> IREvent:
@@ -501,5 +506,62 @@ def make_volume_multiplier(offset: int, multiplier: int, operands: Optional[List
         type=IREventType.VOLUME_MULTIPLIER,
         offset=offset,
         value=multiplier,
+        operands=operands or []
+    )
+
+
+def make_echo_on(offset: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create an echo enable event.
+
+    Enables SPC700 echo/reverb effect for this voice.
+    Hardware effect - tracked for completeness but not rendered in MIDI.
+
+    Args:
+        offset: Byte offset in original data
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.ECHO_SETTINGS,
+        offset=offset,
+        value=1,  # 1 = on
+        operands=operands or []
+    )
+
+
+def make_echo_off(offset: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create an echo disable event.
+
+    Disables SPC700 echo/reverb effect for this voice.
+    Hardware effect - tracked for completeness but not rendered in MIDI.
+
+    Args:
+        offset: Byte offset in original data
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.ECHO_SETTINGS,
+        offset=offset,
+        value=0,  # 0 = off
+        operands=operands or []
+    )
+
+
+def make_adsr(offset: int, adsr_param: str, value: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create an ADSR envelope event.
+
+    Sets SPC700 ADSR (Attack/Decay/Sustain/Release) envelope parameters.
+    Hardware effect - tracked for completeness but not rendered in MIDI.
+
+    Args:
+        offset: Byte offset in original data
+        adsr_param: Which ADSR parameter ("attack", "decay", "sustain", "release", "default")
+        value: Parameter value
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.ENVELOPE,
+        offset=offset,
+        value=value,
+        metadata={'adsr_param': adsr_param},
         operands=operands or []
     )

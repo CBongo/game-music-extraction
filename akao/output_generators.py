@@ -157,6 +157,9 @@ def dump_ir_to_text(song, track_data: Dict, loop_analysis: Dict) -> str:
             elif event.type == IREventType.LOOP_START:
                 parts.append(f"count={event.loop_count}")
 
+            elif event.type == IREventType.LOOP_END:
+                parts.append(f"restore_octave={event.restore_octave}")
+
             elif event.type in (IREventType.GOTO, IREventType.LOOP_BREAK):
                 parts.append(f"target=0x{event.target_offset:04X}")
                 if event.condition is not None:

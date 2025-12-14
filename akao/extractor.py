@@ -343,7 +343,7 @@ class SequenceExtractor:
                 f.seek(offset)
                 return f.read(song.length)
 
-    def parse_all_tracks(self, song: SongMetadata, data: bytes, use_alternate_pointers: bool = False) -> Dict:
+    def parse_all_tracks(self, song: SongMetadata, data: bytes, use_alternate_pointers: bool = False) -> Optional[Dict]:
         """Parse all tracks for a song (Pass 1) and return IR events + disassembly.
 
         This method performs the first pass parsing for all tracks in a song,
@@ -370,8 +370,15 @@ class SequenceExtractor:
             }
         """
         # Parse header (pass song_id for FF3, and use_alternate_pointers flag)
+        # parse_header() now returns track_offsets for all formats
         header = self.format_handler.parse_header(data, song.id, use_alternate_pointers)
-        track_offsets = self.format_handler.get_track_offsets(data, header)
+        track_offsets = header.get('track_offsets', [])
+
+        # Check if song has any valid tracks
+        if not track_offsets:
+            # Empty song - no valid voice pointers
+            # Return None to signal that this song should be skipped
+            return None
 
         # Read instrument table for SNES formats
         instrument_table = None
@@ -534,6 +541,15 @@ class SequenceExtractor:
                 # Parse all tracks once (Pass 1)
                 track_data = self.parse_all_tracks(song, data)
 
+                # Check if song is empty (no valid voice pointers)
+                if track_data is None:
+                    # Generate minimal stub file
+                    stub_output = f"Song {song.id:02X}: {song.title}\n\n  [Empty song - no valid voice data]\n"
+                    text_file = text_dir / f"{filename}.txt"
+                    text_file.write_text(stub_output)
+                    print(f"  SKIP: {song.title} (no valid voice data)")
+                    continue
+
                 # Analyze loop structure
                 loop_analysis = self.analyze_song_structure(track_data)
 
@@ -573,19 +589,24 @@ class SequenceExtractor:
 
                     # Re-parse with alternate pointers
                     alt_track_data = self.parse_all_tracks(song, data, use_alternate_pointers=True)
-                    alt_loop_analysis = self.analyze_song_structure(alt_track_data)
 
-                    # Generate all outputs with "alt" filename
-                    alt_text = self.disassemble_to_text(song, alt_track_data)
-                    (text_dir / f"{alt_filename}.txt").write_text(alt_text)
+                    # Skip if alternate version is also empty
+                    if alt_track_data is None:
+                        print(f"  SKIP: {alt_filename} (no valid voice data)")
+                    else:
+                        alt_loop_analysis = self.analyze_song_structure(alt_track_data)
 
-                    alt_ir = self.dump_ir_to_text(song, alt_track_data, alt_loop_analysis)
-                    (text_dir / f"{alt_filename}.ir").write_text(alt_ir)
+                        # Generate all outputs with "alt" filename
+                        alt_text = self.disassemble_to_text(song, alt_track_data)
+                        (text_dir / f"{alt_filename}.txt").write_text(alt_text)
 
-                    self.generate_midi(song, alt_track_data, alt_loop_analysis, midi_dir / f"{alt_filename}.mid")
-                    self.generate_musicxml(song, alt_track_data, alt_loop_analysis, xml_dir / f"{alt_filename}.musicxml")
+                        alt_ir = self.dump_ir_to_text(song, alt_track_data, alt_loop_analysis)
+                        (text_dir / f"{alt_filename}.ir").write_text(alt_ir)
 
-                    print(f"  OK: Generated alternate files for {alt_filename}")
+                        self.generate_midi(song, alt_track_data, alt_loop_analysis, midi_dir / f"{alt_filename}.mid")
+                        self.generate_musicxml(song, alt_track_data, alt_loop_analysis, xml_dir / f"{alt_filename}.musicxml")
+
+                        print(f"  OK: Generated alternate files for {alt_filename}")
 
             except Exception as e:
                 print(f"  ERROR: {e} {traceback.format_exc()}")

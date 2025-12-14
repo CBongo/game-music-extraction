@@ -10,20 +10,7 @@ from typing import List, Tuple, Dict, Optional
 from format_base import SequenceFormat, NOTE_NAMES
 
 # Import IR event classes
-from ir_events import (
-    IREvent, IREventType,
-    make_note, make_rest, make_tie, make_tempo, make_tempo_fade,
-    make_patch_change,
-    make_octave_set, make_octave_inc, make_octave_dec,
-    make_volume, make_volume_fade, make_pan, make_pan_fade,
-    make_loop_start, make_loop_end, make_loop_mark, make_loop_break, make_goto, make_halt,
-    make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
-    make_portamento_on, make_portamento_off,
-    make_slur_on, make_slur_off, make_roll_on, make_roll_off,
-    make_percussion_mode_on, make_percussion_mode_off,
-    make_staccato, make_utility_duration,
-    make_master_volume, make_volume_multiplier
-)
+from ir_events import *
 
 
 def snes_addr_to_offset(snes_addr: int, has_header: bool = True) -> int:
@@ -275,7 +262,8 @@ class SNESUnified(SequenceFormat):
                 'semantic': op_config.get('semantic', 'unknown'),
                 'params': op_config.get('params', 0),
                 'value_param': op_config.get('value_param', 0),
-                'handler': op_config.get('handler', None)
+                'handler': op_config.get('handler', None),
+                'restore_octave': op_config.get('restore_octave', False)
             }
 
         return dispatch
@@ -729,7 +717,7 @@ class SNESUnified(SequenceFormat):
         volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
 
         # Loop execution state
-        loop_stack = []  # Stack of {start_idx, count, iteration}
+        loop_stack = []  # Stack of {start_idx, count, iteration, octave}
 
         # Use global target time directly (no per-track calculation needed)
 
@@ -787,30 +775,35 @@ class SNESUnified(SequenceFormat):
                 native_duration = utility_duration_override if utility_duration_override is not None else event.duration
                 utility_duration_override = None  # Clear after use
 
-                # Apply staccato multiplier to duration
-                if staccato_percentage < 100:
-                    # Reduce duration by staccato percentage
-                    native_duration = int(native_duration * staccato_percentage / 100)
-
-                # Scale native duration to MIDI ticks
+                # Scale ORIGINAL native duration to MIDI ticks
+                # This is ALWAYS used for time advancement (next event timing)
                 midi_dur = native_duration * tick_scale
 
-                # Apply gate timing (note-off before full duration)
-                # If slur or roll is active, use 0 gate time (notes play full duration)
-                effective_gate_time = 0 if (slur_enabled or roll_enabled) else gate_time
-                gate_adjusted_dur = (native_duration - effective_gate_time) * tick_scale
+                # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
+                # Order of priority: slur/roll > staccato > gate
+                if slur_enabled or roll_enabled:
+                    # Slur/roll: play full duration (no gap before next note)
+                    gate_adjusted_dur = midi_dur
+                elif staccato_percentage < 100:
+                    # Staccato: apply percentage reduction (replaces gate timing)
+                    # Apply to ORIGINAL duration, not already-reduced duration
+                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
+                else:
+                    # Normal articulation: apply standard gate timing (2 native ticks before end)
+                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
 
                 # Add MIDI note event
                 midi_events.append({
                     'type': 'note',
                     'time': total_time,
-                    'duration': gate_adjusted_dur,  # Gate-adjusted MIDI duration
+                    'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
                     'velocity': velocity,
                     'channel': midi_channel
                 })
 
-                total_time += midi_dur  # Advance by FULL MIDI duration
+                # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
+                total_time += midi_dur
                 i += 1
 
             elif event.type == IREventType.REST:
@@ -1002,6 +995,7 @@ class SNESUnified(SequenceFormat):
                     'start_idx': i + 1,  # Start after LOOP_START
                     'count': event.loop_count,
                     'iteration': 0,
+                    'octave': octave,
                     'end_idx': None  # Will be set when we find LOOP_END
                 })
                 i += 1
@@ -1015,6 +1009,9 @@ class SNESUnified(SequenceFormat):
                     if loop['count'] >= 0:
                         # Repeat: jump back to loop start
                         i = loop['start_idx']
+                        # Restore octave if needed
+                        if event.restore_octave:
+                            octave = loop['octave']
                     else:
                         # Done looping: pop and continue
                         loop_stack.pop()
@@ -1239,10 +1236,19 @@ class SNESUnified(SequenceFormat):
             # Read voice pointers (now at offset 0 since size bytes were removed)
             voice_pointers = struct.unpack('<8H', data[0:16])
 
+            # Compute track offsets from voice pointers
             # A pointer < 0x100 indicates unused voice (matches Perl script threshold)
+            track_offsets = []
+            for ptr in voice_pointers:
+                if ptr >= 0x100:  # Valid voice pointer
+                    # Convert SPC RAM address to offset in our data buffer
+                    buffer_offset = ptr - self.spc_load_address
+                    track_offsets.append(buffer_offset)
+
             return {
                 'voice_pointers': voice_pointers,
-                'num_voices': sum(1 for ptr in voice_pointers if ptr >= 0x100)
+                'track_offsets': track_offsets,
+                'num_voices': len(track_offsets)
             }
 
     def buffer_offset_to_spc_addr(self, offset: int) -> int:
@@ -1371,10 +1377,6 @@ class SNESUnified(SequenceFormat):
         # Track loop depth for disassembly indentation (but don't execute loops)
         loop_depth = 0
 
-        # Track whether any timing events (notes/rests) have been processed
-        # This allows cross-track GOTOs at the very start (for chorus effects)
-        has_timing_events = False
-
         # Start from voice offset
         p = offset
 
@@ -1398,18 +1400,18 @@ class SNESUnified(SequenceFormat):
                     note_num = cmd // self.note_divisor
                     dur_idx = cmd % self.note_divisor
 
-                # Handle utility duration (SD3-style: dur_idx == 13 means read next byte)
-                # Check if this is configured (SD3 uses dur_idx == 13 for utility duration)
+                # Handle utility duration (SD3-style ONLY: dur_idx == 13 means read next byte)
+                # Only SD3 uses this feature (identified by 'inverted' note encoding)
+                note_encoding = self.config.get('note_encoding', 'normal')
                 utility_dur_idx = self.note_divisor - 1  # For divisor 14, utility is index 13
-                if dur_idx == utility_dur_idx and p + 1 < len(data):
-                    # Read next byte as raw duration value
+                if note_encoding == 'inverted' and dur_idx == utility_dur_idx and p + 1 < len(data):
+                    # SD3 only: Read next byte as raw duration value
                     p += 1
                     cmd2 = data[p]
                     dur = cmd2  # Raw duration from next byte
                     line = f"      {spc_addr:04X}: {cmd:02X} {cmd2:02X}"
                 else:
-                    # Store native duration (no scaling)
-                    # Scaling will be applied in Pass 2
+                    # Normal: use duration table
                     dur = self.duration_table[dur_idx]
 
                 # Apply game-specific duration formula if configured
@@ -1539,8 +1541,17 @@ class SNESUnified(SequenceFormat):
                     value_idx = op_info.get('value_param', 0) if op_info else 0
                     if len(operands) > value_idx:
                         tempo = operands[value_idx]
-                        # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
-                        bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                        # Calculate BPM based on game-specific formula
+                        tempo_formula = self.config.get('tempo_formula', 'normal')
+                        if tempo_formula == 'inverted':
+                            # SD3-style: BPM = 60,000,000 / (tempo * timer_period_us * timer_count)
+                            # MIDI tempo (μs/qn) = tempo * timer_period_us * timer_count
+                            timer_period_us = self.config.get('timer_period_us', 125)
+                            timer_count = self.config.get('timer_count', 48)
+                            bpm = 60_000_000.0 / (tempo * timer_period_us * timer_count)
+                        else:
+                            # Normal: BPM = (60,000,000 * tempo_value) / tempo_factor
+                            bpm = (60_000_000.0 * tempo) / self.tempo_factor
                         event = make_tempo(p, bpm, operands)
                         ir_events.append(event)
 
@@ -1549,8 +1560,16 @@ class SNESUnified(SequenceFormat):
                     # Operands: [duration, target_tempo]
                     duration = operands[0]
                     target_tempo = operands[1]
-                    # Calculate target BPM using same formula
-                    target_bpm = (60_000_000.0 * target_tempo) / self.tempo_factor
+                    # Calculate target BPM using same formula as tempo opcode
+                    tempo_formula = self.config.get('tempo_formula', 'normal')
+                    if tempo_formula == 'inverted':
+                        # SD3-style: BPM = 60,000,000 / (tempo * timer_period_us * timer_count)
+                        timer_period_us = self.config.get('timer_period_us', 125)
+                        timer_count = self.config.get('timer_count', 48)
+                        target_bpm = 60_000_000.0 / (target_tempo * timer_period_us * timer_count)
+                    else:
+                        # Normal: BPM = (60,000,000 * tempo_value) / tempo_factor
+                        target_bpm = (60_000_000.0 * target_tempo) / self.tempo_factor
                     event = make_tempo_fade(p, duration, target_bpm, operands)
                     ir_events.append(event)
 
@@ -1648,7 +1667,9 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "loop_end":
                     # End repeat - just record it, don't execute
                     loop_depth = max(0, loop_depth - 1)
-                    event = make_loop_end(p)
+                    # set flag if this game restores octave after repeat
+                    restore_octave = op_info.get('restore_octave', False) if op_info else False
+                    event = make_loop_end(p, restore_octave)
                     ir_events.append(event)
 
                 elif semantic == "loop_mark":
@@ -1820,6 +1841,41 @@ class SNESUnified(SequenceFormat):
                     ir_events.append(event)
                     disasm.append(line)
                     break
+
+                elif semantic == "echo_on":
+                    # Echo on - SPC700 hardware effect
+                    event = make_echo_on(p, operands)
+                    ir_events.append(event)
+
+                elif semantic == "echo_off":
+                    # Echo off - SPC700 hardware effect
+                    event = make_echo_off(p, operands)
+                    ir_events.append(event)
+
+                elif semantic == "adsr_default":
+                    # ADSR default envelope - SPC700 hardware effect
+                    event = make_adsr(p, "default", 0, operands)
+                    ir_events.append(event)
+
+                elif semantic == "adsr_attack" and len(operands) >= 1:
+                    # ADSR attack - SPC700 hardware effect
+                    event = make_adsr(p, "attack", operands[0], operands)
+                    ir_events.append(event)
+
+                elif semantic == "adsr_decay" and len(operands) >= 1:
+                    # ADSR decay - SPC700 hardware effect
+                    event = make_adsr(p, "decay", operands[0], operands)
+                    ir_events.append(event)
+
+                elif semantic == "adsr_sustain" and len(operands) >= 1:
+                    # ADSR sustain - SPC700 hardware effect
+                    event = make_adsr(p, "sustain", operands[0], operands)
+                    ir_events.append(event)
+
+                elif semantic == "adsr_release" and len(operands) >= 1:
+                    # ADSR release - SPC700 hardware effect
+                    event = make_adsr(p, "release", operands[0], operands)
+                    ir_events.append(event)
 
                 else:
                     # Unknown/unimplemented opcode - generate NO-OP IR event

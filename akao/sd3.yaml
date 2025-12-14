@@ -71,14 +71,14 @@ opcodes:
   0xD2: {semantic: "loop_start"}      # Begin repeat (variant 1)
   0xD3: {semantic: "loop_start"}      # Begin repeat (variant 2)
   0xD4: {semantic: "loop_start"}      # Begin repeat (variant 3)
-  0xD5: {semantic: "loop_end"}        # End repeat
+  0xD5: {semantic: "loop_end", restore_octave: "True"}        # End repeat
   0xD6: {semantic: "nop"}             # Alternate repeat (not implemented in Perl)
   0xD7: {semantic: "loop_mark"}       # Mark return point for loop
-  0xD8: {semantic: "nop"}             # Default ADSR (SPC hardware - skip)
-  0xD9: {semantic: "nop"}             # ADSR Attack (SPC hardware - skip)
-  0xDA: {semantic: "nop"}             # ADSR Decay (SPC hardware - skip)
-  0xDB: {semantic: "nop"}             # ADSR Sustain (SPC hardware - skip)
-  0xDC: {semantic: "nop"}             # ADSR Release (SPC hardware - skip)
+  0xD8: {semantic: "adsr_default"}    # Default ADSR (SPC hardware - track for completeness)
+  0xD9: {semantic: "adsr_attack"}     # ADSR Attack (SPC hardware - track for completeness)
+  0xDA: {semantic: "adsr_decay"}      # ADSR Decay (SPC hardware - track for completeness)
+  0xDB: {semantic: "adsr_sustain"}    # ADSR Sustain (SPC hardware - track for completeness)
+  0xDC: {semantic: "adsr_release"}    # ADSR Release (SPC hardware - track for completeness)
   0xDD: {semantic: "nop"}             # Note length percentage (not implemented in Perl)
   0xDE: {semantic: "patch_change"}    # Instrument/patch change
   0xDF: {semantic: "nop"}             # Change noise frequency (SPC hardware - skip)
@@ -98,29 +98,37 @@ opcodes:
   0xED: {semantic: "nop"}             # Change detune (fine tuning - skip for MIDI)
   0xEE: {semantic: "percussion_mode_on"}   # Percussion mode on
   0xEF: {semantic: "percussion_mode_off"}  # Percussion mode off
-  0xF0: {semantic: "nop"}             # Vibrato on (not implemented in Perl)
-  0xF1: {semantic: "nop"}             # Vibrato on with delay (not implemented in Perl)
+  0xF0: {semantic: "vibrato_on"}      # Vibrato on
+  0xF1: {semantic: "vibrato_on"}      # Vibrato on with delay
   0xF2: {semantic: "nop"}             # Change tempo (not implemented in Perl)
-  0xF3: {semantic: "nop"}             # Vibrato off (not implemented in Perl)
-  0xF4: {semantic: "nop"}             # Tremolo on (not implemented in Perl)
-  0xF5: {semantic: "nop"}             # Tremolo on with delay (not implemented in Perl)
+  0xF3: {semantic: "vibrato_off"}     # Vibrato off
+  0xF4: {semantic: "tremolo_on"}      # Tremolo on
+  0xF5: {semantic: "tremolo_on"}      # Tremolo on with delay
   0xF6: {semantic: "octave_inc"}      # Increment octave (duplicate)
-  0xF7: {semantic: "nop"}             # Tremolo off (not implemented in Perl)
+  0xF7: {semantic: "tremolo_off"}     # Tremolo off
   0xF8: {semantic: "slur_on"}         # Begin slur
   0xF9: {semantic: "slur_off"}        # End slur
-  0xFA: {semantic: "nop"}             # Echo on (SPC hardware - skip)
-  0xFB: {semantic: "nop"}             # Echo off (SPC hardware - skip)
+  0xFA: {semantic: "echo_on"}         # Echo on (SPC hardware - track for completeness)
+  0xFB: {semantic: "echo_off"}        # Echo off (SPC hardware - track for completeness)
   0xFC: {semantic: "nop"}             # Call SFX (sound effects - skip)
   0xFD: {semantic: "nop"}             # Call SFX (sound effects - skip)
   0xFE: {semantic: "octave_inc"}      # Increment octave (duplicate)
   0xFF: {semantic: "octave_inc"}      # Increment octave (duplicate)
 
 # Tempo calculation parameters
-# BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
-# SD3 uses: tempo_factor = 125 * 48 = 6000
-timer_period_us: 125      # Effective timer period from Perl code
-timer_count: 48           # Timer counts per processing loop
-tempo_resolution: 256     # 8-bit tempo operands (range 0-255)
+# SD3 has a unique tempo system compared to other AKAO games:
+# - Most games: tempo_value = number of (fixed) timer expirations per tick
+# - SD3: tempo_value directly sets the SPC700 timer register, giving direct control over tick timing
+#
+# BPM calculation: BPM = 60,000,000 / (tempo_value * timer_period_us * timer_count)
+# MIDI tempo (microseconds per quarter note) = tempo_value * timer_period_us * timer_count
+# SD3 formula: tempo_value * 125 * 48 = tempo_value * 6000 microseconds per quarter note
+#
+# Example: tempo_value=83 → 83*6000=498,000 μs/qn → 60M/498K = 120.48 BPM
+timer_period_us: 125      # Timer period per count (from Perl: tempo * 125 * 48)
+timer_count: 48           # Number of timer counts per tick
+tempo_resolution: 1       # Tempo values are used directly (not scaled by 256 like other games)
+tempo_formula: "inverted" # SD3 uses inverted formula: BPM = 60M / (tempo * timer_period * timer_count)
 
 # Default state values
 default_tempo: 120
