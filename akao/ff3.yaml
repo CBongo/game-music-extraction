@@ -110,6 +110,13 @@ default_tempo: 120
 default_octave: 4
 default_velocity: 100
 
+# MIDI rendering configuration
+midi_render:
+  strategy: "velocity"
+  constant_velocity: 100
+  apply_multiplier: true
+  apply_master_volume: true
+
 # Duration table - 14 entries (vs 15 for FF2)
 duration_table:
   address: 0xC51CE1  # spcbase + 0x17d1 where spcbase = C5/0510

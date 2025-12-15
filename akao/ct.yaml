@@ -91,7 +91,7 @@ opcodes:
   0xF1: {semantic: "tempo_fade"}
   0xF2: {semantic: "echo_volume"}
   0xF3: {semantic: "echo_volume_fade"}
-  0xF4: {semantic: "master_volume"}
+  0xF4: {semantic: "volume_multiplier"}  # Normalized to match FF3 (neither Perl implements this)
   0xF5: {semantic: "loop_break", handler: "vaddroffset"}
   0xF6: {semantic: "goto", handler: "vaddroffset"}
   0xF7: {semantic: "echo_feedback_fade"}
@@ -100,7 +100,7 @@ opcodes:
   0xFA: {semantic: "unknown_fa"}
   0xFB: {semantic: "percussion_mode_on"}
   0xFC: {semantic: "percussion_mode_off"}
-  0xFD: {semantic: "volume_multiplier"}
+  0xFD: {semantic: "volume_multiplier"}  # CT uses this opcode (Perl line 394)
   0xFE: {semantic: "halt"}
   0xFF: {semantic: "halt"}
 
@@ -116,6 +116,24 @@ tempo_resolution: 256      # 8-bit tempo operands (range 0-255)
 default_tempo: 255
 default_octave: 4
 default_velocity: 64
+
+# MIDI rendering configuration
+midi_render:
+  # Rendering strategy
+  # - velocity: Use note-on velocity for dynamics (traditional SNES approach)
+  # - expression: Use CC11 (Expression) + constant velocity (PSX FF7 approach)
+  strategy: "velocity"
+
+  # For "expression" strategy: What velocity to use for all notes
+  constant_velocity: 100
+
+  # Apply volume_multiplier IR events to output
+  # - true: Multiply velocities/expression by multiplier value (default)
+  # - false: Ignore volume_multiplier events (for debugging)
+  apply_multiplier: true
+
+  # Apply master_volume IR events to output
+  apply_master_volume: true
 
 # Table addresses (spcbase = base + 0x24C3 + 2 - 0x200 = 0xC722C5)
 duration_table:

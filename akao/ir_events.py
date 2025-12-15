@@ -472,7 +472,7 @@ def make_utility_duration(offset: int, duration: int, operands: Optional[List[in
     )
 
 
-def make_master_volume(offset: int, volume: int, operands: Optional[List[int]] = None) -> IREvent:
+def make_master_volume(offset: int, volume: float, operands: Optional[List[int]] = None) -> IREvent:
     """Create a master volume event.
 
     Sets a global volume multiplier that affects all subsequent volume changes.
@@ -480,7 +480,7 @@ def make_master_volume(offset: int, volume: int, operands: Optional[List[int]] =
 
     Args:
         offset: Byte offset in original data
-        volume: Master volume value (0-255 native scale)
+        volume: Master volume value (normalized 0.0-1.0 range, where 1.0 = 100%)
         operands: Raw operand bytes from the original format
     """
     return IREvent(
@@ -491,15 +491,15 @@ def make_master_volume(offset: int, volume: int, operands: Optional[List[int]] =
     )
 
 
-def make_volume_multiplier(offset: int, multiplier: int, operands: Optional[List[int]] = None) -> IREvent:
+def make_volume_multiplier(offset: int, multiplier: float, operands: Optional[List[int]] = None) -> IREvent:
     """Create a volume multiplier event.
 
     Sets a per-track volume multiplier that affects note velocities.
-    Used in CT/FF3 (0xF4).
+    Used in CT/FF3 (0xF4/0xFD).
 
     Args:
         offset: Byte offset in original data
-        multiplier: Volume multiplier value (0-255 native scale)
+        multiplier: Volume multiplier value (normalized 0.0-1.0 range, where 1.0 = 100%)
         operands: Raw operand bytes from the original format
     """
     return IREvent(

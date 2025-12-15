@@ -702,6 +702,14 @@ class SNESUnified(SequenceFormat):
         ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
         loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
 
+        # Read MIDI rendering configuration
+        midi_config = self.config.get('midi_render', {})
+        midi_strategy = midi_config.get('strategy', 'velocity')
+        constant_velocity = midi_config.get('constant_velocity', 100)
+        apply_multiplier = midi_config.get('apply_multiplier', True)
+        apply_master_volume_config = midi_config.get('apply_master_volume', True)
+        velocity_scale = midi_config.get('velocity_scale', 1.0)  # Global velocity scaling
+
         # Playback state
         octave = self.default_octave
         velocity = self.default_velocity
@@ -713,8 +721,8 @@ class SNESUnified(SequenceFormat):
         roll_enabled = False  # Track roll state
         staccato_percentage = 100  # Track staccato multiplier (100 = normal)
         utility_duration_override = None  # One-shot duration override for next note
-        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
-        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
+        master_volume = 1.0  # Master volume multiplier (SoM) - 1.0 = normal (100%), range 0.0-1.0
+        volume_multiplier = 1.0  # Volume multiplier (CT/FF3) - 1.0 = normal (100%), range 0.0-1.0
 
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration, octave}
@@ -792,13 +800,27 @@ class SNESUnified(SequenceFormat):
                     # Normal articulation: apply standard gate timing (2 native ticks before end)
                     gate_adjusted_dur = (native_duration - gate_time) * tick_scale
 
+                # Apply volume multipliers to velocity
+                # Volume multiplier formula (CT-style): velocity * (0.5 + multiplier)
+                # Master volume formula (SoM-style): velocity * master
+                adjusted_velocity = velocity
+                if volume_multiplier != 1.0:
+                    # CT formula: add 0.5 to multiplier before applying
+                    adjusted_velocity = adjusted_velocity * (0.5 + volume_multiplier)
+                if master_volume != 1.0:
+                    # SoM formula: direct multiplication
+                    adjusted_velocity = adjusted_velocity * master_volume
+
+                # Clamp to MIDI range 0-127
+                adjusted_velocity = int(min(127, max(0, adjusted_velocity)))
+
                 # Add MIDI note event
                 midi_events.append({
                     'type': 'note',
                     'time': total_time,
                     'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
-                    'velocity': velocity,
+                    'velocity': adjusted_velocity,
                     'channel': midi_channel
                 })
 
@@ -869,7 +891,9 @@ class SNESUnified(SequenceFormat):
                 i += 1
 
             elif event.type == IREventType.VOLUME:
-                velocity = event.value
+                # IR stores raw value (0-255), scale to MIDI range (0-127)
+                # Use >> 1 to divide by 2, preserving full range
+                velocity = int(event.value) >> 1
                 i += 1
 
             elif event.type == IREventType.VOLUME_FADE:
@@ -971,14 +995,20 @@ class SNESUnified(SequenceFormat):
 
             elif event.type == IREventType.MASTER_VOLUME:
                 # Set master volume (SoM 0xF8) - global volume multiplier
+                # Value is normalized float 0.0-1.0 from Pass 1
                 assert event.value is not None, "MASTER_VOLUME event must have value"
-                master_volume = int(event.value)
+                if apply_master_volume_config:
+                    master_volume = float(event.value)
+                # If disabled, keep master_volume at 1.0 (no effect)
                 i += 1
 
             elif event.type == IREventType.VOLUME_MULTIPLIER:
-                # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
+                # Set volume multiplier (CT/FF3 0xF4/0xFD) - per-track multiplier
+                # Value is normalized float 0.0-1.0 from Pass 1
                 assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
-                volume_multiplier = int(event.value)
+                if apply_multiplier:
+                    volume_multiplier = float(event.value)
+                # If disabled, keep volume_multiplier at 1.0 (no effect)
                 i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_ON:
@@ -1619,8 +1649,8 @@ class SNESUnified(SequenceFormat):
                     # Use value_param if specified, otherwise use last operand
                     value_idx = op_info.get('value_param', len(operands) - 1) if op_info else len(operands) - 1
                     if len(operands) > value_idx:
-                        # Scale from 0-255 to MIDI velocity 0-127
-                        velocity = operands[value_idx] >> 1
+                        # Store raw value (0-255 range) - Pass 2 will scale to MIDI range
+                        velocity = operands[value_idx]
                         event = make_volume(p, velocity, operands)
                         ir_events.append(event)
 
@@ -1760,13 +1790,15 @@ class SNESUnified(SequenceFormat):
 
                 elif semantic == "master_volume" and len(operands) >= 1:
                     # Master volume (SoM 0xF8) - global volume multiplier
-                    master_vol = operands[0]
+                    # Normalize to 0.0-1.0 range (operand is $00-$FF)
+                    master_vol = operands[0] / 256.0
                     event = make_master_volume(p, master_vol, operands)
                     ir_events.append(event)
 
                 elif semantic == "volume_multiplier" and len(operands) >= 1:
-                    # Volume multiplier (CT/FF3 0xF4) - per-track volume multiplier
-                    vol_mult = operands[0]
+                    # Volume multiplier (CT/FF3 0xF4/0xFD) - per-track volume multiplier
+                    # Normalize to 0.0-1.0 range (operand is $00-$FF)
+                    vol_mult = operands[0] / 256.0
                     event = make_volume_multiplier(p, vol_mult, operands)
                     ir_events.append(event)
 

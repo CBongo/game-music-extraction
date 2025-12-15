@@ -95,6 +95,13 @@ default_tempo: 120
 default_octave: 4
 default_velocity: 100
 
+# MIDI rendering configuration
+midi_render:
+  strategy: "velocity"
+  constant_velocity: 100
+  apply_multiplier: true
+  apply_master_volume: true
+
 # Duration table (per sommus.pl line 77-79)
 # seek ROM, $spcbase + 0x152c, 0; read ROM, $buf, 15
 # where $spcbase = $base + 0x748 + 2 - 0x200 = C3/0000 + 0x748 + 2 - 0x200 = C3/054A

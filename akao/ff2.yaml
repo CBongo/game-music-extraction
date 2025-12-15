@@ -91,6 +91,14 @@ default_tempo: 255
 default_octave: 4
 default_velocity: 64
 
+# MIDI rendering configuration
+midi_render:
+  strategy: "velocity"
+  constant_velocity: 100
+  apply_multiplier: true
+  apply_master_volume: true
+  velocity_scale: 0.85  # Scale down FF2 volumes to avoid clipping at 127
+
 # Duration table (SNES address 04/9738)
 duration_table:
   address: 0x049738
