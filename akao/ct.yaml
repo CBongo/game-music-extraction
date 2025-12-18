@@ -117,14 +117,22 @@ default_tempo: 255
 default_octave: 4
 default_velocity: 64
 
+# Volume value range in ROM (for IR normalization to 0-255)
+# CT uses 7-bit volume values (0x00-0x7F), scale up to 255 for IR
+volume_range: 127
+
 # MIDI rendering configuration
 midi_render:
-  # Rendering strategy
+  # Strategy: "velocity" (default), "expression", or "cc7"
   # - velocity: Use note-on velocity for dynamics (traditional SNES approach)
+  #             VOLUME affects note velocity, VOLUME_FADE updates velocity gradually (NO controllers)
   # - expression: Use CC11 (Expression) + constant velocity (PSX FF7 approach)
+  #               Both VOLUME and VOLUME_FADE generate CC11
+  # - cc7: Use CC7 (Main Volume) + constant velocity (controller-based)
+  #        Both VOLUME and VOLUME_FADE generate CC7
   strategy: "velocity"
 
-  # For "expression" strategy: What velocity to use for all notes
+  # For "expression" and "cc7" strategies: What velocity to use for all notes
   constant_velocity: 100
 
   # Apply volume_multiplier IR events to output

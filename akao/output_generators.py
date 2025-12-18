@@ -489,6 +489,13 @@ class MidiGenerator:
                         midi.addNote(track_num, channel, note,
                                    time_beats, duration_beats, event['velocity'])
 
+                elif event['type'] == 'controller':
+                    # Controller change (CC) events
+                    # Used for: CC7 (volume fade), CC10 (pan fade), CC11 (expression), CC68 (legato)
+                    channel = event.get('channel', default_channel)
+                    midi.addControllerEvent(track_num, channel, time_beats,
+                                          event['controller'], event['value'])
+
                 # Tempo events are now handled on track 0, not per-track
 
 

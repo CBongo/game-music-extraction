@@ -4,6 +4,7 @@ Supports FF2, FF3, FF5, CT, SD3, SoM via config-driven architecture.
 """
 
 import struct
+import sys
 from typing import List, Tuple, Dict, Optional
 
 # Import base classes
@@ -662,6 +663,60 @@ class SNESUnified(SequenceFormat):
             'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
         }
 
+    def _calculate_fade_delta(self, start_value, target_value, duration_ticks):
+        """Calculate per-tick delta for parameter fade (SPC-style).
+
+        This implements the SPC fade algorithm:
+        delta = (target - start) / duration
+
+        Used for VOLUME_FADE, PAN_FADE, TEMPO_FADE, and other gradual parameter changes.
+
+        Args:
+            start_value: Current parameter value (any range)
+            target_value: Target parameter value (same range as start)
+            duration_ticks: Fade duration in native ticks
+
+        Returns:
+            float: Delta to add/subtract per tick
+        """
+        if duration_ticks <= 0:
+            return 0.0
+        return float(target_value - start_value) / float(duration_ticks)
+
+    def _scale_volume_to_midi(self, ir_volume, volume_multiplier, master_volume, velocity_scale):
+        """Scale IR volume value (0-255) to MIDI range (0-127) with multipliers applied.
+
+        This scaling is applied consistently to:
+        - VOLUME opcode values
+        - VOLUME_FADE start and target values
+        - NOTE event velocities (velocity strategy only)
+
+        Args:
+            ir_volume: Volume value from IR (0-255 range, can be float from fade)
+            volume_multiplier: Current volume multiplier (0.0-1.0, or 1.0 for none)
+            master_volume: Current master volume (0.0-1.0, or 1.0 for none)
+            velocity_scale: Global velocity scaling factor (default 1.0)
+
+        Returns:
+            int: MIDI velocity/controller value (0-127 range)
+        """
+        # Scale IR range (0-255) to MIDI range (0-127)
+        # Convert to int first since ir_volume can be float from fade advance logic
+        midi_vol = int(ir_volume) >> 1
+
+        # Apply volume multipliers
+        adjusted = float(midi_vol)
+        if volume_multiplier != 1.0:
+            adjusted = adjusted * (0.5 + volume_multiplier)
+        if master_volume != 1.0:
+            adjusted = adjusted * master_volume
+
+        # Apply velocity_scale
+        adjusted = adjusted * velocity_scale
+
+        # Clamp to MIDI range
+        return int(min(127, max(0, adjusted)))
+
     def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
                           target_loop_time: int = 0) -> List[Dict]:
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
@@ -724,6 +779,12 @@ class SNESUnified(SequenceFormat):
         master_volume = 1.0  # Master volume multiplier (SoM) - 1.0 = normal (100%), range 0.0-1.0
         volume_multiplier = 1.0  # Volume multiplier (CT/FF3) - 1.0 = normal (100%), range 0.0-1.0
 
+        # Fade state (SPC-style) for velocity strategy
+        volume_fade_active = False
+        volume_fade_target = 0.0
+        volume_fade_delta = 0.0
+        volume_fade_ticks_remaining = 0
+
         # Loop execution state
         loop_stack = []  # Stack of {start_idx, count, iteration, octave}
 
@@ -762,8 +823,8 @@ class SNESUnified(SequenceFormat):
 
             if event.type == IREventType.NOTE:
                 # Extract state from metadata (stored in pass 1)
-                # NOTE: octave is tracked as state variable, not in metadata
-                velocity = event.metadata['velocity']
+                # NOTE: octave and velocity are tracked as state variables, not in metadata
+                # This allows loops to modify them during playback
                 perc_key = event.metadata['perc_key']
                 transpose_octaves = event.metadata['transpose']
 
@@ -800,19 +861,28 @@ class SNESUnified(SequenceFormat):
                     # Normal articulation: apply standard gate timing (2 native ticks before end)
                     gate_adjusted_dur = (native_duration - gate_time) * tick_scale
 
-                # Apply volume multipliers to velocity
-                # Volume multiplier formula (CT-style): velocity * (0.5 + multiplier)
-                # Master volume formula (SoM-style): velocity * master
-                adjusted_velocity = velocity
-                if volume_multiplier != 1.0:
-                    # CT formula: add 0.5 to multiplier before applying
-                    adjusted_velocity = adjusted_velocity * (0.5 + volume_multiplier)
-                if master_volume != 1.0:
-                    # SoM formula: direct multiplication
-                    adjusted_velocity = adjusted_velocity * master_volume
+                # Calculate MIDI velocity using helper method
+                adjusted_velocity = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
 
-                # Clamp to MIDI range 0-127
-                adjusted_velocity = int(min(127, max(0, adjusted_velocity)))
+                # Strategy: velocity, expression, or cc7
+                if midi_strategy in ['expression', 'cc7']:
+                    # Controller-based strategies: use constant velocity for notes
+                    # (Volume dynamics handled by CC11 or CC7)
+                    note_velocity = constant_velocity
+
+                    # For expression, also generate CC11 before note
+                    # (VOLUME event already generated CC11, but regenerate for safety)
+                    if midi_strategy == 'expression':
+                        midi_events.append({
+                            'type': 'controller',
+                            'time': total_time,
+                            'channel': midi_channel,
+                            'controller': 11,  # Expression
+                            'value': adjusted_velocity
+                        })
+                else:
+                    # Velocity strategy: use calculated velocity
+                    note_velocity = adjusted_velocity
 
                 # Add MIDI note event
                 midi_events.append({
@@ -820,32 +890,64 @@ class SNESUnified(SequenceFormat):
                     'time': total_time,
                     'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
-                    'velocity': adjusted_velocity,
+                    'velocity': note_velocity,
                     'channel': midi_channel
                 })
 
                 # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
                 total_time += midi_dur
+
+                # Advance fade states by this event's duration (native ticks)
+                if volume_fade_active and volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
+                    velocity += volume_fade_delta * ticks_to_advance
+                    volume_fade_ticks_remaining -= ticks_to_advance
+                    if volume_fade_ticks_remaining <= 0:
+                        velocity = volume_fade_target  # Snap to target
+                        volume_fade_active = False
+
                 i += 1
 
             elif event.type == IREventType.REST:
                 # Rest just advances time
                 # Scale native duration to MIDI ticks
                 assert event.duration is not None, "REST event must have duration"
-                midi_dur = event.duration * tick_scale
+                native_duration = event.duration
+                midi_dur = native_duration * tick_scale
                 total_time += midi_dur
+
+                # Advance fade states by this event's duration (native ticks)
+                if volume_fade_active and volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
+                    velocity += volume_fade_delta * ticks_to_advance
+                    volume_fade_ticks_remaining -= ticks_to_advance
+                    if volume_fade_ticks_remaining <= 0:
+                        velocity = volume_fade_target  # Snap to target
+                        volume_fade_active = False
+
                 i += 1
 
             elif event.type == IREventType.TIE:
                 # Tie extends the last note
                 # Scale native duration to MIDI ticks
                 assert event.duration is not None, "TIE event must have duration"
-                tie_dur = event.duration * tick_scale
+                native_duration = event.duration
+                tie_dur = native_duration * tick_scale
                 for j in range(len(midi_events) - 1, -1, -1):
                     if midi_events[j]['type'] == 'note':
                         midi_events[j]['duration'] += tie_dur
                         break
                 total_time += tie_dur
+
+                # Advance fade states by this event's duration (native ticks)
+                if volume_fade_active and volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
+                    velocity += volume_fade_delta * ticks_to_advance
+                    volume_fade_ticks_remaining -= ticks_to_advance
+                    if volume_fade_ticks_remaining <= 0:
+                        velocity = volume_fade_target  # Snap to target
+                        volume_fade_active = False
+
                 i += 1
 
             elif event.type == IREventType.TEMPO:
@@ -891,37 +993,87 @@ class SNESUnified(SequenceFormat):
                 i += 1
 
             elif event.type == IREventType.VOLUME:
-                # IR stores raw value (0-255), scale to MIDI range (0-127)
-                # Use >> 1 to divide by 2, preserving full range
-                velocity = int(event.value) >> 1
+                # IR stores normalized value (0-255)
+                velocity = int(event.value)
+
+                # Cancel any active volume fade (immediate volume change overrides fade)
+                volume_fade_active = False
+
+                # For controller-based strategies, generate controller event immediately
+                if midi_strategy == 'expression':
+                    # Expression strategy: Use CC11
+                    expr_value = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 11,  # Expression
+                        'value': expr_value
+                    })
+                elif midi_strategy == 'cc7':
+                    # CC7 strategy: Use CC7 (Main Volume)
+                    cc7_value = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 7,  # Main Volume
+                        'value': cc7_value
+                    })
+                # else: velocity strategy stores in state variable for notes
+
                 i += 1
 
             elif event.type == IREventType.VOLUME_FADE:
-                # Volume fade - generate CC 7 events at 2-tick intervals
+                # Volume fade - behavior depends on strategy
                 assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
-                target_volume = event.value
-                start_volume = velocity
 
-                # Generate volume events at 2-tick intervals
-                num_steps = max(1, fade_duration // 2)
-                for step in range(num_steps + 1):
-                    step_time = total_time + (step * 2)
-                    # Linear interpolation
-                    if num_steps > 0:
-                        step_volume = int(start_volume + (target_volume - start_volume) * step / num_steps)
-                    else:
-                        step_volume = target_volume
+                target_volume_ir = event.value  # IR value (0-255)
+                fade_duration_native = event.duration  # Native ticks
 
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': step_time,
-                        'controller': 7,  # Volume CC
-                        'value': step_volume
-                    })
+                if midi_strategy == 'velocity':
+                    # Velocity strategy: Activate fade state (SPC-style)
+                    # Fade updates velocity state variable gradually over time
+                    volume_fade_active = True
+                    volume_fade_target = target_volume_ir
+                    volume_fade_delta = self._calculate_fade_delta(velocity, target_volume_ir, fade_duration_native)
+                    volume_fade_ticks_remaining = fade_duration_native
 
-                # Update current velocity to target
-                velocity = target_volume
+                    # No controller events generated - notes will use fading velocity
+
+                else:
+                    # Controller strategies (expression/cc7): Generate controller events
+                    fade_duration_midi = fade_duration_native * tick_scale  # Convert to MIDI ticks
+                    start_volume_ir = velocity  # Current velocity state (IR value 0-255)
+
+                    # Scale BOTH start and target to MIDI range with multipliers
+                    start_volume_midi = self._scale_volume_to_midi(start_volume_ir, volume_multiplier, master_volume, velocity_scale)
+                    target_volume_midi = self._scale_volume_to_midi(target_volume_ir, volume_multiplier, master_volume, velocity_scale)
+
+                    # Determine which controller to use
+                    controller_num = 11 if midi_strategy == 'expression' else 7
+
+                    # Generate controller events at 2-tick intervals using SCALED values
+                    num_steps = max(1, fade_duration_midi // 2)
+                    for step in range(num_steps + 1):
+                        step_time = total_time + (step * 2)
+                        # Linear interpolation between SCALED values
+                        if num_steps > 0:
+                            step_volume = int(start_volume_midi + (target_volume_midi - start_volume_midi) * step / num_steps)
+                        else:
+                            step_volume = target_volume_midi
+
+                        midi_events.append({
+                            'type': 'controller',
+                            'time': step_time,
+                            'channel': current_channel,
+                            'controller': controller_num,
+                            'value': step_volume
+                        })
+
+                    # Update velocity state immediately to target (IR value)
+                    velocity = target_volume_ir
+
                 i += 1
 
             elif event.type == IREventType.PAN_FADE:
@@ -1495,10 +1647,9 @@ class SNESUnified(SequenceFormat):
                         # Normal note - create IR event
                         event = make_note(p, note_num, dur)
                         # Store current state in event for pass 2
-                        # NOTE: octave is NOT stored here - it's tracked as state in Pass 2
-                        # because loops can modify octave during execution
+                        # NOTE: octave and velocity are NOT stored here - tracked as state in Pass 2
+                        # because loops can modify them during execution
                         event.metadata = {
-                            'velocity': velocity,
                             'perc_key': perc_key,
                             'transpose': transpose_octaves,
                             'track_num': track_num,
@@ -1649,9 +1800,22 @@ class SNESUnified(SequenceFormat):
                     # Use value_param if specified, otherwise use last operand
                     value_idx = op_info.get('value_param', len(operands) - 1) if op_info else len(operands) - 1
                     if len(operands) > value_idx:
-                        # Store raw value (0-255 range) - Pass 2 will scale to MIDI range
-                        velocity = operands[value_idx]
-                        event = make_volume(p, velocity, operands)
+                        # Normalize volume to 0-255 range for IR
+                        # Games use different ranges: FF2=255, CT=127, etc.
+                        raw_volume = operands[value_idx]
+                        volume_range = self.config.get('volume_range', 255)
+                        if volume_range < 255:
+                            # Scale up to 255 (e.g., CT 0-127 → 0-255)
+                            normalized_volume = int((raw_volume / volume_range) * 255)
+                        else:
+                            # Already at 255 range (e.g., FF2)
+                            normalized_volume = raw_volume
+
+                        # Update state variable for Pass 1 note processing
+                        velocity = normalized_volume
+
+                        # Store normalized value in IR
+                        event = make_volume(p, normalized_volume, operands)
                         ir_events.append(event)
 
                 elif semantic == "volume_fade" and len(operands) >= 2:
@@ -1659,7 +1823,7 @@ class SNESUnified(SequenceFormat):
                     # Operands: [duration, target_volume]
                     # Scale target from 0-255 to MIDI 0-127
                     duration = operands[0]
-                    target_volume = operands[1] >> 1
+                    target_volume = operands[1]
                     event = make_volume_fade(p, duration, target_volume, operands)
                     ir_events.append(event)
 

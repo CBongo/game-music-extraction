@@ -728,6 +728,14 @@ class AKAONewStyle(SequenceFormat):
         ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
         loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
 
+        # Read MIDI rendering configuration
+        midi_config = self.config.get('midi_render', {})
+        midi_strategy = midi_config.get('strategy', 'velocity')
+        constant_velocity = midi_config.get('constant_velocity', 100)
+        apply_multiplier = midi_config.get('apply_multiplier', True)
+        apply_master_volume_config = midi_config.get('apply_master_volume', True)
+        velocity_scale = midi_config.get('velocity_scale', 1.0)
+
         # Playback state
         octave = self.default_octave
         velocity = self.default_velocity
@@ -804,7 +812,41 @@ class AKAONewStyle(SequenceFormat):
                 midi_note = max(0, min(127, midi_note))
 
                 # Get velocity from event metadata or current state
-                vel = event.metadata.get('velocity', velocity)
+                base_velocity = event.metadata.get('velocity', velocity)
+
+                # Apply volume multipliers (PSX uses different ranges than SNES)
+                adjusted_velocity = float(base_velocity)
+                if apply_multiplier and volume_multiplier != 0:
+                    # PSX volume_multiplier: 0 = normal (no change), positive values multiply
+                    # Formula: velocity = base * (0.5 + multiplier/256)
+                    multiplier_factor = 0.5 + (volume_multiplier / 256.0)
+                    adjusted_velocity = adjusted_velocity * multiplier_factor
+                if apply_master_volume_config and master_volume != 256:
+                    # PSX master_volume: 256 = 100% (no change)
+                    master_factor = master_volume / 256.0
+                    adjusted_velocity = adjusted_velocity * master_factor
+
+                # Apply velocity_scale
+                adjusted_velocity = adjusted_velocity * velocity_scale
+
+                # Clamp to MIDI range 0-127
+                adjusted_velocity = int(min(127, max(0, adjusted_velocity)))
+
+                # Strategy: velocity or expression
+                if midi_strategy == 'expression':
+                    # Expression strategy: constant velocity, use CC11 for dynamics
+                    note_velocity = constant_velocity
+                    # Generate CC11 event BEFORE the note
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 11,  # Expression
+                        'value': adjusted_velocity
+                    })
+                else:
+                    # Velocity strategy (default): use calculated velocity
+                    note_velocity = adjusted_velocity
 
                 # Apply utility duration override (one-shot for this note only)
                 native_duration = utility_duration_override if utility_duration_override is not None else dur
@@ -832,7 +874,7 @@ class AKAONewStyle(SequenceFormat):
                     'time': total_time,
                     'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
-                    'velocity': vel,
+                    'velocity': note_velocity,  # Uses strategy-determined velocity
                     'channel': current_channel
                 })
 
@@ -924,12 +966,47 @@ class AKAONewStyle(SequenceFormat):
                 i += 1
 
             elif event.type == IREventType.VOLUME:
-                velocity = event.value
+                # IR stores normalized value (0-255 for PSX)
+                velocity = int(event.value)
+
+                # For expression strategy, generate CC11 immediately
+                # (velocity strategy waits until NOTE event to apply)
+                if midi_strategy == 'expression':
+                    # Apply volume multipliers (PSX uses different ranges than SNES)
+                    adjusted_vol = float(velocity)
+                    if apply_multiplier and volume_multiplier != 0:
+                        multiplier_factor = 0.5 + (volume_multiplier / 256.0)
+                        adjusted_vol = adjusted_vol * multiplier_factor
+                    if apply_master_volume_config and master_volume != 256:
+                        master_factor = master_volume / 256.0
+                        adjusted_vol = adjusted_vol * master_factor
+
+                    # Apply velocity_scale
+                    adjusted_vol = adjusted_vol * velocity_scale
+
+                    # Clamp to MIDI range and generate CC11
+                    expr_value = int(min(127, max(0, adjusted_vol)))
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 11,  # Expression
+                        'value': expr_value
+                    })
+
                 i += 1
 
             elif event.type == IREventType.VOLUME_FADE:
-                # Volume fade - generate CC 7 events at 2-tick intervals
+                # Volume fade - generate controller events at 2-tick intervals
+                # Use CC11 (Expression) for expression strategy, CC7 (Volume) for velocity strategy
                 assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
+
+                # Determine which controller to use based on strategy
+                if midi_strategy == 'expression':
+                    controller_num = 11  # Expression
+                else:
+                    controller_num = 7   # Volume (traditional)
+
                 fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
                 target_volume = event.value
                 start_volume = velocity
@@ -947,7 +1024,8 @@ class AKAONewStyle(SequenceFormat):
                     midi_events.append({
                         'type': 'controller',
                         'time': step_time,
-                        'controller': 7,  # Volume CC
+                        'channel': current_channel,
+                        'controller': controller_num,  # CC11 or CC7 based on strategy
                         'value': step_volume
                     })
 
@@ -976,6 +1054,7 @@ class AKAONewStyle(SequenceFormat):
                     midi_events.append({
                         'type': 'controller',
                         'time': step_time,
+                        'channel': current_channel,
                         'controller': 10,  # Pan CC
                         'value': step_pan
                     })

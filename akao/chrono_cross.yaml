@@ -25,6 +25,25 @@ default_octave: 4
 default_velocity: 100
 tempo_factor: 13107200000  # timer2 period: 0.2362us * 96 ticks * 65536
 
+# MIDI rendering configuration
+midi_render:
+  # Strategy: "velocity" (default) or "expression"
+  # - velocity: Use note-on velocity for dynamics (traditional approach)
+  # - expression: Use CC11 (Expression) + constant velocity (matches PSX FF7 engine)
+  strategy: "velocity"
+
+  # For "expression" strategy: What velocity to use for all notes
+  constant_velocity: 100
+
+  # Apply volume_multiplier IR events to output
+  apply_multiplier: true
+
+  # Apply master_volume IR events to output
+  apply_master_volume: true
+
+  # Global velocity scaling (to reduce clipping or adjust overall loudness)
+  # velocity_scale: 0.85
+
 # Songs - sector offsets from CD-ROM image
 songs:
   - id: 0x02

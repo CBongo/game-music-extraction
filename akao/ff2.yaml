@@ -91,12 +91,31 @@ default_tempo: 255
 default_octave: 4
 default_velocity: 64
 
+# Volume value range in ROM (for IR normalization to 0-255)
+# FF2 uses 8-bit volume values (0x00-0xFF), already at max range
+volume_range: 255
+
 # MIDI rendering configuration
 midi_render:
+  # Strategy: "velocity" (default), "expression", or "cc7"
+  # - velocity: Use note-on velocity for dynamics (traditional SNES approach)
+  #             VOLUME affects note velocity, VOLUME_FADE updates velocity gradually (NO controllers)
+  # - expression: Use CC11 (Expression) + constant velocity (PSX FF7 approach)
+  #               Both VOLUME and VOLUME_FADE generate CC11
+  # - cc7: Use CC7 (Main Volume) + constant velocity (controller-based)
+  #        Both VOLUME and VOLUME_FADE generate CC7
   strategy: "velocity"
+
+  # For "expression" and "cc7" strategies: What velocity to use for all notes
   constant_velocity: 100
+
+  # Apply volume_multiplier IR events to output
   apply_multiplier: true
+
+  # Apply master_volume IR events to output
   apply_master_volume: true
+
+  # Global velocity scaling factor (applied to all volume calculations)
   velocity_scale: 0.85  # Scale down FF2 volumes to avoid clipping at 127
 
 # Duration table (SNES address 04/9738)

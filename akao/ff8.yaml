@@ -27,6 +27,25 @@ default_octave: 4
 default_velocity: 64
 tempo_factor: 13107200000
 
+# MIDI rendering configuration
+midi_render:
+  # Strategy: "velocity" (default) or "expression"
+  # - velocity: Use note-on velocity for dynamics (traditional approach)
+  # - expression: Use CC11 (Expression) + constant velocity (matches PSX FF7 engine)
+  strategy: "velocity"
+
+  # For "expression" strategy: What velocity to use for all notes
+  constant_velocity: 100
+
+  # Apply volume_multiplier IR events to output
+  apply_multiplier: true
+
+  # Apply master_volume IR events to output
+  apply_master_volume: true
+
+  # Global velocity scaling (to reduce clipping or adjust overall loudness)
+  # velocity_scale: 0.85
+
 # Songs - using file offsets in FF8DISC1.IMG
 songs:
   - id: 0x01
