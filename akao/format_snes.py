@@ -1821,10 +1821,17 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "volume_fade" and len(operands) >= 2:
                     # Volume Fade - duration and target volume
                     # Operands: [duration, target_volume]
-                    # Scale target from 0-255 to MIDI 0-127
+                    # Normalize target volume to 0-255 range for IR (same as VOLUME opcode)
                     duration = operands[0]
-                    target_volume = operands[1]
-                    event = make_volume_fade(p, duration, target_volume, operands)
+                    raw_target_volume = operands[1]
+                    volume_range = self.config.get('volume_range', 255)
+                    if volume_range < 255:
+                        # Scale up to 255 (e.g., CT 0-127 → 0-255)
+                        normalized_target_volume = int((raw_target_volume / volume_range) * 255)
+                    else:
+                        # Already at 255 range (e.g., FF2)
+                        normalized_target_volume = raw_target_volume
+                    event = make_volume_fade(p, duration, normalized_target_volume, operands)
                     ir_events.append(event)
 
                 elif semantic == "pan" and len(operands) >= 1:

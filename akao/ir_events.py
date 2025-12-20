@@ -267,7 +267,7 @@ def make_volume_fade(offset: int, duration: int, target_volume: int,
     Args:
         offset: Byte offset in original data
         duration: Fade duration in native ticks
-        target_volume: Target volume value (0-127 MIDI scale)
+        target_volume: Target volume value (0-255 IR normalized range)
         operands: Raw operand bytes from the original format
     """
     return IREvent(

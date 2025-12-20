@@ -154,6 +154,9 @@ def dump_ir_to_text(song, track_data: Dict, loop_analysis: Dict) -> str:
             elif event.type in (IREventType.OCTAVE_SET, IREventType.VOLUME, IREventType.PAN):
                 parts.append(f"value={event.value}")
 
+            elif event.type in (IREventType.VOLUME_FADE, IREventType.PAN_FADE):
+                parts.append(f"dur={event.duration} target={event.value}")
+
             elif event.type == IREventType.LOOP_START:
                 parts.append(f"count={event.loop_count}")
 
