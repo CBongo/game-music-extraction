@@ -1,0 +1,219 @@
+game: "Final Fantasy VII"
+format: "akao_ff7"
+console_type: "psx"
+
+# FF7 AKAO songs are embedded in field DAT and world TXZ files
+# For now, use pre-extracted .bin files (use psx/ff7/extract_akao.pl to extract)
+akao_directory: "../../../psx/ff7/akao"  # Directory containing XX.bin files
+
+# Tempo calculation (from ff7mus.pl line 202)
+tempo_factor: 13107200000
+
+# Duration table (hardcoded in ff7mus.pl lines 155-156)
+duration_table:
+  values: [0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06, 0x03, 0x20, 0x10, 0x08, 0x04]
+  size: 11
+
+# Note encoding
+note_divisor: 11  # notenum = cmd / 11, dur_idx = cmd % 11
+first_note_opcode: 0x00
+last_note_opcode: 0x9F
+
+# Default state values
+default_tempo: 255
+default_octave: 4
+default_velocity: 100
+
+# MIDI rendering
+midi_render:
+  strategy: "velocity"       # Use note velocity for dynamics (SPC-accurate)
+  constant_velocity: 100     # For expression/cc7 strategies
+  apply_multiplier: true     # Handle volume_multiplier events
+  apply_master_volume: true  # Handle master_volume events
+
+# Patch mapping (will need to be filled in based on FF7 sound bank)
+patch_map:
+  0x00: {gm_patch: 0, transpose: 0, name: "Acoustic Grand Piano"}
+  # TODO: Add FF7-specific instrument mappings
+
+# Songs (from ff7mus.pl @titles array, indices 0-112)
+# Note: Empty strings ("") in original indicate unused song IDs
+songs:
+  - id: 0x02
+    title: "102 Opening - Bombing Mission"
+  - id: 0x03
+    title: "905 Bombing Mission (Variation)"
+  - id: 0x04
+    title: "209 Chasing the Black-Caped Man"
+  - id: 0x05
+    title: "407 On the Other Side of the Mountain"
+  - id: 0x06
+    title: "903 Fanfare (Variation)"
+  - id: 0x07
+    title: "103 Mako Reactor"
+  - id: 0x08
+    title: "110 Fighting"
+  - id: 0x09
+    title: "312 Fiddle de Chocobo"
+  - id: 0x0A
+    title: "104 Anxious Heart"
+  - id: 0x0B
+    title: "120 Still More Fighting"
+  - id: 0x0C
+    title: "220 Cait Sith's Theme"
+  - id: 0x0D
+    title: "319 Aerith's Theme"
+  - id: 0x0E
+    title: "201 FF VII Main Theme"
+  - id: 0x11
+    title: "211 Rufus' Welcoming Ceremony"
+  - id: 0x13
+    title: "117 Who Are You"
+  - id: 0x14
+    title: "202 Ahead on Our Way"
+  - id: 0x15
+    title: "212 It's Difficult to Stand on Both Feet, Isn't It"
+  - id: 0x16
+    title: "411 If You Open Your Heart"
+  - id: 0x17
+    title: "206 Waltz de Chocobo"
+  - id: 0x18
+    title: "118 Don of the Slums"
+  - id: 0x19
+    title: "213 Trail of Blood"
+  - id: 0x1A
+    title: "301 Cosmo Canyon"
+  - id: 0x1B
+    title: "121 Red XIII's Theme"
+  - id: 0x1C
+    title: "303 Great Warrior"
+  - id: 0x1D
+    title: "108 Lurking in the Darkness"
+  - id: 0x1E
+    title: "109 Shinra Corporation"
+  - id: 0x1F
+    title: "119 Infiltrating Shinra Tower"
+  - id: 0x20
+    title: "114 Underneath the Rotting Pizza"
+  - id: 0x21
+    title: "205 Farm Boy"
+  - id: 0x22
+    title: "204 On That Day, 5 Years Ago"
+  - id: 0x23
+    title: "105 Tifa's Theme"
+  - id: 0x24
+    title: "216 Costa del Sol"
+  - id: 0x25
+    title: "115 Oppressed People"
+  - id: 0x26
+    title: "112 Flowers Blooming in the Church"
+  - id: 0x27
+    title: "122 Crazy Motorcycle"
+  - id: 0x28
+    title: "221 Sandy Badlands"
+  - id: 0x29
+    title: "305 Those Chosen by the Planet"
+  - id: 0x2A
+    title: "106 Barret's Theme"
+  - id: 0x2B
+    title: "218 Mining Town"
+  - id: 0x2C
+    title: "302 Life Stream"
+  - id: 0x2D
+    title: "207 Electric de Chocobo"
+  - id: 0x2E
+    title: "113 Turk's Theme"
+  - id: 0x2F
+    title: "111 Fanfare"
+  - id: 0x30
+    title: "403 Highwind Takes to the Skies"
+  - id: 0x31
+    title: "412 The Mako Cannon Fires! - Shinra Explodes"
+  - id: 0x32
+    title: "316 Interrupted by Fireworks"
+  - id: 0x34
+    title: "208 Cinco de Chocobo"
+  - id: 0x35
+    title: "214 J-E-N-O-V-A"
+  - id: 0x36
+    title: "304 Descendant of Shinobi"
+  - id: 0x37
+    title: "107 Hurry!"
+  - id: 0x38
+    title: "219 Gold Saucer"
+  - id: 0x39
+    title: "405 Parochial Town"
+  - id: 0x3A
+    title: "203 Good Night, Until Tomorrow"
+  - id: 0x3B
+    title: "215 Continue"
+  - id: 0x3C
+    title: "313 A Great Success"
+  - id: 0x3D
+    title: "314 Tango of Tears"
+  - id: 0x3E
+    title: "311 Racing Chocobos"
+  - id: 0x3F
+    title: "315 Debut"
+  - id: 0x40
+    title: "406 Off the Edge of Despair"
+  - id: 0x41
+    title: "123 Holding My Thoughts In My Heart"
+  - id: 0x43
+    title: "306 The Nightmare's Beginning"
+  - id: 0x44
+    title: "116 Honeybee Manor"
+  - id: 0x45
+    title: "317 Forest Temple"
+  - id: 0x46
+    title: "217 Mark of the Traitor"
+  - id: 0x47
+    title: "408 Hurry Faster!"
+  - id: 0x48
+    title: "321 The Great Northern Cave"
+  - id: 0x49
+    title: "307 Cid's Theme"
+  - id: 0x4A
+    title: "409 Sending a Dream Into the Universe"
+  - id: 0x4B
+    title: "318 You Can Hear the Cry of the Planet"
+  - id: 0x4C
+    title: "323 Who Am I"
+  - id: 0x4D
+    title: "309 Wutai"
+  - id: 0x4E
+    title: "320 Buried in the Snow"
+  - id: 0x4F
+    title: "310 Stolen Materia"
+  - id: 0x50
+    title: "322 Reunion"
+  - id: 0x51
+    title: "210 Fortress of the Condor"
+  - id: 0x53
+    title: "401 Shinra Army Wages a Full-Scale Attack"
+  - id: 0x54
+    title: "402 Weapon Raid"
+  - id: 0x55
+    title: "414 Jenova Absolute"
+  - id: 0x56
+    title: "404 A Secret, Sleeping in the Deep Sea"
+  - id: 0x57
+    title: "413 Judgment Day"
+  - id: 0x58
+    title: "415 The Birth of God"
+  - id: 0x5A
+    title: "410 The Countdown Begins"
+  - id: 0x5B
+    title: "308 Steal the Tiny Bronco!"
+  - id: 0x5C
+    title: "904 Those Chosen By the Planet (Variation)"
+  - id: 0x5D
+    title: "901 World Crisis (Clip)"
+  - id: 0x5E
+    title: "902 Who Am I (Alternate)"
+  - id: 0x60
+    title: "101 The Prelude"
+  - id: 0x61
+    title: "417 World Crisis"
+  - id: 0x63
+    title: "418 Staff Roll"

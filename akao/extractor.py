@@ -18,7 +18,7 @@ from format_base import PatchMapper, SequenceFormat, SongMetadata
 
 # Import format handlers
 from format_snes import SNESUnified
-from format_psx import AKAONewStyle, Raw2352FileWrapper
+from format_psx import AKAONewStyle, AKAOFF7, Raw2352FileWrapper
 
 # Import output generators
 from output_generators import (
@@ -55,7 +55,15 @@ class SequenceExtractor:
         self.sector_size: Optional[int]
         self.raw_sector_size: Optional[int]
 
-        if self.console_type == 'snes':
+        # Check for directory-based loading (FF7 pre-extracted files)
+        if 'akao_directory' in self.config:
+            # Directory-based: No ISO/ROM loading needed
+            self.iso = None
+            self.sector_size = None
+            self.raw_sector_size = None
+            self.rom_data = b''  # Empty, won't be used
+            print(f"Using pre-extracted AKAO files from: {self.config['akao_directory']}")
+        elif self.console_type == 'snes':
             # SNES ROMs are simple binary files, no ISO needed
             self.iso = None
             self.sector_size = None
@@ -93,6 +101,8 @@ class SequenceExtractor:
         self.format_handler: SequenceFormat
         if format_name == 'akao_newstyle':
             self.format_handler = AKAONewStyle(self.config, self.rom_data, exe_iso_reader=self)
+        elif format_name == 'akao_ff7':
+            self.format_handler = AKAOFF7(self.config, self.rom_data, exe_iso_reader=self)
         elif format_name == 'snes_unified':
             self.format_handler = SNESUnified(self.config, self.rom_data)
         else:
@@ -247,6 +257,17 @@ class SequenceExtractor:
 
     def extract_sequence_data(self, song: SongMetadata) -> bytes:
         """Extract raw sequence data from source file."""
+        # Check for directory-based loading (FF7 pre-extracted .bin files)
+        if 'akao_directory' in self.config:
+            akao_dir = Path(self.config['akao_directory'])
+            bin_file = akao_dir / f"{song.id:02x}.bin"
+
+            if not bin_file.exists():
+                raise FileNotFoundError(f"AKAO file not found: {bin_file}")
+
+            with open(bin_file, 'rb') as f:
+                return f.read()
+
         # SNES ROMs: read directly from ROM using song pointer table
         if self.console_type == 'snes':
             # Get offset and length from format handler's song pointer table
@@ -480,7 +501,7 @@ class SequenceExtractor:
 
     def disassemble_to_text(self, song: SongMetadata, track_data: Dict) -> str:
         """Generate text disassembly of sequence from pre-parsed track data."""
-        return disasm_to_text_func(song, track_data, self.console_type, self.format_handler, self.patch_mapper)
+        return disasm_to_text_func(song, track_data, self.console_type, self.format_handler)
 
     def dump_ir_to_text(self, song: SongMetadata, track_data: Dict, loop_analysis: Dict) -> str:
         """Generate IR (Intermediate Representation) dump from pre-parsed track data."""

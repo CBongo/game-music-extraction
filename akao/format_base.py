@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
 
 # Import IR event classes
-from ir_events import IREvent
+from ir_events import IREvent, IREventType
 
 
 # Global constants
@@ -163,23 +163,178 @@ class SequenceFormat(ABC):
         """
         pass
 
-    @abstractmethod
-    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
-        """Analyze IR events to find loop structure.
+    def _find_event_by_offset(self, ir_events: List[IREvent], target_offset: int) -> Optional[int]:
+        """Find IR event index by byte offset.
 
         Args:
-            ir_events: IR events from pass 1
+            ir_events: List of IR events to search
+            target_offset: Byte offset to find
 
         Returns:
-            Dict with loop analysis: {
-                'has_backwards_goto': bool,
-                'goto_target_idx': int,
-                'intro_time': int,
-                'loop_time': int,
-                'target_time': int
-            }
+            Index of event at or after target_offset, or None if not found
+            (GOTO targets may point to opcodes that don't generate IR events)
         """
-        pass
+        # Find the first event at or after the target offset
+        for i, event in enumerate(ir_events):
+            if event.offset >= target_offset:
+                return i
+        return None
+
+    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
+        """Analyze track for backwards GOTO loops and calculate timing.
+
+        This is a shared implementation that detects loop patterns and measures
+        timing by executing LOOP_START/LOOP_END/LOOP_BREAK constructs.
+
+        Args:
+            ir_events: List of IR events from pass 1
+
+        Returns:
+            Dict with keys:
+                'has_backwards_goto': bool - True if track ends with backwards GOTO
+                'intro_time': int - Time units before loop starts (0 if no loop)
+                'loop_time': int - Time units for one loop iteration (0 if no loop)
+                'goto_target_idx': int - Index of GOTO target event (None if no loop)
+                'target_time': int - intro_time + 2 * loop_time
+        """
+        # Find the last BACKWARDS GOTO event (for looping)
+        # Forward GOTOs are sequence continuation, not loops
+        last_goto_event = None
+        last_goto_idx = None
+        for i, event in enumerate(ir_events):
+            if event.type == IREventType.GOTO and event.target_offset is not None:
+                # Check if this GOTO is backwards (target_offset < current offset)
+                if event.target_offset < event.offset:
+                    last_goto_event = event
+                    last_goto_idx = i
+
+        # Check if it's a backwards GOTO
+        if last_goto_event is None:
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None,
+                'target_time': 0
+            }
+
+        # Find target event index
+        target_idx = None
+        for j, e in enumerate(ir_events):
+            if e.offset == last_goto_event.target_offset:
+                target_idx = j
+                break
+
+        # Check if backwards (target comes before GOTO)
+        assert last_goto_idx is not None, "last_goto_idx should not be None here"
+        if target_idx is None or target_idx >= last_goto_idx:
+            # Forward GOTO or target not found - not a loop
+            return {
+                'has_backwards_goto': False,
+                'intro_time': 0,
+                'loop_time': 0,
+                'goto_target_idx': None,
+                'target_time': 0
+            }
+
+        # It's a backwards GOTO - calculate intro and loop times
+        # Intro time = time from start (index 0) to GOTO target (target_idx)
+        # Loop time = time from GOTO target to GOTO itself
+
+        # Measure intro time: execute from 0 to target_idx
+        intro_time = 0
+        loop_stack_intro = []
+        i = 0
+        while i < target_idx:
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE or event.type == IREventType.REST or event.type == IREventType.TIE:
+                assert event.duration is not None
+                intro_time += event.duration
+                i += 1
+            elif event.type == IREventType.LOOP_START:
+                loop_stack_intro.append({'start_idx': i + 1, 'count': event.loop_count, 'iteration': 0})
+                i += 1
+            elif event.type == IREventType.LOOP_END:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['count'] -= 1
+                    if loop['count'] >= 0:
+                        i = loop['start_idx']
+                    else:
+                        loop_stack_intro.pop()
+                        i += 1
+                else:
+                    i += 1
+            elif event.type == IREventType.LOOP_BREAK:
+                if loop_stack_intro:
+                    loop = loop_stack_intro[-1]
+                    loop['iteration'] += 1
+                    if loop['iteration'] == event.condition:
+                        for j, e in enumerate(ir_events):
+                            if e.offset == event.target_offset:
+                                i = j
+                                break
+                        loop_stack_intro.pop()
+                    else:
+                        i += 1
+                else:
+                    i += 1
+            else:
+                i += 1
+
+        # Measure loop time: execute from target_idx to last_goto_idx
+        loop_time = 0
+        assert target_idx is not None, "target_idx should not be None for backwards GOTO"
+        assert last_goto_idx is not None, "last_goto_idx should not be None for backwards GOTO"
+        loop_stack_loop = []
+        j = target_idx
+
+        while j < last_goto_idx:
+            e = ir_events[j]
+
+            if e.type == IREventType.NOTE or e.type == IREventType.REST or e.type == IREventType.TIE:
+                assert e.duration is not None
+                loop_time += e.duration
+                j += 1
+            elif e.type == IREventType.LOOP_START:
+                loop_stack_loop.append({'start_idx': j + 1, 'count': e.loop_count, 'iteration': 0})
+                j += 1
+            elif e.type == IREventType.LOOP_END:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['count'] -= 1
+                    if lp['count'] >= 0:
+                        j = lp['start_idx']
+                    else:
+                        loop_stack_loop.pop()
+                        j += 1
+                else:
+                    j += 1
+            elif e.type == IREventType.LOOP_BREAK:
+                if loop_stack_loop:
+                    lp = loop_stack_loop[-1]
+                    lp['iteration'] += 1
+                    if lp['iteration'] == e.condition:
+                        for k, ev in enumerate(ir_events):
+                            if ev.offset == e.target_offset:
+                                j = k
+                                break
+                        loop_stack_loop.pop()
+                    else:
+                        j += 1
+                else:
+                    j += 1
+            else:
+                j += 1
+
+        return {
+            'has_backwards_goto': True,
+            'intro_time': intro_time,
+            'loop_time': loop_time,
+            'goto_target_idx': target_idx,
+            'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
+        }
 
     def _validate_track_address(self, track_num: int, target_spc_addr: int,
                                 source_offset: int, event_type: str, has_timing_events: bool = False) -> bool:
@@ -199,6 +354,92 @@ class SequenceFormat(ABC):
             True if valid, False if invalid (warning already printed)
         """
         return True  # Default: no validation
+
+    @staticmethod
+    def _parse_int_key(key) -> int:
+        """Convert YAML config key to int (handles '0xAA', '170', etc).
+
+        Args:
+            key: Config key (str or int)
+
+        Returns:
+            Integer value (auto-detects hex with 0x prefix)
+        """
+        return int(key, 0) if isinstance(key, str) else key
+
+    @staticmethod
+    def _make_controller_event(time: int, channel: int,
+                               controller: int, value: int) -> Dict:
+        """Create a MIDI controller change event.
+
+        Args:
+            time: Time in MIDI ticks
+            channel: MIDI channel (0-15)
+            controller: Controller number (0-127)
+            value: Controller value (0-127)
+
+        Returns:
+            MIDI controller event dictionary
+        """
+        return {
+            'type': 'controller',
+            'time': time,
+            'channel': channel,
+            'controller': controller,
+            'value': value
+        }
+
+    def _generate_fade_events(self, event_type: str, start_value: float,
+                             target_value: float, fade_duration_midi: int,
+                             start_time: int, channel: int = 0,
+                             controller: Optional[int] = None) -> List[Dict]:
+        """Generate interpolated MIDI events for a fade.
+
+        This method creates a series of MIDI events spaced 2 ticks apart
+        that smoothly transition from start_value to target_value over
+        the specified duration. Used for TEMPO_FADE, VOLUME_FADE, PAN_FADE.
+
+        Args:
+            event_type: Type of event ('tempo' or 'controller')
+            start_value: Starting value
+            target_value: Target value
+            fade_duration_midi: Duration in MIDI ticks
+            start_time: Starting time in MIDI ticks
+            channel: MIDI channel (for controller events)
+            controller: Controller number (for controller events, e.g., 10=pan, 11=expression)
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        events = []
+        num_steps = max(1, fade_duration_midi // 2)
+
+        for step in range(num_steps + 1):
+            step_time = start_time + (step * 2)
+
+            # Linear interpolation
+            if num_steps > 0:
+                step_value = start_value + (target_value - start_value) * step / num_steps
+            else:
+                step_value = target_value
+
+            # Create appropriate event type
+            if event_type == 'tempo':
+                events.append({
+                    'type': 'tempo',
+                    'time': step_time,
+                    'tempo': step_value
+                })
+            elif event_type == 'controller':
+                events.append({
+                    'type': 'controller',
+                    'time': step_time,
+                    'channel': channel,
+                    'controller': controller,
+                    'value': int(step_value)
+                })
+
+        return events
 
 
 @dataclass

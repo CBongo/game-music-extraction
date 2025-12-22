@@ -6,7 +6,10 @@ Supports FF7, FF8, FF9, Chrono Cross via config-driven architecture.
 import io
 import struct
 import sys
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from extractor import SequenceExtractor
 
 # Import base classes
 from format_base import SequenceFormat, NOTE_NAMES
@@ -111,8 +114,524 @@ class Raw2352FileWrapper(io.BufferedIOBase):
         self.close()
 
 
-class AKAONewStyle(SequenceFormat):
-    """Handler for 'new style' AKAO format (Chrono Cross, etc.)"""
+class AKAOBase(SequenceFormat):
+    """Base class for PSX AKAO formats with shared Pass 2 and loop analysis logic."""
+
+    # Default values (subclasses should override in __init__ if needed)
+    default_octave = 4
+    default_velocity = 100
+    default_tempo = 120
+
+    # Attributes that subclasses must initialize
+    config: Dict
+    rom_data: bytes
+    exe_iso_reader: Optional['SequenceExtractor'] = None
+    patch_map: Dict[int, Dict]  # Optional patch mapping
+
+    def _calculate_adjusted_velocity(self, base_velocity: int,
+                                      volume_multiplier: int,
+                                      master_volume: int,
+                                      velocity_scale: float,
+                                      apply_multiplier: bool,
+                                      apply_master_volume: bool) -> int:
+        """Calculate final MIDI velocity with all multipliers applied.
+
+        Args:
+            base_velocity: Base velocity value (0-255 IR range)
+            volume_multiplier: PSX volume multiplier (0 = normal)
+            master_volume: PSX master volume (256 = 100%)
+            velocity_scale: Global velocity scaling factor
+            apply_multiplier: Whether to apply volume_multiplier
+            apply_master_volume: Whether to apply master_volume
+
+        Returns:
+            Final MIDI velocity value (0-127)
+        """
+        adjusted = float(base_velocity)
+
+        # Apply volume multiplier if enabled
+        if apply_multiplier and volume_multiplier != 0:
+            # PSX volume_multiplier: 0 = normal (no change), positive values multiply
+            # Formula: velocity = base * (0.5 + multiplier/256)
+            multiplier_factor = 0.5 + (volume_multiplier / 256.0)
+            adjusted *= multiplier_factor
+
+        # Apply master volume if enabled
+        if apply_master_volume and master_volume != 256:
+            # PSX master_volume: 256 = 100% (no change)
+            master_factor = master_volume / 256.0
+            adjusted *= master_factor
+
+        # Apply velocity scale
+        adjusted *= velocity_scale
+
+        # Clamp to MIDI range 0-127
+        return int(min(127, max(0, adjusted)))
+
+    def _resolve_patch_info(self, inst_id: int) -> Tuple[int, int, str]:
+        """Look up GM patch, transpose, and annotation for instrument.
+
+        Args:
+            inst_id: Instrument ID from opcode
+
+        Returns:
+            Tuple of (gm_patch, transpose_octaves, disasm_annotation)
+        """
+        if hasattr(self, 'patch_map') and inst_id in self.patch_map:
+            patch_info = self.patch_map[inst_id]
+            gm_patch = patch_info['gm_patch']
+            transpose_octaves = patch_info.get('transpose', 0)
+
+            if gm_patch < 0:
+                annotation = f" -> PERC key={abs(gm_patch)}"
+            else:
+                annotation = f" -> GM patch {gm_patch}"
+        else:
+            gm_patch = 0
+            transpose_octaves = 0
+            annotation = ""
+
+        return gm_patch, transpose_octaves, annotation
+
+    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
+                          target_loop_time: int = 0) -> List[Dict]:
+        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+
+        Args:
+            all_track_data: Complete track data from parse_all_tracks() (includes loop_info per track)
+            start_voice_num: Starting voice/track number to execute from
+            target_loop_time: Target playthrough time in ticks (0 = no loop expansion)
+
+        Returns:
+            List of MIDI event dictionaries
+        """
+        # Initialize from starting track
+        current_voice_num = start_voice_num
+        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
+        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+
+        # Read MIDI rendering configuration
+        midi_config = self.config.get('midi_render', {})
+        midi_strategy = midi_config.get('strategy', 'velocity')
+        constant_velocity = midi_config.get('constant_velocity', 100)
+        apply_multiplier = midi_config.get('apply_multiplier', True)
+        apply_master_volume_config = midi_config.get('apply_master_volume', True)
+        velocity_scale = midi_config.get('velocity_scale', 1.0)
+
+        # Playback state
+        octave = self.default_octave
+        velocity = self.default_velocity
+        tempo = self.default_tempo
+        current_pan = 64  # MIDI center pan
+        perc_key = 0
+        transpose_octaves = 0
+        current_channel = start_voice_num
+
+        # Output MIDI events
+        midi_events = []
+
+        # Timing
+        total_time = 0
+
+        # Loop execution state
+        loop_stack = []  # Stack of {start_idx, count, iteration, max_count}
+
+        # Iteration limit (failsafe)
+        max_iterations = max(len(ir_events) * 200, 10000)
+        iteration_count = 0
+
+        # Emergency brakes (match SNESFF2/FF3)
+        import time
+        start_time = time.time()
+        max_time_seconds = 5.0  # 5 second time limit
+        max_midi_events = 100000  # Max MIDI events per track
+
+        # Gate timing (native ticks before full duration when note-off happens)
+        gate_time = 2  # Default: 2 native ticks from end
+                       # Can be modified by slur/roll opcodes
+        slur_enabled = False  # Track slur state
+        roll_enabled = False  # Track roll state
+        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
+        utility_duration_override = None  # One-shot duration override for next note
+        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
+        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
+
+        # Tick scaling factor (native ticks -> MIDI ticks)
+        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
+
+        # Scale target_loop_time from native ticks to MIDI ticks
+        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
+        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
+
+        # Execute IR events
+        i = 0
+        while i < len(ir_events):
+            iteration_count += 1
+            if iteration_count > max_iterations:
+                print(f"WARNING: Track {start_voice_num} hit max iteration limit", file=sys.stderr)
+                break
+
+            # Check if we've reached target playthrough time
+            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
+                break
+
+            # Emergency brakes (only warn, not error - looping is normal)
+            if time.time() - start_time > max_time_seconds:
+                # Silently stop - time limit reached (normal for looping songs)
+                break
+            if len(midi_events) > max_midi_events:
+                # Silently stop - MIDI event limit reached (normal for looping songs)
+                break
+
+            event = ir_events[i]
+
+            if event.type == IREventType.NOTE:
+                # Generate MIDI note
+                note_num = event.note_num
+                dur = event.duration  # Native duration from Pass 1
+
+                # Apply octave and transposition
+                midi_note = (octave * 12) + note_num + (transpose_octaves * 12)
+                midi_note = max(0, min(127, midi_note))
+
+                # Get velocity from event metadata or current state
+                base_velocity = event.metadata.get('velocity', velocity)
+
+                # Apply volume multipliers
+                adjusted_velocity = self._calculate_adjusted_velocity(
+                    base_velocity, volume_multiplier, master_volume, velocity_scale,
+                    apply_multiplier, apply_master_volume_config
+                )
+
+                # Strategy: velocity or expression
+                if midi_strategy == 'expression':
+                    # Expression strategy: constant velocity, use CC11 for dynamics
+                    note_velocity = constant_velocity
+                    # Generate CC11 event BEFORE the note
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 11,  # Expression
+                        'value': adjusted_velocity
+                    })
+                else:
+                    # Velocity strategy (default): use calculated velocity
+                    note_velocity = adjusted_velocity
+
+                # Apply utility duration override (one-shot for this note only)
+                native_duration = utility_duration_override if utility_duration_override is not None else dur
+                utility_duration_override = None  # Clear after use
+
+                # Scale ORIGINAL native duration to MIDI ticks
+                # This is ALWAYS used for time advancement (next event timing)
+                midi_dur = native_duration * tick_scale
+
+                # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
+                # Order of priority: slur/roll > staccato > gate
+                if slur_enabled or roll_enabled:
+                    # Slur/roll: play full duration (no gap before next note)
+                    gate_adjusted_dur = midi_dur
+                elif staccato_percentage < 100:
+                    # Staccato: apply percentage reduction (replaces gate timing)
+                    # Apply to ORIGINAL duration, not already-reduced duration
+                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
+                else:
+                    # Normal articulation: apply standard gate timing (2 native ticks before end)
+                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
+
+                midi_events.append({
+                    'type': 'note',
+                    'time': total_time,
+                    'duration': gate_adjusted_dur,  # Adjusted for articulation
+                    'note': midi_note,
+                    'velocity': note_velocity,  # Uses strategy-determined velocity
+                    'channel': current_channel
+                })
+
+                # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
+                total_time += midi_dur
+                i += 1
+
+            elif event.type == IREventType.REST:
+                # Scale native duration to MIDI ticks
+                midi_dur = event.duration * tick_scale
+                total_time += midi_dur
+                i += 1
+
+            elif event.type == IREventType.TIE:
+                # Extend previous note
+                # Scale native duration to MIDI ticks
+                tie_dur = event.duration * tick_scale
+                if midi_events and midi_events[-1]['type'] == 'note':
+                    midi_events[-1]['duration'] += tie_dur
+                total_time += tie_dur
+                i += 1
+
+            elif event.type == IREventType.PATCH_CHANGE:
+                # Extract from IR event
+                gm_patch = event.gm_patch
+                transpose_octaves = event.transpose
+
+                # Percussion mode check
+                if gm_patch < 0:
+                    perc_key = abs(gm_patch)
+                else:
+                    perc_key = 0
+                    midi_events.append({
+                        'type': 'program_change',
+                        'time': total_time,
+                        'patch': gm_patch
+                    })
+
+                i += 1
+
+            elif event.type == IREventType.TEMPO:
+                # Tempo change - add to midi_events (will be placed on track 0)
+                assert event.value is not None, "TEMPO event must have value"
+                midi_events.append({
+                    'type': 'tempo',
+                    'time': total_time,
+                    'tempo': event.value
+                })
+                tempo = event.value
+                i += 1
+
+            elif event.type == IREventType.TEMPO_FADE:
+                # Tempo fade - generate tempo events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_tempo = event.value
+                start_tempo = tempo
+
+                # Generate interpolated tempo events
+                fade_events = self._generate_fade_events(
+                    'tempo', start_tempo, target_tempo, fade_duration, total_time
+                )
+                midi_events.extend(fade_events)
+
+                # Update current tempo to target
+                tempo = target_tempo
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_SET:
+                octave = event.value
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_INC:
+                octave += 1
+                i += 1
+
+            elif event.type == IREventType.OCTAVE_DEC:
+                octave -= 1
+                i += 1
+
+            elif event.type == IREventType.VOLUME:
+                # IR stores normalized value (0-255 for PSX)
+                velocity = int(event.value)
+
+                # For expression strategy, generate CC11 immediately
+                # (velocity strategy waits until NOTE event to apply)
+                if midi_strategy == 'expression':
+                    # Apply volume multipliers
+                    expr_value = self._calculate_adjusted_velocity(
+                        velocity, volume_multiplier, master_volume, velocity_scale,
+                        apply_multiplier, apply_master_volume_config
+                    )
+                    midi_events.append({
+                        'type': 'controller',
+                        'time': total_time,
+                        'channel': current_channel,
+                        'controller': 11,  # Expression
+                        'value': expr_value
+                    })
+
+                i += 1
+
+            elif event.type == IREventType.PAN:
+                # Update current pan value
+                current_pan = int(event.value)
+                # Generate immediate MIDI CC 10 pan event
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'channel': current_channel,
+                    'controller': 10,  # Pan CC
+                    'value': current_pan
+                })
+                i += 1
+
+            elif event.type == IREventType.VOLUME_FADE:
+                # Volume fade - generate controller events at 2-tick intervals
+                # Use CC11 (Expression) for expression strategy, CC7 (Volume) for velocity strategy
+                assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
+
+                # Determine which controller to use based on strategy
+                if midi_strategy == 'expression':
+                    controller_num = 11  # Expression
+                else:
+                    controller_num = 7   # Volume (traditional)
+
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_volume = event.value
+                start_volume = velocity
+
+                # Generate interpolated controller events
+                fade_events = self._generate_fade_events(
+                    'controller', start_volume, target_volume, fade_duration,
+                    total_time, current_channel, controller_num
+                )
+                midi_events.extend(fade_events)
+
+                # Update current velocity to target
+                velocity = target_volume
+                i += 1
+
+            elif event.type == IREventType.PAN_FADE:
+                # Pan fade - generate CC 10 events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_pan = event.value
+                start_pan = current_pan
+
+                # Generate interpolated pan events
+                fade_events = self._generate_fade_events(
+                    'controller', start_pan, target_pan, fade_duration,
+                    total_time, current_channel, 10  # CC 10 = pan
+                )
+                midi_events.extend(fade_events)
+
+                # Update current pan to target
+                current_pan = target_pan
+                i += 1
+
+            elif event.type == IREventType.SLUR_ON:
+                slur_enabled = True
+                # Emit MIDI CC 68 (legato pedal) = 127
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 127
+                })
+                i += 1
+
+            elif event.type == IREventType.SLUR_OFF:
+                slur_enabled = False
+                # Emit MIDI CC 68 (legato pedal) = 0
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'controller': 68,  # Legato pedal CC
+                    'value': 0
+                })
+                i += 1
+
+            elif event.type == IREventType.ROLL_ON:
+                roll_enabled = True
+                i += 1
+
+            elif event.type == IREventType.ROLL_OFF:
+                roll_enabled = False
+                i += 1
+
+            elif event.type == IREventType.STACCATO:
+                # Set staccato percentage for all subsequent notes
+                assert event.value is not None, "STACCATO event must have value"
+                staccato_percentage = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.UTILITY_DURATION:
+                # Override duration for next note only
+                assert event.value is not None, "UTILITY_DURATION event must have value"
+                utility_duration_override = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.MASTER_VOLUME:
+                # Set master volume (SoM 0xF8) - global volume multiplier
+                assert event.value is not None, "MASTER_VOLUME event must have value"
+                master_volume = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.VOLUME_MULTIPLIER:
+                # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
+                assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
+                volume_multiplier = int(event.value)
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_ON:
+                # Percussion mode handling is done in Pass 1
+                i += 1
+
+            elif event.type == IREventType.PERCUSSION_MODE_OFF:
+                # Percussion mode handling is done in Pass 1
+                i += 1
+
+            elif event.type == IREventType.LOOP_START:
+                # Push loop onto stack
+                loop_stack.append({
+                    'start_idx': i + 1,  # Next event after LOOP_START
+                    'count': 0,
+                    'max_count': event.loop_count
+                })
+                i += 1
+
+            elif event.type == IREventType.LOOP_END:
+                # Pop and potentially repeat
+                if loop_stack:
+                    loop = loop_stack[-1]
+                    loop['count'] += 1
+
+                    if loop['count'] < loop['max_count']:
+                        # Repeat - jump back to start
+                        i = loop['start_idx']
+                    else:
+                        # Done - pop and continue
+                        loop_stack.pop()
+                        i += 1
+                else:
+                    # Unmatched LOOP_END - skip
+                    i += 1
+
+            elif event.type == IREventType.GOTO:
+                # Find target event
+                if event.target_offset is None:
+                    # Invalid GOTO - halt
+                    break
+
+                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
+
+                if target_idx is None:
+                    # Invalid target - halt
+                    break
+
+                # Check if backwards (loop)
+                if target_idx < i:
+                    # Backwards GOTO - loop condition
+                    if target_loop_time > 0 and total_time >= target_loop_time:
+                        # Reached target duration - halt
+                        break
+                    else:
+                        # Continue looping
+                        i = target_idx
+                else:
+                    # Forward GOTO - could be cross-track
+                    # For now, just jump forward
+                    i = target_idx
+
+            elif event.type == IREventType.HALT:
+                # End of track
+                break
+
+            else:
+                # Unknown event type - skip
+                i += 1
+
+        return midi_events
+
+
+class AKAONewStyle(AKAOBase):
+    """Handler for 'new style' AKAO format (FF9/FF8/Chrono Cross, etc.)"""
 
     # Opcode names
     OPCODE_NAMES = {
@@ -404,6 +923,7 @@ class AKAONewStyle(SequenceFormat):
         current_patch = 0  # Current GM patch
         inst_id = 0  # Raw instrument ID
         transpose_octaves = 0
+        util_dur = 0  # Utility duration override (one-shot)
 
         # Find end of track (next track start or end of data)
         track_end = len(data)
@@ -429,7 +949,9 @@ class AKAONewStyle(SequenceFormat):
                     if dur_idx >= len(self.duration_table):
                         disasm.append(f"  Error: Invalid duration index {dur_idx}")
                         break
-                    dur = self.duration_table[dur_idx]
+                    # Use utility duration if set, otherwise use duration table
+                    dur = util_dur if util_dur else self.duration_table[dur_idx]
+                    util_dur = 0  # Reset after use (one-shot)
                     line += "            "
                 else:
                     # Extended note: F0-FD = notenum 0-13, next byte = duration
@@ -595,6 +1117,11 @@ class AKAONewStyle(SequenceFormat):
                     current_patch = gm_patch
                     event = make_patch_change(p - oplen, inst_id, gm_patch, transpose_octaves, operands)
                     ir_events.append(event)
+                elif cmd == 0xA2 and operands:
+                    # Utility duration override (one-shot for next note)
+                    util_dur = operands[0]
+                    event = make_utility_duration(p - oplen, util_dur, operands)
+                    ir_events.append(event)
                 elif cmd == 0xA5 and operands:
                     # Set octave
                     octave = operands[0]
@@ -637,550 +1164,277 @@ class AKAONewStyle(SequenceFormat):
 
         return disasm, ir_events
 
-    def _find_event_by_offset(self, ir_events: List[IREvent], target_offset: int) -> Optional[int]:
-        """Find IR event index by byte offset.
 
-        Args:
-            ir_events: List of IR events to search
-            target_offset: Byte offset to find
+class AKAOFF7(AKAOBase):
+    """Handler for FF7 AKAO format.
 
-        Returns:
-            Index of event at or after target_offset, or None if not found
-            (GOTO targets may point to opcodes that don't generate IR events)
+    FF7 uses a unique AKAO format variant:
+    - Voice mask at offset 0x00 (not 0x20)
+    - Voice pointers at offset 0x04 (not 0x40)
+    - Voice pointers are relative to ptr+2 (not ptr position)
+    - No FE-prefixed extended opcodes
+    - Direct tempo opcode (0xE8) instead of FE 00
+    """
+
+    # Opcode names (FF7-specific)
+    OPCODE_NAMES = {
+        0xA0: 'Halt', 0xA1: 'Program Change',
+        0xA2: 'Utility Duration', 0xA3: 'Set Track Vol',
+        0xA5: 'Set Octave', 0xA6: 'Inc Octave', 0xA7: 'Dec Octave',
+        0xA8: 'Set Expression', 0xA9: 'Expression Fade',
+        0xAA: 'Set Pan', 0xAB: 'Pan Fade',
+        0xC8: 'Begin Repeat', 0xC9: 'End Repeat', 0xCA: 'Repeat Always',
+        0xCC: 'Slur on', 0xCD: 'Slur off',
+        0xE8: 'Set Tempo', 0xE9: 'Tempo Fade',
+        0xEC: 'Percussion Mode On', 0xED: 'Percussion Mode Off',
+        0xEE: 'Goto', 0xF0: 'Conditional Repeat',
+        0xF1: 'Conditional Repeat', 0xFC: 'Extended Patch Change',
+        0xFD: 'Time Signature', 0xFE: 'Measure #',
+        0xFF: 'Halt'
+    }
+
+    # Default values
+    default_octave = 4
+    default_velocity = 100
+    default_tempo = 255
+
+    def __init__(self, config: Dict, rom_data: bytes, exe_iso_reader=None):
+        """Initialize FF7 AKAO handler."""
+        self.config = config
+        self.rom_data = rom_data
+        self.exe_iso_reader = exe_iso_reader
+
+        # Read configuration
+        self.default_tempo = config.get('default_tempo', 255)
+        self.default_octave = config.get('default_octave', 4)
+        self.default_velocity = config.get('default_velocity', 100)
+
+        # Tempo calculation
+        self.tempo_factor = config.get('tempo_factor', 13107200000)
+
+        # Duration table (hardcoded from ff7mus.pl)
+        self.duration_table = config.get('duration_table', {}).get('values', [
+            0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06,
+            0x03, 0x20, 0x10, 0x08, 0x04
+        ])
+
+        # Opcode length table (from ff7mus.pl lines 163-198)
+        # Base table for opcodes 0xA0-0xFF (96 entries)
+        self.oplen = [
+            0,2,2,2,3,2,1,1,  # A0-A7
+            2,3,2,3,2,2,2,2,  # A8-AF
+            3,2,2,1,4,2,1,2,  # B0-B7
+            4,2,1,2,3,2,1,2,  # B8-BF
+            2,2,1,1,1,1,1,1,  # C0-C7
+            1,0,0,0,1,0,2,2,  # C8-CF
+            1,0,2,2,1,1,1,1,  # D0-D7
+            2,2,2,0,2,3,3,3,  # D8-DF
+            0,0,0,0,0,0,0,0,  # E0-E7
+            3,4,3,4,3,1,0,0,  # E8-EF
+            0,0,2,1,3,1,2,3,  # F0-F7
+            2,1,0,0,0,3,3,0   # F8-FF
+        ]
+
+        # FF7-specific overrides (from ff7mus.pl lines 176-198)
+        self.oplen[0xA0-0xA0] = 1  # halt
+        self.oplen[0xC9-0xA0] = 2  # end repeat (has count operand)
+        self.oplen[0xCA-0xA0] = 1  # repeat always
+        self.oplen[0xCB-0xA0] = 1
+        self.oplen[0xCD-0xA0] = 1  # slur off
+        self.oplen[0xD1-0xA0] = 1  # halt
+        self.oplen[0xDB-0xA0] = 1  # halt
+        # Opcodes 0xE0-0xE7: halt (1 byte each)
+        for i in range(0xE0, 0xE8):
+            self.oplen[i-0xA0] = 1
+        self.oplen[0xEE-0xA0] = 3  # goto (2-byte relative offset)
+        self.oplen[0xEF-0xA0] = 4  # conditional goto
+        self.oplen[0xF0-0xA0] = 4  # conditional repeat
+        self.oplen[0xF1-0xA0] = 4  # conditional repeat
+        self.oplen[0xFA-0xA0] = 1  # halt
+        self.oplen[0xFB-0xA0] = 1  # halt
+        self.oplen[0xFC-0xA0] = 1  # extended patch change
+        self.oplen[0xFF-0xA0] = 1  # halt
+
+        # Note encoding
+        self.note_divisor = config.get('note_divisor', 11)
+
+    def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
+        """Parse FF7 AKAO header.
+
+        FF7 header structure (different from FF9):
+        - 16 bytes: Magic "AKAO", ID, length, unknown
+        - Voice mask at offset 0x00 in data section (32-bit)
+        - Voice pointers start at offset 0x04
         """
-        # Find the first event at or after the target offset
-        for i, event in enumerate(ir_events):
-            if event.offset >= target_offset:
-                return i
-        return None
+        if len(data) < 0x40:
+            raise ValueError("Data too short for FF7 AKAO header")
 
-    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
-        """Analyze IR events to find loop structure.
+        # Parse 16-byte file header
+        magic = data[0:4].decode('ascii', errors='ignore')
+        song_id_from_header = struct.unpack('<H', data[4:6])[0]
+        length = struct.unpack('<H', data[6:8])[0]
 
-        For PSX AKAO format:
-        - Loops can be marked with LOOP_START/LOOP_END (0xC8/0xC9)
-        - Or backwards GOTO (0xFE 0x06 with negative offset)
+        # Voice mask at offset 0x10 (after 16-byte header)
+        voice_mask = struct.unpack('<I', data[0x10:0x14])[0]
 
-        Returns:
-            Dict with loop analysis: {
-                'has_backwards_goto': bool,
-                'goto_target_idx': int,  # Index in ir_events
-                'intro_time': int,       # Ticks before loop
-                'loop_time': int,        # Ticks per loop iteration
-                'target_time': int       # intro + loop
-            }
-        """
-        # Find the LAST backwards GOTO (for proper looping)
-        # Forward GOTOs are sequence continuation, not loops
-        last_goto_idx = None
-        last_goto_target_idx = None
+        # Count active voices
+        voice_count = bin(voice_mask).count('1')
 
-        for i, event in enumerate(ir_events):
-            if event.type == IREventType.GOTO and event.target_offset is not None:
-                # Find target event by offset
-                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
-
-                if target_idx is not None and target_idx < i:
-                    # Backwards GOTO found - track it
-                    last_goto_idx = i
-                    last_goto_target_idx = target_idx
-
-        # Check if we found a backwards GOTO
-        if last_goto_idx is not None and last_goto_target_idx is not None:
-            # Calculate intro and loop times
-            intro_time = sum(e.duration or 0 for e in ir_events[:last_goto_target_idx] if e.is_note_event())
-            loop_time = sum(e.duration or 0 for e in ir_events[last_goto_target_idx:last_goto_idx] if e.is_note_event())
-
-            return {
-                'has_backwards_goto': True,
-                'goto_target_idx': last_goto_target_idx,
-                'intro_time': intro_time,
-                'loop_time': loop_time,
-                'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
-            }
-
-        # No backwards GOTO - check for LOOP_START/LOOP_END pairs
-        # (less common in AKAO, but possible)
-        # For now, return no loop detected
+        # Compute track offsets from voice mask
+        track_offsets = self.get_track_offsets(data, {'voice_mask': voice_mask})
 
         return {
-            'has_backwards_goto': False,
-            'goto_target_idx': -1,
-            'intro_time': 0,
-            'loop_time': 0,
-            'target_time': 0
+            'magic': magic,
+            'id': song_id_from_header,
+            'length': length,
+            'voice_mask': voice_mask,
+            'voice_count': voice_count,
+            'track_offsets': track_offsets
         }
 
-    def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
-                          target_loop_time: int = 0) -> List[Dict]:
-        """Pass 2: Expand IR events with loop execution to generate MIDI events.
+    def get_track_offsets(self, data: bytes, header: Dict) -> List[int]:
+        """Calculate voice/track offsets from FF7 header.
 
-        Args:
-            all_track_data: Complete track data from parse_all_tracks() (includes loop_info per track)
-            start_voice_num: Starting voice/track number to execute from
-            target_loop_time: Target playthrough time in ticks (0 = no loop expansion)
-
-        Returns:
-            List of MIDI event dictionaries
+        FF7 voice pointers:
+        - Start at offset 0x14 (after 16-byte header + 4-byte voice mask)
+        - 2-byte relative offsets
+        - Relative to pointer position + 2
         """
-        # Initialize from starting track
-        current_voice_num = start_voice_num
-        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
-        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+        voice_mask = header['voice_mask']
+        track_offsets = []
 
-        # Read MIDI rendering configuration
-        midi_config = self.config.get('midi_render', {})
-        midi_strategy = midi_config.get('strategy', 'velocity')
-        constant_velocity = midi_config.get('constant_velocity', 100)
-        apply_multiplier = midi_config.get('apply_multiplier', True)
-        apply_master_volume_config = midi_config.get('apply_master_volume', True)
-        velocity_scale = midi_config.get('velocity_scale', 1.0)
+        # Voice pointers start at 0x14
+        ptr_offset = 0x14
 
-        # Playback state
+        for voice_num in range(32):
+            if voice_mask & (1 << voice_num):
+                # Read 2-byte relative offset
+                relative_offset = struct.unpack('<H', data[ptr_offset:ptr_offset+2])[0]
+
+                # Calculate absolute offset: ptr_position + relative_offset + 2
+                absolute_offset = ptr_offset + relative_offset + 2
+
+                track_offsets.append(absolute_offset)
+                ptr_offset += 2
+
+        return track_offsets
+
+    def _parse_track_pass1(self, data: bytes, offset: int, track_num: int,
+                          instrument_table: List[int], vaddroffset: int = 0,
+                          track_boundaries: Optional[Dict[int, Tuple[int, int]]] = None,
+                          percussion_table: Optional[List[Dict]] = None) -> Tuple[List[str], List[IREvent]]:
+        """Parse FF7 AKAO track to IR events (Pass 1).
+
+        Based on ff7mus.pl opcode parsing (lines 316-474).
+        """
+        disasm = []
+        ir_events = []
+
+        # Parse state
+        p = offset
         octave = self.default_octave
         velocity = self.default_velocity
-        tempo = self.default_tempo
-        perc_key = 0
-        transpose_octaves = 0
-        current_channel = start_voice_num
+        util_dur = 0
 
-        # Output MIDI events
-        midi_events = []
+        max_offset = len(data)
+        disasm.append(f"Voice {track_num:02X} at offset 0x{offset:04X}:")
 
-        # Timing
-        total_time = 0
+        # Main parse loop
+        while p < max_offset:
+            cmd = data[p]
+            line = f"  {p:04X}:  {cmd:02X} "
 
-        # Loop execution state
-        loop_stack = []  # Stack of {start_idx, count, iteration, max_count}
+            if cmd < 0xA0:
+                # Note/tie/rest
+                notenum, dur_idx = divmod(cmd, self.note_divisor)
+                dur = util_dur if util_dur else self.duration_table[dur_idx] if dur_idx < len(self.duration_table) else 0x0C
+                util_dur = 0
 
-        # Iteration limit (failsafe)
-        max_iterations = max(len(ir_events) * 200, 10000)
-        iteration_count = 0
-
-        # Emergency brakes (match SNESFF2/FF3)
-        import time
-        start_time = time.time()
-        max_time_seconds = 5.0  # 5 second time limit
-        max_midi_events = 100000  # Max MIDI events per track
-
-        # Gate timing (native ticks before full duration when note-off happens)
-        gate_time = 2  # Default: 2 native ticks from end
-                       # Can be modified by slur/roll opcodes
-        slur_enabled = False  # Track slur state
-        roll_enabled = False  # Track roll state
-        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
-        utility_duration_override = None  # One-shot duration override for next note
-        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
-        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
-
-        # Tick scaling factor (native ticks -> MIDI ticks)
-        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
-
-        # Scale target_loop_time from native ticks to MIDI ticks
-        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
-        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
-
-        # Execute IR events
-        i = 0
-        while i < len(ir_events):
-            iteration_count += 1
-            if iteration_count > max_iterations:
-                print(f"WARNING: Track {start_voice_num} hit max iteration limit", file=sys.stderr)
-                break
-
-            # Check if we've reached target playthrough time
-            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
-                break
-
-            # Emergency brakes (only warn, not error - looping is normal)
-            if time.time() - start_time > max_time_seconds:
-                # Silently stop - time limit reached (normal for looping songs)
-                break
-            if len(midi_events) > max_midi_events:
-                # Silently stop - MIDI event limit reached (normal for looping songs)
-                break
-
-            event = ir_events[i]
-
-            if event.type == IREventType.NOTE:
-                # Generate MIDI note
-                note_num = event.note_num
-                dur = event.duration  # Native duration from Pass 1
-
-                # Apply octave and transposition
-                midi_note = (octave * 12) + note_num + (transpose_octaves * 12)
-                midi_note = max(0, min(127, midi_note))
-
-                # Get velocity from event metadata or current state
-                base_velocity = event.metadata.get('velocity', velocity)
-
-                # Apply volume multipliers (PSX uses different ranges than SNES)
-                adjusted_velocity = float(base_velocity)
-                if apply_multiplier and volume_multiplier != 0:
-                    # PSX volume_multiplier: 0 = normal (no change), positive values multiply
-                    # Formula: velocity = base * (0.5 + multiplier/256)
-                    multiplier_factor = 0.5 + (volume_multiplier / 256.0)
-                    adjusted_velocity = adjusted_velocity * multiplier_factor
-                if apply_master_volume_config and master_volume != 256:
-                    # PSX master_volume: 256 = 100% (no change)
-                    master_factor = master_volume / 256.0
-                    adjusted_velocity = adjusted_velocity * master_factor
-
-                # Apply velocity_scale
-                adjusted_velocity = adjusted_velocity * velocity_scale
-
-                # Clamp to MIDI range 0-127
-                adjusted_velocity = int(min(127, max(0, adjusted_velocity)))
-
-                # Strategy: velocity or expression
-                if midi_strategy == 'expression':
-                    # Expression strategy: constant velocity, use CC11 for dynamics
-                    note_velocity = constant_velocity
-                    # Generate CC11 event BEFORE the note
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 11,  # Expression
-                        'value': adjusted_velocity
-                    })
+                line += "            "
+                if notenum < 12:
+                    line += f"Note {NOTE_NAMES[notenum]} ({notenum:02d}) Dur {dur:02X}"
+                    ir_events.append(make_note(p, notenum, dur))
+                elif notenum == 12:
+                    line += f"Tie          Dur {dur:02X}"
+                    ir_events.append(make_tie(p, dur))
                 else:
-                    # Velocity strategy (default): use calculated velocity
-                    note_velocity = adjusted_velocity
-
-                # Apply utility duration override (one-shot for this note only)
-                native_duration = utility_duration_override if utility_duration_override is not None else dur
-                utility_duration_override = None  # Clear after use
-
-                # Scale ORIGINAL native duration to MIDI ticks
-                # This is ALWAYS used for time advancement (next event timing)
-                midi_dur = native_duration * tick_scale
-
-                # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
-                # Order of priority: slur/roll > staccato > gate
-                if slur_enabled or roll_enabled:
-                    # Slur/roll: play full duration (no gap before next note)
-                    gate_adjusted_dur = midi_dur
-                elif staccato_percentage < 100:
-                    # Staccato: apply percentage reduction (replaces gate timing)
-                    # Apply to ORIGINAL duration, not already-reduced duration
-                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
-                else:
-                    # Normal articulation: apply standard gate timing (2 native ticks before end)
-                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
-
-                midi_events.append({
-                    'type': 'note',
-                    'time': total_time,
-                    'duration': gate_adjusted_dur,  # Adjusted for articulation
-                    'note': midi_note,
-                    'velocity': note_velocity,  # Uses strategy-determined velocity
-                    'channel': current_channel
-                })
-
-                # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
-                total_time += midi_dur
-                i += 1
-
-            elif event.type == IREventType.REST:
-                # Scale native duration to MIDI ticks
-                midi_dur = event.duration * tick_scale
-                total_time += midi_dur
-                i += 1
-
-            elif event.type == IREventType.TIE:
-                # Extend previous note
-                # Scale native duration to MIDI ticks
-                tie_dur = event.duration * tick_scale
-                if midi_events and midi_events[-1]['type'] == 'note':
-                    midi_events[-1]['duration'] += tie_dur
-                total_time += tie_dur
-                i += 1
-
-            elif event.type == IREventType.PATCH_CHANGE:
-                # Extract from IR event
-                gm_patch = event.gm_patch
-                transpose_octaves = event.transpose
-
-                # Percussion mode check
-                if gm_patch < 0:
-                    perc_key = abs(gm_patch)
-                else:
-                    perc_key = 0
-                    midi_events.append({
-                        'type': 'program_change',
-                        'time': total_time,
-                        'patch': gm_patch
-                    })
-
-                i += 1
-
-            elif event.type == IREventType.TEMPO:
-                # Tempo change - add to midi_events (will be placed on track 0)
-                assert event.value is not None, "TEMPO event must have value"
-                midi_events.append({
-                    'type': 'tempo',
-                    'time': total_time,
-                    'tempo': event.value
-                })
-                tempo = event.value
-                i += 1
-
-            elif event.type == IREventType.TEMPO_FADE:
-                # Tempo fade - generate tempo events at 2-tick intervals
-                assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
-                target_tempo = event.value
-                start_tempo = tempo
-
-                # Generate tempo events at 2-tick intervals
-                num_steps = max(1, fade_duration // 2)
-                for step in range(num_steps + 1):
-                    step_time = total_time + (step * 2)
-                    # Linear interpolation
-                    if num_steps > 0:
-                        step_tempo = start_tempo + (target_tempo - start_tempo) * step / num_steps
-                    else:
-                        step_tempo = target_tempo
-
-                    midi_events.append({
-                        'type': 'tempo',
-                        'time': step_time,
-                        'tempo': step_tempo
-                    })
-
-                # Update current tempo to target
-                tempo = target_tempo
-                i += 1
-
-            elif event.type == IREventType.OCTAVE_SET:
-                octave = event.value
-                i += 1
-
-            elif event.type == IREventType.OCTAVE_INC:
-                octave += 1
-                i += 1
-
-            elif event.type == IREventType.OCTAVE_DEC:
-                octave -= 1
-                i += 1
-
-            elif event.type == IREventType.VOLUME:
-                # IR stores normalized value (0-255 for PSX)
-                velocity = int(event.value)
-
-                # For expression strategy, generate CC11 immediately
-                # (velocity strategy waits until NOTE event to apply)
-                if midi_strategy == 'expression':
-                    # Apply volume multipliers (PSX uses different ranges than SNES)
-                    adjusted_vol = float(velocity)
-                    if apply_multiplier and volume_multiplier != 0:
-                        multiplier_factor = 0.5 + (volume_multiplier / 256.0)
-                        adjusted_vol = adjusted_vol * multiplier_factor
-                    if apply_master_volume_config and master_volume != 256:
-                        master_factor = master_volume / 256.0
-                        adjusted_vol = adjusted_vol * master_factor
-
-                    # Apply velocity_scale
-                    adjusted_vol = adjusted_vol * velocity_scale
-
-                    # Clamp to MIDI range and generate CC11
-                    expr_value = int(min(127, max(0, adjusted_vol)))
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 11,  # Expression
-                        'value': expr_value
-                    })
-
-                i += 1
-
-            elif event.type == IREventType.VOLUME_FADE:
-                # Volume fade - generate controller events at 2-tick intervals
-                # Use CC11 (Expression) for expression strategy, CC7 (Volume) for velocity strategy
-                assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
-
-                # Determine which controller to use based on strategy
-                if midi_strategy == 'expression':
-                    controller_num = 11  # Expression
-                else:
-                    controller_num = 7   # Volume (traditional)
-
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
-                target_volume = event.value
-                start_volume = velocity
-
-                # Generate volume events at 2-tick intervals
-                num_steps = max(1, fade_duration // 2)
-                for step in range(num_steps + 1):
-                    step_time = total_time + (step * 2)
-                    # Linear interpolation
-                    if num_steps > 0:
-                        step_volume = int(start_volume + (target_volume - start_volume) * step / num_steps)
-                    else:
-                        step_volume = target_volume
-
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': step_time,
-                        'channel': current_channel,
-                        'controller': controller_num,  # CC11 or CC7 based on strategy
-                        'value': step_volume
-                    })
-
-                # Update current velocity to target
-                velocity = target_volume
-                i += 1
-
-            elif event.type == IREventType.PAN_FADE:
-                # Pan fade - generate CC 10 events at 2-tick intervals
-                assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
-                target_pan = event.value
-                # We need to track current pan value - for now use 64 (center) as default
-                start_pan = 64  # TODO: track pan state properly
-
-                # Generate pan events at 2-tick intervals
-                num_steps = max(1, fade_duration // 2)
-                for step in range(num_steps + 1):
-                    step_time = total_time + (step * 2)
-                    # Linear interpolation
-                    if num_steps > 0:
-                        step_pan = int(start_pan + (target_pan - start_pan) * step / num_steps)
-                    else:
-                        step_pan = target_pan
-
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': step_time,
-                        'channel': current_channel,
-                        'controller': 10,  # Pan CC
-                        'value': step_pan
-                    })
-
-                i += 1
-
-            elif event.type == IREventType.SLUR_ON:
-                slur_enabled = True
-                # Emit MIDI CC 68 (legato pedal) = 127
-                midi_events.append({
-                    'type': 'controller',
-                    'time': total_time,
-                    'controller': 68,  # Legato pedal CC
-                    'value': 127
-                })
-                i += 1
-
-            elif event.type == IREventType.SLUR_OFF:
-                slur_enabled = False
-                # Emit MIDI CC 68 (legato pedal) = 0
-                midi_events.append({
-                    'type': 'controller',
-                    'time': total_time,
-                    'controller': 68,  # Legato pedal CC
-                    'value': 0
-                })
-                i += 1
-
-            elif event.type == IREventType.ROLL_ON:
-                roll_enabled = True
-                i += 1
-
-            elif event.type == IREventType.ROLL_OFF:
-                roll_enabled = False
-                i += 1
-
-            elif event.type == IREventType.STACCATO:
-                # Set staccato percentage for all subsequent notes
-                assert event.value is not None, "STACCATO event must have value"
-                staccato_percentage = int(event.value)
-                i += 1
-
-            elif event.type == IREventType.UTILITY_DURATION:
-                # Override duration for next note only
-                assert event.value is not None, "UTILITY_DURATION event must have value"
-                utility_duration_override = int(event.value)
-                i += 1
-
-            elif event.type == IREventType.MASTER_VOLUME:
-                # Set master volume (SoM 0xF8) - global volume multiplier
-                assert event.value is not None, "MASTER_VOLUME event must have value"
-                master_volume = int(event.value)
-                i += 1
-
-            elif event.type == IREventType.VOLUME_MULTIPLIER:
-                # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
-                assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
-                volume_multiplier = int(event.value)
-                i += 1
-
-            elif event.type == IREventType.PERCUSSION_MODE_ON:
-                # Percussion mode handling is done in Pass 1
-                i += 1
-
-            elif event.type == IREventType.PERCUSSION_MODE_OFF:
-                # Percussion mode handling is done in Pass 1
-                i += 1
-
-            elif event.type == IREventType.LOOP_START:
-                # Push loop onto stack
-                loop_stack.append({
-                    'start_idx': i + 1,  # Next event after LOOP_START
-                    'count': 0,
-                    'max_count': event.loop_count
-                })
-                i += 1
-
-            elif event.type == IREventType.LOOP_END:
-                # Pop and potentially repeat
-                if loop_stack:
-                    loop = loop_stack[-1]
-                    loop['count'] += 1
-
-                    if loop['count'] < loop['max_count']:
-                        # Repeat - jump back to start
-                        i = loop['start_idx']
-                    else:
-                        # Done - pop and continue
-                        loop_stack.pop()
-                        i += 1
-                else:
-                    # Unmatched LOOP_END - skip
-                    i += 1
-
-            elif event.type == IREventType.GOTO:
-                # Find target event
-                if event.target_offset is None:
-                    # Invalid GOTO - halt
-                    break
-
-                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
-
-                if target_idx is None:
-                    # Invalid target - halt
-                    break
-
-                # Check if backwards (loop)
-                if target_idx < i:
-                    # Backwards GOTO - loop condition
-                    if target_loop_time > 0 and total_time >= target_loop_time:
-                        # Reached target duration - halt
-                        break
-                    else:
-                        # Continue looping
-                        i = target_idx
-                else:
-                    # Forward GOTO - could be cross-track
-                    # For now, just jump forward
-                    i = target_idx
-
-            elif event.type == IREventType.HALT:
-                # End of track
-                break
+                    line += f"Rest         Dur {dur:02X}"
+                    ir_events.append(make_rest(p, dur))
+                p += 1
 
             else:
-                # Unknown event type - skip
-                i += 1
+                # Control opcode
+                idx = cmd - 0xA0
+                oplen = self.oplen[idx] if idx < len(self.oplen) else 1
+                operands = list(data[p+1:p+oplen]) if oplen > 1 else []
+                p += oplen
 
-        return midi_events
+                line += f"{' '.join(f'{b:02X}' for b in operands):<12}{self.OPCODE_NAMES.get(cmd, f'Unknown_{cmd:02X}')}"
+
+                # Process opcode
+                if cmd in (0xA0, 0xFF):  # Halt
+                    ir_events.append(make_halt(p-oplen))
+                    disasm.append(line)
+                    break
+                elif cmd in (0xA1, 0xF2) and operands:  # Program change
+                    ir_events.append(make_patch_change(p-oplen, operands[0], 0, 0))
+                elif cmd == 0xA2 and operands:  # Utility duration
+                    util_dur = operands[0]
+                    ir_events.append(make_utility_duration(p-oplen, util_dur))
+                elif cmd == 0xA3 and operands:  # Track vol (CC7)
+                    ir_events.append(make_volume(p-oplen, operands[0], operands))
+                elif cmd == 0xA5 and operands:  # Set octave
+                    octave = operands[0]
+                    ir_events.append(make_octave_set(p-oplen, octave, operands))
+                elif cmd == 0xA6:  # Inc octave
+                    octave += 1
+                    ir_events.append(make_octave_inc(p-oplen))
+                elif cmd == 0xA7:  # Dec octave
+                    octave -= 1
+                    ir_events.append(make_octave_dec(p-oplen))
+                elif cmd == 0xA8 and operands:  # Expression (CC11)
+                    velocity = operands[0]
+                    ir_events.append(make_volume(p-oplen, operands[0], operands))
+                elif cmd == 0xA9 and len(operands) >= 2:  # Expression fade
+                    ir_events.append(make_volume_fade(p-oplen, operands[0], operands[1], operands))
+                elif cmd == 0xAB and len(operands) >= 2:  # Pan fade
+                    ir_events.append(make_pan_fade(p-oplen, operands[0], operands[1], operands))
+                elif cmd == 0xC8:  # Begin repeat
+                    ir_events.append(make_loop_start(p-oplen, 0))
+                elif cmd == 0xC9 and operands:  # End repeat
+                    ir_events.append(make_loop_end(p-oplen))
+                elif cmd == 0xCC:  # Slur on
+                    ir_events.append(make_slur_on(p-oplen))
+                elif cmd == 0xCD:  # Slur off
+                    ir_events.append(make_slur_off(p-oplen))
+                elif cmd == 0xE8 and len(operands) >= 2:  # Tempo
+                    tempo_raw = operands[0] | (operands[1] << 8)
+                    bpm = (60_000_000.0 * tempo_raw) / self.tempo_factor
+                    line += f" ~{int(bpm)} bpm"
+                    ir_events.append(make_tempo(p-oplen, bpm, operands))
+                elif cmd == 0xE9 and len(operands) >= 3:  # Tempo fade
+                    tempo_raw = operands[1] | (operands[2] << 8)
+                    bpm = (60_000_000.0 * tempo_raw) / self.tempo_factor
+                    line += f" to ~{int(bpm)} bpm"
+                    ir_events.append(make_tempo_fade(p-oplen, operands[0], bpm, operands))
+                elif cmd == 0xEC:  # Percussion mode on
+                    ir_events.append(make_percussion_mode_on(p-oplen))
+                elif cmd == 0xED:  # Percussion mode off
+                    ir_events.append(make_percussion_mode_off(p-oplen))
+                elif cmd == 0xEE and len(operands) >= 2:  # Goto
+                    rel_offset = struct.unpack('<h', bytes(operands[0:2]))[0]
+                    target = p + rel_offset
+                    line += f" ${target:04X}"
+                    ir_events.append(make_goto(p-oplen, target, operands))
+                    if target < p:  # Backwards goto - end disassembly
+                        disasm.append(line)
+                        break
+                elif cmd == 0xFD and len(operands) >= 2:  # Time signature
+                    denom = 0xC0 // operands[0] if operands[0] else 4
+                    line += f" ({operands[1]}/{denom})"
+                elif cmd == 0xFE and len(operands) >= 2:  # Measure number
+                    line += f" {operands[0] | (operands[1] << 8)}"
+
+            disasm.append(line)
+
+        return disasm, ir_events

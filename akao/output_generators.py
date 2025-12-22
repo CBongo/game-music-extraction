@@ -21,7 +21,7 @@ NOTE_NAMES = ["C ", "C#", "D ", "D#", "E ", "F ", "F#",
 
 
 def disassemble_to_text(song, track_data: Dict, console_type: str,
-                       format_handler, patch_mapper=None) -> str:
+                       format_handler) -> str:
     """Generate text disassembly of sequence from pre-parsed track data.
 
     Args:
@@ -29,7 +29,6 @@ def disassemble_to_text(song, track_data: Dict, console_type: str,
         track_data: Output from parse_all_tracks()
         console_type: 'snes' or 'psx'
         format_handler: Format handler instance (for SNES-specific methods)
-        patch_mapper: Optional PatchMapper instance (unused currently)
 
     Returns:
         Formatted disassembly text
@@ -154,7 +153,7 @@ def dump_ir_to_text(song, track_data: Dict, loop_analysis: Dict) -> str:
             elif event.type in (IREventType.OCTAVE_SET, IREventType.VOLUME, IREventType.PAN):
                 parts.append(f"value={event.value}")
 
-            elif event.type in (IREventType.VOLUME_FADE, IREventType.PAN_FADE):
+            elif event.type in (IREventType.VOLUME_FADE, IREventType.PAN_FADE, IREventType.TEMPO_FADE):
                 parts.append(f"dur={event.duration} target={event.value}")
 
             elif event.type == IREventType.LOOP_START:

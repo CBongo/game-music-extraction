@@ -358,9 +358,10 @@ class SNESUnified(SequenceFormat):
         return f"{bank:02X}/{addr:04X}"
 
 
-    def _find_event_by_offset(self, all_track_data: Dict, target_offset: int) -> Optional[Tuple[int, int]]:
+    def _find_track_and_event_by_offset(self, all_track_data: Dict, target_offset: int) -> Optional[Tuple[int, int]]:
         """Find which track/event corresponds to a data buffer offset.
 
+        SNES-specific helper for cross-track GOTO support.
         Works for SNES formats where tracks are parsed from a shared buffer.
         NOT applicable to PSX which uses different memory layout.
 
@@ -500,169 +501,6 @@ class SNESUnified(SequenceFormat):
         return percussion_entries
 
 
-    def _analyze_track_loops(self, ir_events: List[IREvent]) -> Dict:
-        """Analyze track for backwards GOTO loops and calculate timing.
-
-        This is a simplified analysis pass that detects loop patterns and measures
-        timing without generating MIDI events.
-
-        Args:
-            ir_events: List of IR events from pass 1
-
-        Returns:
-            Dict with keys:
-                'has_backwards_goto': bool - True if track ends with backwards GOTO
-                'intro_time': int - Time units before loop starts (0 if no loop)
-                'loop_time': int - Time units for one loop iteration (0 if no loop)
-                'goto_target_idx': int - Index of GOTO target event (None if no loop)
-        """
-        total_time = 0
-        loop_stack = []
-
-        # Find the last BACKWARDS GOTO event (for looping)
-        # Forward GOTOs are sequence continuation, not loops
-        last_goto_event = None
-        last_goto_idx = None
-        for i, event in enumerate(ir_events):
-            if event.type == IREventType.GOTO and event.target_offset is not None:
-                # Check if this GOTO is backwards (target_offset < current offset)
-                if event.target_offset < event.offset:
-                    last_goto_event = event
-                    last_goto_idx = i
-
-        # Check if it's a backwards GOTO
-        if last_goto_event is None:
-            return {
-                'has_backwards_goto': False,
-                'intro_time': 0,
-                'loop_time': 0,
-                'goto_target_idx': None
-            }
-
-        # Find target event index
-        target_idx = None
-        for j, e in enumerate(ir_events):
-            if e.offset == last_goto_event.target_offset:
-                target_idx = j
-                break
-
-        # DEBUG
-        # if target_idx is not None and last_goto_idx is not None:
-        #     print(f"    Found backwards GOTO: last_goto_idx={last_goto_idx}, target_idx={target_idx}")
-
-        # Check if backwards (target comes before GOTO)
-        assert last_goto_idx is not None, "last_goto_idx should not be None here"
-        if target_idx is None or target_idx >= last_goto_idx:
-            # Forward GOTO or target not found - not a loop
-            return {
-                'has_backwards_goto': False,
-                'intro_time': 0,
-                'loop_time': 0,
-                'goto_target_idx': None
-            }
-
-        # It's a backwards GOTO - calculate intro and loop times
-        # Intro time = time from start (index 0) to GOTO target (target_idx)
-        # Loop time = time from GOTO target to GOTO itself
-
-        # Measure intro time: execute from 0 to target_idx
-        intro_time = 0
-        loop_stack_intro = []
-        i = 0
-        while i < target_idx:
-            event = ir_events[i]
-
-            if event.type == IREventType.NOTE or event.type == IREventType.REST or event.type == IREventType.TIE:
-                assert event.duration is not None
-                intro_time += event.duration
-                i += 1
-            elif event.type == IREventType.LOOP_START:
-                loop_stack_intro.append({'start_idx': i + 1, 'count': event.loop_count, 'iteration': 0})
-                i += 1
-            elif event.type == IREventType.LOOP_END:
-                if loop_stack_intro:
-                    loop = loop_stack_intro[-1]
-                    loop['count'] -= 1
-                    if loop['count'] >= 0:
-                        i = loop['start_idx']
-                    else:
-                        loop_stack_intro.pop()
-                        i += 1
-                else:
-                    i += 1
-            elif event.type == IREventType.LOOP_BREAK:
-                if loop_stack_intro:
-                    loop = loop_stack_intro[-1]
-                    loop['iteration'] += 1
-                    if loop['iteration'] == event.condition:
-                        for j, e in enumerate(ir_events):
-                            if e.offset == event.target_offset:
-                                i = j
-                                break
-                        loop_stack_intro.pop()
-                    else:
-                        i += 1
-                else:
-                    i += 1
-            else:
-                i += 1
-
-        # Measure loop time: execute from target_idx to last_goto_idx
-        loop_time = 0
-        assert target_idx is not None, "target_idx should not be None for backwards GOTO"
-        assert last_goto_idx is not None, "last_goto_idx should not be None for backwards GOTO"
-        loop_stack_loop = []
-        j = target_idx
-
-        while j < last_goto_idx:
-            e = ir_events[j]
-
-            if e.type == IREventType.NOTE or e.type == IREventType.REST or e.type == IREventType.TIE:
-                assert e.duration is not None
-                loop_time += e.duration
-                j += 1
-            elif e.type == IREventType.LOOP_START:
-                loop_stack_loop.append({'start_idx': j + 1, 'count': e.loop_count, 'iteration': 0})
-                j += 1
-            elif e.type == IREventType.LOOP_END:
-                if loop_stack_loop:
-                    lp = loop_stack_loop[-1]
-                    lp['count'] -= 1
-                    if lp['count'] >= 0:
-                        j = lp['start_idx']
-                    else:
-                        loop_stack_loop.pop()
-                        j += 1
-                else:
-                    j += 1
-            elif e.type == IREventType.LOOP_BREAK:
-                if loop_stack_loop:
-                    lp = loop_stack_loop[-1]
-                    lp['iteration'] += 1
-                    if lp['iteration'] == e.condition:
-                        for k, ev in enumerate(ir_events):
-                            if ev.offset == e.target_offset:
-                                j = k
-                                break
-                        loop_stack_loop.pop()
-                    else:
-                        j += 1
-                else:
-                    j += 1
-            else:
-                j += 1
-
-        # DEBUG
-        # print(f"      Analysis: intro_time={intro_time}, loop_time={loop_time}, target_idx={target_idx}, last_goto_idx={last_goto_idx}")
-
-        return {
-            'has_backwards_goto': True,
-            'intro_time': intro_time,
-            'loop_time': loop_time,
-            'goto_target_idx': target_idx,
-            'target_time': intro_time + 2 * loop_time  # Play intro + 2 loops
-        }
-
     def _calculate_fade_delta(self, start_value, target_value, duration_ticks):
         """Calculate per-tick delta for parameter fade (SPC-style).
 
@@ -717,6 +555,61 @@ class SNESUnified(SequenceFormat):
         # Clamp to MIDI range
         return int(min(127, max(0, adjusted)))
 
+    def _calculate_bpm(self, tempo_value: int) -> float:
+        """Convert raw tempo value to BPM using config formula.
+
+        Args:
+            tempo_value: Raw tempo value from opcode
+
+        Returns:
+            Tempo in BPM
+        """
+        tempo_formula = self.config.get('tempo_formula', 'normal')
+        if tempo_formula == 'inverted':
+            timer_period_us = self.config.get('timer_period_us', 125)
+            timer_count = self.config.get('timer_count', 48)
+            return 60_000_000.0 / (tempo_value * timer_period_us * timer_count)
+        else:
+            return (60_000_000.0 * tempo_value) / self.tempo_factor
+
+    def _normalize_volume(self, raw_volume: int) -> int:
+        """Normalize raw volume value to 0-255 IR range.
+
+        Args:
+            raw_volume: Raw volume value from opcode
+
+        Returns:
+            Normalized volume (0-255)
+        """
+        volume_range = self.config.get('volume_range', 255)
+        if volume_range < 255:
+            return int((raw_volume / volume_range) * 255)
+        return raw_volume
+
+    def _calculate_target_address(self, operands: List[int],
+                                  low_idx: int, high_idx: int,
+                                  handler: str, vaddroffset: int) -> Tuple[int, int]:
+        """Calculate target offset and SPC address from operands.
+
+        Args:
+            operands: Instruction operands
+            low_idx: Index of low byte in operands
+            high_idx: Index of high byte in operands
+            handler: Handler type ('vaddroffset' or None)
+            vaddroffset: Offset value if using vaddroffset formula
+
+        Returns:
+            (target_offset, target_spc_addr) tuple
+        """
+        if handler == "vaddroffset":
+            raw_addr = operands[low_idx] + operands[high_idx] * 256
+            target_offset = ((raw_addr + vaddroffset - self.spc_load_address) & 0xFFFF)
+            target_spc_addr = target_offset + self.spc_load_address
+        else:
+            target_spc_addr = operands[low_idx] + operands[high_idx] * 256
+            target_offset = target_spc_addr - self.spc_load_address
+        return target_offset, target_spc_addr
+
     def _parse_track_pass2(self, all_track_data: Dict, start_voice_num: int,
                           target_loop_time: int = 0) -> List[Dict]:
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
@@ -769,6 +662,7 @@ class SNESUnified(SequenceFormat):
         octave = self.default_octave
         velocity = self.default_velocity
         tempo = self.default_tempo
+        current_pan = 64  # MIDI center pan
         perc_key = 0
         transpose_octaves = 0
         current_channel = start_voice_num
@@ -961,6 +855,23 @@ class SNESUnified(SequenceFormat):
                 tempo = event.value
                 i += 1
 
+            elif event.type == IREventType.TEMPO_FADE:
+                # Tempo fade - generate tempo events at 2-tick intervals
+                assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
+                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                target_tempo = event.value
+                start_tempo = tempo
+
+                # Generate interpolated tempo events
+                fade_events = self._generate_fade_events(
+                    'tempo', start_tempo, target_tempo, fade_duration, total_time
+                )
+                midi_events.extend(fade_events)
+
+                # Update current tempo to target
+                tempo = target_tempo
+                i += 1
+
             elif event.type == IREventType.PATCH_CHANGE:
                 # Patch change
                 assert event.gm_patch is not None, "PATCH_CHANGE event must have gm_patch"
@@ -1024,6 +935,19 @@ class SNESUnified(SequenceFormat):
 
                 i += 1
 
+            elif event.type == IREventType.PAN:
+                # Update current pan value
+                current_pan = int(event.value)
+                # Generate immediate MIDI CC 10 pan event
+                midi_events.append({
+                    'type': 'controller',
+                    'time': total_time,
+                    'channel': current_channel,
+                    'controller': 10,  # Pan CC
+                    'value': current_pan
+                })
+                i += 1
+
             elif event.type == IREventType.VOLUME_FADE:
                 # Volume fade - behavior depends on strategy
                 assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
@@ -1053,23 +977,12 @@ class SNESUnified(SequenceFormat):
                     # Determine which controller to use
                     controller_num = 11 if midi_strategy == 'expression' else 7
 
-                    # Generate controller events at 2-tick intervals using SCALED values
-                    num_steps = max(1, fade_duration_midi // 2)
-                    for step in range(num_steps + 1):
-                        step_time = total_time + (step * 2)
-                        # Linear interpolation between SCALED values
-                        if num_steps > 0:
-                            step_volume = int(start_volume_midi + (target_volume_midi - start_volume_midi) * step / num_steps)
-                        else:
-                            step_volume = target_volume_midi
-
-                        midi_events.append({
-                            'type': 'controller',
-                            'time': step_time,
-                            'channel': current_channel,
-                            'controller': controller_num,
-                            'value': step_volume
-                        })
+                    # Generate interpolated controller events using SCALED values
+                    fade_events = self._generate_fade_events(
+                        'controller', start_volume_midi, target_volume_midi,
+                        fade_duration_midi, total_time, current_channel, controller_num
+                    )
+                    midi_events.extend(fade_events)
 
                     # Update velocity state immediately to target (IR value)
                     velocity = target_volume_ir
@@ -1081,26 +994,17 @@ class SNESUnified(SequenceFormat):
                 assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
                 fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
                 target_pan = event.value
-                # We need to track current pan value - for now use 64 (center) as default
-                start_pan = 64  # TODO: track pan state properly
+                start_pan = current_pan
 
-                # Generate pan events at 2-tick intervals
-                num_steps = max(1, fade_duration // 2)
-                for step in range(num_steps + 1):
-                    step_time = total_time + (step * 2)
-                    # Linear interpolation
-                    if num_steps > 0:
-                        step_pan = int(start_pan + (target_pan - start_pan) * step / num_steps)
-                    else:
-                        step_pan = target_pan
+                # Generate interpolated pan events
+                fade_events = self._generate_fade_events(
+                    'controller', start_pan, target_pan, fade_duration,
+                    total_time, current_channel, 10  # CC 10 = pan
+                )
+                midi_events.extend(fade_events)
 
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': step_time,
-                        'controller': 10,  # Pan CC
-                        'value': step_pan
-                    })
-
+                # Update current pan to target
+                current_pan = target_pan
                 i += 1
 
             elif event.type == IREventType.SLUR_ON:
@@ -1237,7 +1141,7 @@ class SNESUnified(SequenceFormat):
                     break  # Invalid GOTO
 
                 # Find target track and event
-                result = self._find_event_by_offset(all_track_data, event.target_offset)
+                result = self._find_track_and_event_by_offset(all_track_data, event.target_offset)
 
                 if result is None:
                     # Target not found - halt
