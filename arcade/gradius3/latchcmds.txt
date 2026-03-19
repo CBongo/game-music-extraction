@@ -13,6 +13,7 @@ cmds:
 22 - 
 29 -
 40 - collect powerup
+41 - confirm initials
 45 - play weapon select confirm
 47 - play player explode sfx
 48 - play coin drop sfx
@@ -20,9 +21,11 @@ cmds:
 51 - "laser"
 52 - "missle"
 53 - "optional"
+54 - "force field"
 56 - "shield"
 57 - "speed up"
 58 - "destroy them all"
+80 - play level start bgm
 81 - play level 1 bgm
 87 - play game over
 88 - play new high score
