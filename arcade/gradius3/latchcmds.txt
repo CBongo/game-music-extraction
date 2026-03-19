@@ -1,0 +1,110 @@
+cmds:
+00 - general halt?
+01 - player shoot
+05 - enemy shoot
+06 - enemy multishoot
+0A - enemy hit
+0B - enemy hit 2
+0C - enemy hit 3
+0D - enemy hit 4
+0E - weapon select select?
+13 - echoey thud? (enemy self destruct?)
+1e -
+22 - 
+29 -
+40 - collect powerup
+45 - play weapon select confirm
+47 - play player explode sfx
+48 - play coin drop sfx
+50 - "double"
+51 - "laser"
+52 - "missle"
+53 - "optional"
+56 - "shield"
+57 - "speed up"
+58 - "destroy them all"
+81 - play level 1 bgm
+87 - play game over
+88 - play new high score
+89 - play weapon setup bgm
+8C - play title theme
+A0 - 
+
+set 7232 bank and reg2 sets reg 2/3/4 to C/D/E and bank from B
+
+vcmds:
+ff - end of voice cmds
+<10: set octave 0-7 (sets vstate e)
+10-e0:
+  duration[vcmd & 0xf0 >> 4]
+  if vcmd & 0xf zero:  rest
+  else:
+    if muted flag nonzero, do nothing
+    if vstate_f nonzero, do 17a1
+    else
+      notenum = vcmd & 0xf + octave adj + voice transpose + vstate_1c + global_transpose - 2   (floor: 0)
+      if notenum > 0x5e, notenum -= 12 until it is
+      HL = notenum << 6 + fine_tuning_64ths
+      if (don't set keycode flag == 0) then
+         do code.H -= 0x18 while code.H > 0x18   (cap result at midi note 96)
+         code *= 4
+         set KEYFRAC from code.L
+         set KEYCODE from keycode_tbl[code.H]  0xa1f
+      total levels set to 7f or sum of level adj 1 + global level adj + voice level adj 2 + vstate 1d
+
+vcmd & 0xf0 >> 4 = duration index
+
+e0: key off, set callback7 flag to op1
+e1: set vstate 10 to op1
+e2: patch change (FM) set FM props from table[op1]
+e3: set level adjustment 1 to op1
+e4: set vstate 12 to op1
+e5: utility duration:  zero duration; set fc1e from op1, add op1 to duration;
+    while (opN nybble not zero) add high nybble duration;
+    add low nybble duration
+e6: set voice fine tuning from op1
+e7: set set-keycode flag from op1
+e8: set global transpose op1.6-4 octave op1.3-0 semis op1.7 sign
+e9: set per-voice transpose from op1
+ea: set global level adj from op1
+eb: set pervoice level adj 2 from op1
+ec: dec vstate 1e if 0 or op1 == 1; if op2 nonzero inc fc26 and add transpose semis from op2 to field 1c; if op3 nonzero inc fc26 and add abs(op3) to 1d; goto op4/5
+ed: set lfo params: op1: lfo_freq op2:lfo PM depth op3:lfo AM depth op4: lfo waveform
+ee: set vstate 36 from op1 (37 is reset to this at note start)
+ef: set pan flags
+f0: goto  op1/2: dest addr LH
+f1: begin(?) repeat,  op1: rpt count op 2/3:dest on last rpt L/H
+f2: mark begin repeat, op1: rpt count
+f3: end f2 repeat
+f4: mark begin repeat, op1: rpt count
+f5: end f4 repeat
+f6: call subroutine, op1: repeat count, op 2/3: dest
+f7: return from subroutine
+f8: begin(?) repeat,  op1: rpt count op 2/3:dest on last rpt L/H
+
+
+high score table, default
+57300 H.M male aries ??  c 0 3
+37500 TOM male taurus ?? c 1 3
+30000 Y.I male gemini ?? c 2 3
+25000 M.I female cancer ?? d 3 3
+20000 MAI male aries ?? c 0 3
+15000 RIE female virgo ?? d 5 8
+10000 T.M male libra ?? c 6 8
+ 9000 J.K female scorpio ?? d 7 8
+ 8000 S.F female sagittarius ?? d 8 8
+ 7000 T.S male capricorn ?? c 9 8
+
+00 aries
+01 taurus
+02 gemini
+03 cancer
+04 leo
+05 virgo
+06 libra
+07 scorpio
+08 sagittarius
+09 capricorn
+0a aquarius
+0b pisces
+

@@ -1,0 +1,30 @@
+945_r13.f15  maincpu  00000-3ffff (even bytes)
+945_r12.e15  maincpu  00000-3ffff (odd bytes)
+
+945_m09.r17  subcpu   00000-3ffff (even bytes)
+945_m08.n17  subcpu   00000-3ffff (odd bytes)
+945_l06b.r11 subcpu   40000-7ffff (even bytes)
+945_l06a.n11 subcpu   40000-7ffff (odd bytes)
+945_l07c.r15 subcpu   80000-bffff (even bytes)
+945_l07a.n15 subcpu   80000-bffff (odd bytes)
+945_l07d.r13 subcpu   c0000-fffff (even bytes)
+945_l07b.n13 subcpu   c0000-fffff (odd bytes)
+
+945_r05.d9   audiocpu 0000-ffff
+
+945_a02.l3   k051960  000000-0fffff (even words)
+945_a01.h3   k051960  000000-0fffff (odd words)
+945_l04a.k6  k051960  100000-17ffff (byte 0)
+945_l04c.m6  k051960  100000-17ffff (byte 1)
+945_l03a.e6  k051960  100000-17ffff (byte 2)
+945_l03c.h6  k051960  100000-17ffff (byte 3)
+945_l04b.k8  k051960  180000-1fffff (byte 0)
+945_l04d.m8  k051960  180000-1fffff (byte 1)
+945_l03b.e8  k051960  180000-1fffff (byte 2)
+945_l03d.h8  k051960  180000-1fffff (byte 3)
+
+945_a10.b15  k007232  00000-3ffff
+945_l11a.c18 k007232  40000-5ffff
+945_l11b.c20 k007232  60000-7ffff
+
+945114.j28   proms    00-ff (priority encoder, not used)

@@ -1,0 +1,101 @@
+from https://github.com/aaronsgiles/ymfm/blob/main/src/ymfm_opm.h
+
+// OPM register map:
+//
+//      System-wide registers:
+//           01 xxxxxx-x Test register
+//              ------x- LFO reset
+//           08 -x------ Key on/off operator 4
+//              --x----- Key on/off operator 3
+//              ---x---- Key on/off operator 2
+//              ----x--- Key on/off operator 1
+//              -----xxx Channel select
+//           0F x------- Noise enable
+//              ---xxxxx Noise frequency
+//           10 xxxxxxxx Timer A value (upper 8 bits)
+//           11 ------xx Timer A value (lower 2 bits)
+//           12 xxxxxxxx Timer B value
+//           14 x------- CSM mode
+//              --x----- Reset timer B
+//              ---x---- Reset timer A
+//              ----x--- Enable timer B
+//              -----x-- Enable timer A
+//              ------x- Load timer B
+//              -------x Load timer A
+//           18 xxxxxxxx LFO frequency
+//           19 0xxxxxxx AM LFO depth
+//              1xxxxxxx PM LFO depth
+//           1B xx------ CT (2 output data lines)
+//              ------xx LFO waveform
+//
+//     Per-channel registers (channel in address bits 0-2)
+//        20-27 x------- Pan right
+//              -x------ Pan left
+//              --xxx--- Feedback level for operator 1 (0-7)
+//              -----xxx Operator connection algorithm (0-7)
+//        28-2F -xxxxxxx Key code
+//        30-37 xxxxxx-- Key fraction
+//        38-3F -xxx---- LFO PM sensitivity
+//              ------xx LFO AM shift
+//
+//     Per-operator registers (channel in address bits 0-2, operator in bits 3-4)
+//        40-5F -xxx---- Detune value (0-7)
+//              ----xxxx Multiple value (0-15)
+//        60-7F -xxxxxxx Total level (0-127)
+//        80-9F xx------ Key scale rate (0-3)
+//              ---xxxxx Attack rate (0-31)
+//        A0-BF x------- LFO AM enable
+//              ---xxxxx Decay rate (0-31)
+//        C0-DF xx------ Detune 2 value (0-3)
+//              ---xxxxx Sustain rate (0-31)
+//        E0-FF xxxx---- Sustain level (0-15)
+//              ----xxxx Release rate (0-15)
+//
+//     Internal (fake) registers:
+//           1A -xxxxxxx PM depth
+//
+
+from https://7800.8bitdev.org/index.php/YM2151_Programming
+ YM2151 Registers
+Location Bits Used 	Registers 		Register Descriptions 		Alt Reg Names 	Comment
+01 	%TTTTTTTT 	TEST 			Test 				- 		not used for XM
+08 	%-SSSSCCC 	SN,CN 			Slot Number, Channel Number 	- 		Send Note-on or Note-off
+0F 	%E--FFFFF 	NE,NFRQ 		Noise Enable, Noise Frequency 	- 		Enable Noise
+10 	%CCCCCCCC 	CLKA1 			Clock A1 			- 		Clock Frequency Determination
+11 	%------CC 	CLKA2 			Clock A2 			- 		Clock Frequency Determination
+12 	%CCCCCCCC 	CLKB 			Clock B 			- 		Clock Frequency Determination
+14 	%C-FFIILL 	CSM,FReset,IRQEN,LOAD 	TBD 				- 		not used for XM
+18 	%LLLLLLLL 	LFRQ 			TBD 				- 		TBD
+19 	%MMMMMMMM 	AMD/PMD 		TBD 				- 		TBD
+1B 	%CC----WW 	CT,W 			MHz, LFO Wave (Saw,Sqr,Tri,Noise) - 		Control (not used for XM?), change LFO Wave
+20-27 	%RLFFFCCC 	R-EN,L-EN,FL,CON 	Enable Left/Right, Feedback lvl,
+						Connection algorithm 		R,L,FB,CONECT 	Per channel, operator connectivity
+28-2F 	%-OOONNNN 	OCT,NOTE 		Octave, Note 			KC 		Per channel, octave and note to use when note-on is triggered
+30-37 	%KKKKKK-- 	KF 			Key Fraction 			- 		Per channel, for pitch bend
+40-47 	%-DDDMMMM 	DT1,MUL 		Detune1, Multiply 		- 		Per channel, OP1
+48-4F 	%-DDDMMMM 	DT1,MUL 		Detune1, Multiply 		- 		Per channel, OP3
+50-57 	%-DDDMMMM 	DT1,MUL 		Detune1, Multiply 		- 		Per channel, OP2
+58-5F 	%-DDDMMMM 	DT1,MUL 		Detune1, Multiply 		- 		Per channel, OP4
+60-67 	%-TTTTTTT 	TL 			Total Level (volume) 		- 		Per channel, OP1
+68-6F 	%-TTTTTTT 	TL 			Total Level (volume) 		- 		Per channel, OP3
+70-77 	%-TTTTTTT 	TL 			Total Level (volume) 		- 		Per channel, OP2
+78-7F 	%-TTTTTTT 	TL 			Total Level (volume) 		- 		Per channel, OP4
+80-87 	%KK-AAAAA 	KS,AR 			Keyscale, Atack 		- 		Per channel, OP1
+88-8F 	%KK-AAAAA 	KS,AR 			Keyscale, Atack 		- 		Per channel, OP3
+90-97 	%KK-AAAAA 	KS,AR 			Keyscale, Atack 		- 		Per channel, OP2
+98-9F 	%KK-AAAAA 	KS,AR 			Keyscale, Atack 		- 		Per channel, OP4
+A0-A7 	%A--DDDDD 	AME,D1R 		AMS-enable, Decay D1R 		- 		Per channel, OP1
+A8-AF 	%A--DDDDD 	AME,D1R 		AMS-enable, Decay D1R 		- 		Per channel, OP3
+B0-B7 	%A--DDDDD 	AME,D1R 		AMS-enable, Decay D1R 		- 		Per channel, OP2
+B8-BF 	%A--DDDDD 	AME,D1R 		AMS-enable, Decay D1R 		- 		Per channel, OP4
+C0-C7 	%TT-DDDDD 	dT2,D2R 		Detune dT2, Decay D2R 		- 		Per channel, OP1
+C8-CF 	%TT-DDDDD 	dT2,D2R 		Detune dT2, Decay D2R 		- 		Per channel, OP3
+D0-D7 	%TT-DDDDD 	dT2,D2R 		Detune dT2, Decay D2R 		- 		Per channel, OP2
+D8-DF 	%TT-DDDDD 	dT2,D2R 		Detune dT2, Decay D2R 		- 		Per channel, OP4
+E0-E7 	%DDDDRRRR 	D1L,RR 			Decay D1L, Release Rate 	- 		Per channel, OP1
+E8-EF 	%DDDDRRRR 	D1L,RR 			Decay D1L, Release Rate 	- 		Per channel, OP3
+F0-F7 	%DDDDRRRR 	D1L,RR 			Decay D1L, Release Rate 	- 		Per channel, OP2
+F8-FF 	%DDDDRRRR 	D1L,RR 			Decay D1L, Release Rate 	- 		Per channel, OP4
+
+
+
