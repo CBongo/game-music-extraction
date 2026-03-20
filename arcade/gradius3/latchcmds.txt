@@ -22,9 +22,21 @@ cmds:
 52 - "missle"
 53 - "optional"
 54 - "force field"
+55 - "two way"
 56 - "shield"
 57 - "speed up"
 58 - "destroy them all"
+59 - "destroy the core"
+5a - "destroy the eye"
+5b - "destroy the mouth"
+5c - "destroy the chest"
+5d - "warning"
+5e - "i am what's born out of the greediness of mankind"
+5f - "while it exists, so will i"
+60 - "arrrrrrrrrrrr"
+
+
+
 80 - play level start bgm
 81 - play level 1 bgm
 87 - play game over

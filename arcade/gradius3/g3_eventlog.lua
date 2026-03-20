@@ -33,6 +33,7 @@ local event_names = {
     [0x0E] = "Weapon Select",
     [0x13] = "Enemy Self-Destruct",
     [0x40] = "Collect Powerup",
+    [0x41] = "Confirm Initials",
     [0x45] = "Weapon Confirm",
     [0x47] = "Player Explode",
     [0x48] = "Coin Drop",
@@ -40,14 +41,25 @@ local event_names = {
     [0x51] = '"Laser"',
     [0x52] = '"Missile"',
     [0x53] = '"Optional"',
+    [0x54] = '"Force Field"',
+    [0x55] = '"Two Way"',
     [0x56] = '"Shield"',
     [0x57] = '"Speed Up"',
     [0x58] = '"Destroy Them All"',
+    [0x59] = '"Destroy The Core"',
+    [0x5A] = '"Destroy The Eye"',
+    [0x5B] = '"Destroy The Mouth"',
+    [0x5C] = '"Destroy The Chest"',
+    [0x5D] = '"Warning"',
+    [0x5E] = '"Speech Line 1"',
+    [0x5F] = '"Speech Line 2"',
+    [0x60] = '"Arrrrrrrrrr"',
+    [0x80] = "Stage Start BGM",
     [0x81] = "Stage 1 BGM",
     [0x87] = "Game Over",
     [0x88] = "High Score BGM",
     [0x89] = "Weaponry BGM",
-    [0x8C] = "Title Theme",
+    [0x8C] = "Title Theme"
 }
 
 -- ============================================================
@@ -146,6 +158,7 @@ local function init()
         SOUND_LATCH_ADDR, SOUND_LATCH_ADDR + 1,
         "g3_event_monitor",
         function(offset, data, mask)
+            print("G3 EventLog: write tap fired for sound latch")
             log_event(data & 0xFF)
             return data  -- pass through unchanged
         end
