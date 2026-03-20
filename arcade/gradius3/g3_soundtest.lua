@@ -155,14 +155,6 @@ local function is_ch_muted(ch)
     return mute_state[ch]
 end
 
-local function apply_mutes()
-    local mask = compute_mute_mask()
-    for ch = 0, VSTATE_COUNT - 1 do
-        local addr = VSTATE_BASE + (ch * VSTATE_SIZE) + VS_MUTED
-        audio_mem:write_u8(addr, mask[ch] and 1 or 0)
-    end
-end
-
 local function toggle_mute(ch)
     if solo_ch ~= nil then
         -- In solo mode: exit solo, restore mute state
@@ -271,7 +263,7 @@ local function draw_ui()
     container:draw_box(0.0, 0.0, 1.0, 1.0, 0xFF222222, COL_BG)
 
     -- Title
-    container:draw_text(0.02, 0.01, "GRADIUS 3 SOUND TEST", COL_TITLE, 0x00000000)
+    container:draw_text(0.02, 0.01, "GRADIUS III SOUND TEST", COL_TITLE, 0x00000000)
 
     -- Event selector
     local ev_name = event_names[selected_event] or ""
@@ -287,7 +279,7 @@ local function draw_ui()
     for ch = 0, 9 do
         local bx = 0.02 + ch * 0.095
         local by = 0.21
-        local bx2, by2 = bx + 0.085, by + 0.055
+        local bx2, by2 = bx + 0.085, by + 0.075
 
         local box_col, lbl_col
         if solo_ch == ch then
@@ -389,31 +381,13 @@ local function init()
     KEY_S     = input_mgr:code_from_token("KEYCODE_S")
     KEY_R     = input_mgr:code_from_token("KEYCODE_R")
 
-    -- Trap main CPU in an infinite watchdog loop.
-    -- We watch for the audio init event (0x00) written to the sound latch
-    -- at 0xE8000 (which happens at PC ~0x152e). When we see it, we know
-    -- the ROM checksum has passed and the CPU hasn't yet reached 0x1544,
-    -- so we can safely patch the ROM. The patched instruction at 0x1544
-    -- becomes BRA.S 0x153c (opcode 0x60F6), looping the main CPU on the
-    -- watchdog write forever.
-    local maincpu_trapped = false
-    tap_latch = main_mem:install_write_tap(SOUND_LATCH_ADDR, SOUND_LATCH_ADDR + 1,
-        "g3_wait_for_init",
-        function(offset, data, mask)
-            -- print("G3ST: write tap fired for sound latch")
-            if not maincpu_trapped then
-                main_mem:write_direct_u16(0x1544, 0x60F6)
-                maincpu_trapped = true
-                print("G3 SoundTest: patched ROM at 0x1544 (BRA.S 0x153c) after audio init")
-            end
-            return data  -- pass the init event through to the audio CPU
-        end
-    )
-    if tap_latch then
-        print("G3 SoundTest: write tap installed at 0xE8000")
-    else
-        print("G3 SoundTest WARNING: write tap installation returned nil")
-    end
+    -- Trap main CPU in an infinite watchdog loop:
+    -- Patched instruction results in cpu setting
+    -- the watchdog timer continuously prior to
+    -- ROM check
+    main_mem:write_direct_u16(0x2f0, 0x60F6)
+    print("G3 SoundTest: patched ROM at 0x2f0 (BRA.S 0x2e8)")
+
 
     -- Shadow YM2151 register writes from Z80 + enforce mutes
     tap_ym_addr = audio_mem:install_write_tap(
@@ -498,7 +472,6 @@ emu.register_frame_done(function()
 
     local ok, err = pcall(function()
         handle_input()
-        apply_mutes()
         draw_ui()
     end)
     if not ok then

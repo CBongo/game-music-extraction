@@ -158,7 +158,7 @@ local function init()
         SOUND_LATCH_ADDR, SOUND_LATCH_ADDR + 1,
         "g3_event_monitor",
         function(offset, data, mask)
-            print("G3 EventLog: write tap fired for sound latch")
+            -- print("G3 EventLog: write tap fired for sound latch")
             log_event(data & 0xFF)
             return data  -- pass through unchanged
         end
