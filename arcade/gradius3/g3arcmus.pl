@@ -4,16 +4,31 @@
 
 use MIDI;
 
-$tempo_factor = 8_000_000;  # TODO: timer B is 4ms; 60M is std MIDI divisor
+$tempo_factor = 24_606_720; # timer B is 4.005ms; 60M is std MIDI divisor
+                            # voice is processed every 256/tempo ticks
+                            # quarter note is 24 ticks
 
 # song commands are 0x80-0xa3
 $songcount = 35;
 
 # titles starting at song command 0x80
-@songtitles = ("", "(1)Desert", "", "",
-         "", "", "", "Game Over",
-         "King of Kings", "Weaponry", "", "",
-         "Title");
+@songtitles = ("Departure for Space (start 1)", "Sand Storm (stage 1)",
+        "Crystal Labyrinth (stage 9)", "Boss on Parade 3 (stage 10a)",
+        "Easter Stone (stage 5)", "Aqua Illusion (stage 2)",
+        "In the Wind (stage 3a)", "Game Over", "King of Kings",
+        "Invitation (weapon select)", "Mechanical Base (stage 10b1)",
+        "Cosmo Plant (stage 8)", "Prelude of Legend (title)",
+        "Boss on Parade 1 (stage 10a)", "Boss on Parade 2 (stage 10a)",
+        "A Long Time Ago (stage 3 hidden)", "Unused 1",
+        "Challenger 1985 (Gradius 1 BGM 1)", "Power of Anger (Salamander BGM 1)",
+        "Poison of Snake (Salamander BGM 2)", "Unused 2", "Dark Force (final boss)",
+        "Aircraft Carrier (Gradius 1 BGM 2)", "High Speed Dimension (stage 4)",
+        "Try to Star (start 2)", "Underground (stage 3b)",
+        "Escape to the Freedom (stage 10b3)", "Dead End Cell (stage 6)",
+        "Final Shot (stage 10b2)", "Fire Scramble (stage 7)",
+        "Return to the Star (ending)", "Congratulations (beginner ending)",
+        "Departure for space (introless)", "Unused 3", "Big explosion sfx"
+        );
 # @songtitles = ("Powerup", "(1)Desert", "(2)Bubbles", "(3)Deja Vu",
 # 			   "(4)The Moai", "(7)High Speed", "(5)Inferno", "(6)Garden",
 # 			   "(6)Garden-copy", "(8)Factory", "(9)Organic",
@@ -25,12 +40,12 @@ $songcount = 35;
 # 			   "Secret Stage", "Credits", "(5)Boss 5 - Crystal Star");
 
 
-@optext = ("Set callback7 table", "Set vstate 10", "Patch Change (FM)",
+@optext = ("Set callback7 table", "Set Tempo", "Patch Change (FM)",
            "Set level adjustment", "Set vstate 12", "Bulk Duration Set",
            "Set voice fine tuning", "Set Set-Keycode flag",
            "Global transpose", "Per-voice transpose",
            "Global level adj", "Per-voice level adj",
-           "ec", "Set LFO params", "Set vstate 36", "Set pan flags",
+           "Ramp Repeat", "Set LFO params", "Set vstate 36", "Set pan flags",
            "Goto", "Repeat F1",
            "Begin Repeat F2", "End Repeat F2",
            "Begin Repeat F4", "End Repeat F4",
@@ -53,6 +68,10 @@ $max_oplen = 5;  # for formatting disassembly
 #               0, 0, 0, 50, -36, -40, -42, -46, # 10-17
 #               -49, -45, -48, -50, 0, 0, 0, 0, # 18-1F
 #               0, 0, 0);               # 20-22
+
+%patchmap = ( 
+  0x6b => 34,  # elec bass picked
+    );
 
 # @transp   = ( -2, 0, 0, 0, 0, 0, 0, 0, # 00-07
 #               0, -1, 0, 0, 0, 0, 0, 0, # 08-0F
@@ -99,12 +118,12 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
   printf STDERR "%02x ", $display_song;
   print STDERR "\n" if ++$numdone % 16 == 0;
 
-  $opus = new MIDI::Opus ({'format' => 1, 'ticks' => 16});
+  $opus = new MIDI::Opus ({'format' => 1, 'ticks' => 24});
   my $ctrack = new MIDI::Track;
   push @{$opus->tracks_r}, $ctrack;
   my $cevents = [];
 
-  open OUT, sprintf("> txt/%02X - %s", $display_song, $songtitles[$song]);
+  #open OUT, sprintf("> txt/%02X - %s", $display_song, $songtitles[$song]);
   printf OUT "Song %02x - %s:\n", $display_song, $songtitles[$song];
 
   # get song voice pointers from table at 0x3db6
@@ -118,6 +137,8 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
   my $rptcount = 0;
   my $maxtime = 0;
   my $transpose = 0;
+  my $tempo_voice = -1;
+  my $tempo = 120;
 
     for (my $v = 0; $v < 10; $v++) {
 #print STDERR "v=$v\n";
@@ -131,7 +152,6 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
       my $velocity = 100;
       my $volume = 0;
       my $balance = 64;
-      my $tempo = 120;
       my $channel = $v;
       $channel++ if $channel == 9;  # skip percussion channel
       my $perckey = 0;
@@ -142,6 +162,9 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
       my $rptaddr  = 0;
       my $rptcount = 0;
       my $vtranspose = 0;
+      my $ramprptcount = 0;
+      my $ramptranspose = 0;
+      my $rampvolume = 0;
 
       my $track = new MIDI::Track;
       my $e = [];  # track events
@@ -186,7 +209,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
           if ($notenum == 0) {
             printf OUT "Rest         Dur %02x", $dur;   
           } else {
-            my $mnote = 12 * $octave + $notenum + $transpose + $vtranspose - 2;
+            my $mnote = 12 * $octave + $notenum + $transpose + $vtranspose + $ramptranspose - 2;
             $mnote = 0 if $mnote < 0;
             # add 13 to convert from midi to ym2151 key code
             $mnote += 13;
@@ -217,17 +240,18 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
           if ($cmd == 0xe0) {
             # set callback7 table
           } elsif ($cmd == 0xe1) {
-            # set vstate 10 
+            # tempo
+            if ($tempo_voice < 0 || $tempo_voice == $v) {
+                $tempo_voice = $v;
+                $tempo = $op[0];
+                push @{$cevents},
+	                ['set_tempo', $totaltime, int($tempo_factor / $tempo)];
+            }
           } elsif ($cmd == 0xe2) {
             # set patch
-            my $inst = $patchmap[$op[0]];
-            $t = $transp[$op[0]];
+            my $inst = $patchmap{$op[0]};
+            $t = $transp{$op[0]};
 	          push @$e, ['patch_change', $totaltime, $v, $inst];
-          # } elsif ($cmd == 0x00) {
-          #   # tempo
-          #   $tempo = $op[0];
-          #   push @{$cevents},
-	        #      ['set_tempo', $totaltime, int($tempo_factor / $tempo)];
           } elsif ($cmd == 0xe3) {
             # set level adjustment
             #$volume = $op[0];
@@ -251,18 +275,31 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
             # set Set-Keycode flag
           } elsif ($cmd == 0xe8) {
             # global transpose
-            $transpose = $op[0] & 0x7f;
-            $transpose = -$transpose if $op[0] & 0x80;
+            $transpose = &get_transpose($op[0]);
           } elsif ($cmd == 0xe9) {
             # per-voice transpose
-            $vtranspose = $op[0] & 0x7f;
-            $vtranspose = -$vtranspose if $op[0] & 0x80;
+            $vtranspose = &get_transpose($op[0]);
           } elsif ($cmd == 0xea) {
             # global level adj
           } elsif ($cmd == 0xeb) {
             # per-voice level adj
           } elsif ($cmd == 0xec) {
-            # set vstate 1e etc
+            # repeat ramping note and/or level
+            if ($ramprptcount == 0) {
+              $ramprptcount = $op[0];
+            }
+            if (--$ramprptcount > 0) {
+              $ramptranspose += &get_transpose($op[1]);
+              my $lvladj = $op[2] & 0x7f;
+              $lvladj = -$lvladj if $op[2] & 0x80;
+              $rampvolume += $lvladj;
+              my $dest = 0x100 * $op[4] + $op[3];
+              $p = $dest - $oplen - 1;
+            } else {
+              $ramprptcount = 0;
+              $ramptranspose = 0;
+              $rampvolume = 0;
+            }
           } elsif ($cmd == 0xed) {
             # set LFO params
           } elsif ($cmd == 0xee) {
@@ -291,7 +328,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
               }
             } else {
               # begin repeat
-              $rptcount1 = $op[0];
+              $rptcount1 = $op[0] - 1;
               $rptaddr1 = 0x100 * $op[2] + $op[1];
               $f1_outstanding = 1;
             }
@@ -343,7 +380,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
               }
             } else {
               # begin repeat
-              $rptcount8 = $op[0];
+              $rptcount8 = $op[0] - 1;
               $rptaddr8 = 0x100 * $op[2] + $op[1];
               $f8_outstanding = 1;
             }
@@ -367,10 +404,20 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
   close OUT;
   $ctrack->events_r(MIDI::Score::score_r_to_events_r($cevents)) if @$cevents;
   #$opus->dump({dump_tracks => 1});
-  $opus->write_to_file(sprintf "mid/%02X - %s.mid", $song, $songtitles[$song]);
+  $opus->write_to_file(sprintf "mid/%02X - %s.mid", $song + 0x80, $songtitles[$song]);
 }
 
 print STDERR "\n";
+
+
+sub get_transpose {
+  my ($val) = @_;
+  my $t = $val & 0x7f;
+  my $octave = ($val & 0x70) >> 4;
+  my $t = $octave * 12 + ($val & 0xf);
+  $t = -$t if $val & 0x80;
+  return $t;
+}
 
 sub hexdump {
   my ($addr, $data, $line) = @_;

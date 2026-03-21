@@ -10,10 +10,23 @@ $tempo_factor = 8_000_000;  # TODO: timer B is 4ms; 60M is std MIDI divisor
 $songcount = 35;
 
 # titles starting at song command 0x80
-@songtitles = ("", "(1)Desert", "", "",
-         "", "", "", "Game Over",
-         "King of Kings", "Weaponry", "", "",
-         "Title");
+@songtitles = ("Departure for Space (start 1)", "Sand Storm (stage 1)",
+        "Crystal Labyrinth (stage 9)", "Boss on Parade 3 (stage 10a)",
+        "Easter Stone (stage 5)", "Aqua Illusion (stage 2)",
+        "In the Wind (stage 3a)", "Game Over", "King of Kings",
+        "Invitation (weapon select)", "Mechanical Base (stage 10b1)",
+        "Cosmo Plant (stage 8)", "Prelude of Legend (title)",
+        "Boss on Parade 1 (stage 10a)", "Boss on Parade 2 (stage 10a)",
+        "A Long Time Ago (stage 3 hidden)", "Unused 1",
+        "Challenger 1985 (Gradius 1 BGM 1)", "Power of Anger (Salamander BGM 1)",
+        "Poison of Snake (Salamander BGM 2)", "Unused 2", "Dark Force (final boss)",
+        "Aircraft Carrier (Gradius 1 BGM 2)", "High Speed Dimension (stage 4)",
+        "Try to Star (start 2)", "Underground (stage 3b)",
+        "Escape to the Freedom (stage 10b3)", "Dead End Cell (stage 6)",
+        "Final Shot (stage 10b2)", "Fire Scramble (stage 7)",
+        "Return to the Star (ending)", "Congratulations (beginner ending)",
+        "Departure for space (introless)", "Unused 3", "Big explosion sfx"
+        );
 # @songtitles = ("Powerup", "(1)Desert", "(2)Bubbles", "(3)Deja Vu",
 # 			   "(4)The Moai", "(7)High Speed", "(5)Inferno", "(6)Garden",
 # 			   "(6)Garden-copy", "(8)Factory", "(9)Organic",
@@ -25,12 +38,12 @@ $songcount = 35;
 # 			   "Secret Stage", "Credits", "(5)Boss 5 - Crystal Star");
 
 
-@optext = ("Set callback7 table", "Set vstate 10", "Patch Change (FM)",
+@optext = ("Set callback7 table", "Set Tempo", "Patch Change (FM)",
            "Set level adjustment", "Set vstate 12", "Utility Duration",
            "Set voice fine tuning", "Set Set-Keycode flag",
            "Global transpose", "Per-voice transpose",
            "Global level adj", "Per-voice level adj",
-           "ec", "Set LFO params", "Set vstate 36", "Set pan flags",
+           "Ramp Repeat", "Set LFO params", "Set vstate 36", "Set pan flags",
            "Goto", "Repeat F1",
            "Begin Repeat F2", "End Repeat F2",
            "Begin Repeat F4", "End Repeat F4",
@@ -118,6 +131,8 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
   my $rptcount = 0;
   my $maxtime = 0;
   my $transpose = 0;
+  my $tempo_voice = -1;
+  my $tempo = 120;
 
     for (my $v = 0; $v < 10; $v++) {
 #print STDERR "v=$v\n";
@@ -131,7 +146,6 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
       my $velocity = 100;
       my $volume = 0;
       my $balance = 64;
-      my $tempo = 120;
       my $channel = $v;
       $channel++ if $channel == 9;  # skip percussion channel
       my $perckey = 0;
@@ -217,7 +231,15 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
           if ($cmd == 0xe0) {
             # set callback7 table
           } elsif ($cmd == 0xe1) {
-            # set vstate 10 
+            # set tempo
+            if ($tempo_voice < 0 || $tempo_voice == $v) {
+                $tempo_voice = $v;
+                $tempo = $op[0];
+            } else {
+                if ($op[0] != $tempo) {
+                     print OUT " (ALERT: voice $v setting alternate tempo)";
+                }
+            }
           } elsif ($cmd == 0xe2) {
             # set patch
             my $inst = $patchmap[$op[0]];

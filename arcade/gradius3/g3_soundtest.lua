@@ -116,7 +116,7 @@ local KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 local KEY_ENTER
 local KEY_0, KEY_1, KEY_2, KEY_3, KEY_4
 local KEY_5, KEY_6, KEY_7, KEY_8, KEY_9
-local KEY_S, KEY_R
+local KEY_S, KEY_R, KEY_PERIOD
 
 for i = 0, 9 do mute_state[i] = false end
 
@@ -201,6 +201,12 @@ local function handle_input()
     if input_mgr:code_pressed_once(KEY_ENTER) then
         trigger_event(selected_event)
         print(string.format("G3 SoundTest: triggered event %02X", selected_event))
+    end
+
+    -- Period: stop sound (send event 0x00 = general halt)
+    if input_mgr:code_pressed_once(KEY_PERIOD) then
+        trigger_event(0x00)
+        print("G3 SoundTest: stop (event 00)")
     end
 
     -- 0-9: toggle mute for that channel
@@ -337,7 +343,7 @@ local function draw_ui()
 
     -- Key help at bottom
     container:draw_text(0.02, 0.96,
-        "0-9=mute chan  S=solo  R=reset mutes  Up/Dn=event  Lf/Rt=+/-0x10  Enter=play",
+        "0-9=mute chan  S=solo  R=reset mutes  Up/Dn=event  Lf/Rt=+/-0x10  Enter=play  .=stop",
         COL_GRAY, 0x00000000)
 end
 
@@ -378,8 +384,9 @@ local function init()
     KEY_7     = input_mgr:code_from_token("KEYCODE_7")
     KEY_8     = input_mgr:code_from_token("KEYCODE_8")
     KEY_9     = input_mgr:code_from_token("KEYCODE_9")
-    KEY_S     = input_mgr:code_from_token("KEYCODE_S")
-    KEY_R     = input_mgr:code_from_token("KEYCODE_R")
+    KEY_S      = input_mgr:code_from_token("KEYCODE_S")
+    KEY_R      = input_mgr:code_from_token("KEYCODE_R")
+    KEY_PERIOD = input_mgr:code_from_token("KEYCODE_STOP")
 
     -- Trap main CPU in an infinite watchdog loop:
     -- Patched instruction results in cpu setting
