@@ -20,7 +20,7 @@ cmds:
 50 - "double"
 51 - "laser"
 52 - "missle"
-53 - "optional"
+53 - "multi"
 54 - "force field"
 55 - "two way"
 56 - "shield"
@@ -37,13 +37,68 @@ cmds:
 
 
 
-80 - play level start bgm
-81 - play level 1 bgm
+80 - play level start bgm 1 "Departure for Space"
+81 - play level 1 bgm "Sand Storm"
+82 - play level 9 bgm "Crystal Labryinth"
+83 - play level 10a bgm "Boss on Parade 3"
+84 - play level 5 bgm "Easter Stone"
+85 - play level 2 bgm "Aqua Illusion"
+86 - play level 3 bgm 1 "In the Wind"
 87 - play game over
-88 - play new high score
-89 - play weapon setup bgm
-8C - play title theme
-A0 - 
+88 - play new high score "King of Kings"
+89 - play weapon setup bgm "Invitation"
+8A - play level 10b bgm 1 "Mechanical Base"
+8B - play level 8 bgm "Cosmo Plant"
+8C - play title theme  "Prelude of Legend"
+8D - play level 10a bgm "Boss on Parade 1"
+8E - play level 10a bgm "Boss on Parade 2"
+8F - play level 3 hidden bgm "A Long Time Ago"
+90 - play Unused 1
+91 - play Gradius 1 BGM 1 "Challenger 1985"
+92 - play Salamander BGM 1 "Power of Anger"
+93 - play Salamander BGM 2 "Poison of Snake"
+94 - play Unused 2
+95 - play final boss BGM "Dark Force"
+96 - play Gradius 1 BGM 2 "Aircraft Carrier"
+97 - play level 4 bgm "High Speed Dimension"
+98 - play level start bgm 2 "Try to Star"
+99 - play level 3 bgm 2 "Underground"
+9A - play level 10b bgm 3 "Escape to the Freedom"
+9B - play level 6 bgm "Dead End Cell"
+9C - play level 10b bgm 2 "Final Shot"
+9D - play level 7 bgm "Fire Scramble"
+9E - play ending "Return to the Star"
+9F - play beginner ending "Congratulations"
+A0 - play 80 skipping intro
+A1 - play Unused 3
+A2 - large explosion sfx
+
+Disc1
+Gradius (AC):1~13 - 13 tracks
+Gradius II ~GOFER no Yabou~ (AC): 14~33 - 20 tracks
+Gradius III ~Densetsu kara Shinwa e~ (AC): 34~66 - 33 tracks
+Disc 5
+Gradius (FC): 1~11 - 11 tracks
+Gradius II (FC): 12~26 - 15 tracks
+Gradius III (SFC): 27~54 - 28 tracks
+Gradius (PCE): 55~68 - 14 tracks
+Gradius II ~GOFER no Yabou~ (PCE CD): 69~70 - 2 tracks
+
+8d 09-00:00
+8e 09-00:30
+83 09-02:00
+8a 09-02:45
+9c 09-04:19
+91 10-00:00
+96 10-00:35
+93 10-01:07
+92 10-01:55
+95 11-00:00
+*5e/5f/60 11-00:33
+9A 11-00:51
+*fx 11-01:23
+9E 11-01:35
+8F 11-02:56
 
 set 7232 bank and reg2 sets reg 2/3/4 to C/D/E and bank from B
 
@@ -69,6 +124,7 @@ ff - end of voice cmds
 
 vcmd & 0xf0 >> 4 = duration index
 
+ym2151 voice commands:
 e0: key off, set callback7 flag to op1
 e1: set vstate 10 to op1
 e2: patch change (FM) set FM props from table[op1]
@@ -97,6 +153,41 @@ f6: call subroutine, op1: repeat count, op 2/3: dest
 f7: return from subroutine
 f8: begin(?) repeat,  op1: rpt count op 2/3:dest on last rpt L/H
 
+k007232 voice commands:
+e0: key off, if op1 >= 0x10 set callback to k7232_callback_1(1100) else set callback7 flag to op1
+e1: set vstate 10 to op1
+e2: patch change (copy k7232 props from table to vstate)
+e3: set level adj to op1
+e4: set vstate 12 to op1
+e5: util dur
+e6: set voice fine tuning from op1
+e7: NOP
+e8: set global transpose
+e9: set voice transpose
+ea: set global level adj
+eb: set voice level adj
+ec: same as fm
+ed: NOP
+ee: set vstate 2f from op1
+ef: NOP
+f0-f8: same as fm 
+
+
+7232 differences for vstate:
+struct k7232_props->
+30/31 = addr
+32/33 = bank
+34 =
+35/36 = addr_step
+1f (pan_chan_flags) = 
+2f =
+-- 
+2c/2d = 
+37 = mute flag
+
+7232 note with callback7 flag set:
+notenum = vcmd & 0xf
+get props from k7232_props_tbl_3a83[notenum * 9 + (cb7flag-1) * 135]
 
 high score table, default
 57300 H.M male aries ??  c 0 3
