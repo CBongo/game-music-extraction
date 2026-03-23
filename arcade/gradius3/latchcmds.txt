@@ -73,17 +73,6 @@ A0 - play 80 skipping intro
 A1 - play Unused 3
 A2 - large explosion sfx
 
-Disc1
-Gradius (AC):1~13 - 13 tracks
-Gradius II ~GOFER no Yabou~ (AC): 14~33 - 20 tracks
-Gradius III ~Densetsu kara Shinwa e~ (AC): 34~66 - 33 tracks
-Disc 5
-Gradius (FC): 1~11 - 11 tracks
-Gradius II (FC): 12~26 - 15 tracks
-Gradius III (SFC): 27~54 - 28 tracks
-Gradius (PCE): 55~68 - 14 tracks
-Gradius II ~GOFER no Yabou~ (PCE CD): 69~70 - 2 tracks
-
 8d 09-00:00
 8e 09-00:30
 83 09-02:00
@@ -175,19 +164,43 @@ f0-f8: same as fm
 
 7232 differences for vstate:
 struct k7232_props->
-30/31 = addr
-32/33 = bank
+30 = bank
+31 = addr_hi
+32/33 = addr
 34 =
-35/36 = addr_step
+35 =
+36 = loop flag?
 1f (pan_chan_flags) = 
 2f =
 -- 
-2c/2d = 
+2c/2d = volume * 16?
 37 = mute flag
 
-7232 note with callback7 flag set:
+7232 set patch:
+ set 30-36,1f,2f = k7232_props_tbl_3a44[op1 * 9]
+ set 7232 bank/addr from 30-33 unless muted
+
+7232 note with callback7 flag set (1de1):
 notenum = vcmd & 0xf
 get props from k7232_props_tbl_3a83[notenum * 9 + (cb7flag-1) * 135]
+  (135 = 9 * 15)
+  props tbl has 98 entries  (7 cb7 tables @ 0xe props each)
+set 7232 bank/addr from props 00-03
+if vstate 0x11 (lvl_adj) >= 0 then
+  add lvl adjs and cap as needed and put in 2c/2d
+  set addr step from props 35-36
+  set vstate 1f,2f from props 1f,2f
+else 
+  put 0 in 2c/2d
+  set addr step from props 34-35
+  set vstate 1f,2f from props 36,1f
+set duration_7232 from duration and field 0x12/0x1f
+
+7232 note with callback7 == 0 (1c2b):
+set addr step to word_tbl_1d1f[note & 0xf + octave_adj + vtranspose + gtranspose + ectranspose] + fine_tuning
+set duration_7232 from duration and field 0x12/0x1f
+if loop flag set:
+  set bank and addr from vstate 30-35:  bank 30, addrhi 31, addr 32/33+34/35
 
 high score table, default
 57300 H.M male aries ??  c 0 3

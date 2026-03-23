@@ -38,7 +38,7 @@ $songcount = 35;
 # 			   "Secret Stage", "Credits", "(5)Boss 5 - Crystal Star");
 
 
-@optext = ("Set callback7 table", "Set Tempo", "Patch Change (FM)",
+@optext = ("Set callback7 table", "Set Tempo", "Patch Change",
            "Set level adjustment", "Set vstate 12", "Utility Duration",
            "Set voice fine tuning", "Set Set-Keycode flag",
            "Global transpose", "Per-voice transpose",
@@ -230,6 +230,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
 
           if ($cmd == 0xe0) {
             # set callback7 table
+            printf OUT " (%s)", $v < 8 ? "FM" : "sample";
           } elsif ($cmd == 0xe1) {
             # set tempo
             if ($tempo_voice < 0 || $tempo_voice == $v) {
@@ -242,6 +243,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
             }
           } elsif ($cmd == 0xe2) {
             # set patch
+            printf OUT " (%s)", $v < 8 ? "FM" : "sample";
             my $inst = $patchmap[$op[0]];
             $t = $transp[$op[0]];
 	          push @$e, ['patch_change', $totaltime, $v, $inst];

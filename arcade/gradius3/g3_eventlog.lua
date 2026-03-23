@@ -5,62 +5,21 @@
 
 -- by Claude under direction from Chris Bongaarts 2026-03-19
 
+-- Load shared constants and helpers
+dofile(debug.getinfo(1,"S").source:match("@?(.+[/\\])") .. "g3_common.lua")
+
 -- ============================================================
 -- Constants
 -- ============================================================
 
-local SOUND_LATCH_ADDR = 0xE8000  -- main CPU address for sound latch write
-
 local MAX_LOG = 20       -- max entries to display
 local FADE_FRAMES = 300  -- frames before entry fully fades (~5s at 60fps)
 
--- Colors (0xAARRGGBB)
+-- Colors specific to event log (category colors)
 local COL_HEADER = 0xFFFFFF00   -- yellow header
 local COL_SFX    = 0xFFFFFF44   -- yellow for SFX
 local COL_VOICE  = 0xFF44FFFF   -- cyan for voice samples
 local COL_BGM    = 0xFF44FF44   -- green for BGM
-local COL_BG     = 0xC0000000   -- semi-transparent black background
-
--- Event name lookup (from latchcmds.txt)
-local event_names = {
-    [0x01] = "Player Shoot",
-    [0x05] = "Enemy Shoot",
-    [0x06] = "Enemy Multishoot",
-    [0x0A] = "Enemy Hit",
-    [0x0B] = "Enemy Hit 2",
-    [0x0C] = "Enemy Hit 3",
-    [0x0D] = "Enemy Hit 4",
-    [0x0E] = "Weapon Select",
-    [0x13] = "Enemy Self-Destruct",
-    [0x40] = "Collect Powerup",
-    [0x41] = "Confirm Initials",
-    [0x45] = "Weapon Confirm",
-    [0x47] = "Player Explode",
-    [0x48] = "Coin Drop",
-    [0x50] = '"Double"',
-    [0x51] = '"Laser"',
-    [0x52] = '"Missile"',
-    [0x53] = '"Optional"',
-    [0x54] = '"Force Field"',
-    [0x55] = '"Two Way"',
-    [0x56] = '"Shield"',
-    [0x57] = '"Speed Up"',
-    [0x58] = '"Destroy Them All"',
-    [0x59] = '"Destroy The Core"',
-    [0x5A] = '"Destroy The Eye"',
-    [0x5B] = '"Destroy The Mouth"',
-    [0x5C] = '"Destroy The Chest"',
-    [0x5D] = '"Warning"',
-    [0x5E] = '"Speech Line 1"',
-    [0x5F] = '"Speech Line 2"',
-    [0x60] = '"Arrrrrrrrrr"',
-    [0x80] = "Stage Start BGM",
-    [0x81] = "Stage 1 BGM",
-    [0x87] = "Game Over",
-    [0x88] = "High Score BGM",
-    [0x89] = "Weaponry BGM",
-    [0x8C] = "Title Theme"
-}
 
 -- ============================================================
 -- State
@@ -157,8 +116,7 @@ local function init()
     tap_handle = main_mem:install_write_tap(
         SOUND_LATCH_ADDR, SOUND_LATCH_ADDR + 1,
         "g3_event_monitor",
-        function(offset, data, mask)
-            -- print("G3 EventLog: write tap fired for sound latch")
+        function(_offset, data, _mask)
             log_event(data & 0xFF)
             return data  -- pass through unchanged
         end

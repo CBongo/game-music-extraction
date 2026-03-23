@@ -5,9 +5,12 @@ typedef unsigned int    dword;
 typedef unsigned char    undefined1;
 typedef unsigned short    undefined2;
 typedef unsigned short    word;
-typedef struct struct vstate struct vstate, *Pstruct vstate;
+typedef void * pointer;
+typedef struct vstate vstate, *Pstruct;
 
-struct struct vstate {
+/* note: this reflects the FM voice state; the 7232 uses fields 0x9 and after 
+    in different ways */
+struct vstate {
     byte voicenum; /* used as offset into ym2151 regs for per-voice settings */
     byte songnum;
     undefined field2_0x2;

@@ -5,91 +5,8 @@
 
 -- By Claude under direction from Chris Bongaarts 2026-03-19
 
--- ============================================================
--- Constants
--- ============================================================
-
--- Main CPU addresses
-local SOUND_LATCH_ADDR = 0xE8000   -- main CPU: write event byte here
-local SOUND_IRQ_ADDR   = 0xF0000   -- main CPU: write anything here to trigger Z80 IRQ
-
--- Audio CPU (Z80) RAM
-local VSTATE_BASE  = 0xF800
-local VSTATE_SIZE  = 0x50
-local VSTATE_COUNT = 10
-
--- vstate field offsets (from eventstate.h)
-local VS_VOICENUM  = 0x00
-local VS_SONGNUM   = 0x01
-local VS_LEVEL_ADJ = 0x0E
-local VS_TRANSPOSE = 0x1A
-local VS_PAN_FLAGS = 0x1F
-local VS_PATCH     = 0x3E
-local VS_MUTED     = 0x3F
-local VS_K232_VOL  = 0x41
-
--- YM2151 Z80 addresses
-local YM_ADDR_PORT = 0xF030
-local YM_DATA_PORT = 0xF031
-
--- K007232 Z80 addresses
-local K232_BASE    = 0xF020
-local K232_END     = 0xF02D
-local K232_CHA_START = 5    -- register offset: writing triggers ch A playback
-local K232_CHB_START = 11   -- register offset: writing triggers ch B playback
-local K232_VOL_REG   = 12   -- register offset: volume (high nibble=chA, low nibble=chB)
-
--- Colors (0xAARRGGBB)
-local COL_TITLE    = 0xFFFFFF00
-local COL_WHITE    = 0xFFFFFFFF
-local COL_GREEN    = 0xFF44FF44
-local COL_RED      = 0xFFFF4444
-local COL_YELLOW   = 0xFFFFFF44
-local COL_CYAN     = 0xFF44FFFF
-local COL_GRAY     = 0xFF888888
-local COL_BG       = 0xD0000000
-local COL_BOX_LINE = 0xFF666666
-
--- Event name lookup (from latchcmds.txt)
-local event_names = {
-    [0x01] = "Player Shoot",
-    [0x05] = "Enemy Shoot",
-    [0x06] = "Enemy Multishoot",
-    [0x0A] = "Enemy Hit",
-    [0x0B] = "Enemy Hit 2",
-    [0x0C] = "Enemy Hit 3",
-    [0x0D] = "Enemy Hit 4",
-    [0x0E] = "Weapon Select",
-    [0x13] = "Enemy Self-Destruct",
-    [0x40] = "Collect Powerup",
-    [0x41] = "Confirm Initials",
-    [0x45] = "Weapon Confirm",
-    [0x47] = "Player Explode",
-    [0x48] = "Coin Drop",
-    [0x50] = '"Double"',
-    [0x51] = '"Laser"',
-    [0x52] = '"Missile"',
-    [0x53] = '"Optional"',
-    [0x54] = '"Force Field"',
-    [0x55] = '"Two Way"',
-    [0x56] = '"Shield"',
-    [0x57] = '"Speed Up"',
-    [0x58] = '"Destroy Them All"',
-    [0x59] = '"Destroy The Core"',
-    [0x5A] = '"Destroy The Eye"',
-    [0x5B] = '"Destroy The Mouth"',
-    [0x5C] = '"Destroy The Chest"',
-    [0x5D] = '"Warning"',
-    [0x5E] = '"Speech Line 1"',
-    [0x5F] = '"Speech Line 2"',
-    [0x60] = '"Arrrrrrrrrr"',
-    [0x80] = "Stage Start BGM",
-    [0x81] = "Stage 1 BGM",
-    [0x87] = "Game Over",
-    [0x88] = "High Score BGM",
-    [0x89] = "Weaponry BGM",
-    [0x8C] = "Title Theme"
-}
+-- Load shared constants and helpers
+dofile(debug.getinfo(1,"S").source:match("@?(.+[/\\])") .. "g3_common.lua")
 
 -- ============================================================
 -- State
@@ -103,13 +20,18 @@ local solo_ch = nil          -- nil = no solo; number = solo channel
 local ym_regs = {}
 local ym_addr_reg = 0
 
+-- K007232 shadow register file and bank
+local k7232_regs = {}   -- index 0–12, shadowed from writes to K7232_BASE..K7232_END
+local k7232_bank = 0    -- shadowed from writes to K7232_BANK_ADDR
+for i = 0, 12 do k7232_regs[i] = 0 end
+
 -- Devices (set in init)
 local maincpu, main_mem
 local audiocpu, audio_mem
 local screen, input_mgr
 
 -- Tap handles (must be module-level to prevent GC from removing taps)
-local tap_latch, tap_ym_addr, tap_ym_data, tap_k232
+local tap_ym_addr, tap_ym_data, tap_k7232, tap_k7232_bank
 
 -- Input codes (set in init)
 local KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
@@ -246,7 +168,7 @@ local function read_vstate(ch)
         transpose = audio_mem:read_u8(base + VS_TRANSPOSE),
         pan       = audio_mem:read_u8(base + VS_PAN_FLAGS),
         muted     = audio_mem:read_u8(base + VS_MUTED),
-        k232_vol  = audio_mem:read_u8(base + VS_K232_VOL),
+        k7232_vol = audio_mem:read_u8(base + VS_K7232_VOL),
     }
 end
 
@@ -341,6 +263,26 @@ local function draw_ui()
             COL_WHITE, 0x00000000)
     end
 
+    -- K007232 PCM chip state (from shadow registers), below YM2151 section
+    container:draw_text(0.55, 0.70, string.format("K007232 PCM (bank=%02X):", k7232_bank), COL_YELLOW, 0x00000000)
+    container:draw_text(0.55, 0.74,
+        string.format("%-4s %-7s %-6s %-4s", "Ch", "Addr", "Step", "Vol"),
+        COL_GRAY, 0x00000000)
+    for ch = 0, 1 do
+        local base = ch * 6
+        local addr = ((k7232_regs[base + 4] & 0x01) << 16)
+                   | (k7232_regs[base + 3] << 8)
+                   |  k7232_regs[base + 2]
+        local step = ((k7232_regs[base + 1] & 0x0F) << 8) | k7232_regs[base + 0]
+        local vol_byte = k7232_regs[12]
+        local vol = ch == 0 and ((vol_byte >> 4) & 0x0F) or (vol_byte & 0x0F)
+        local y = 0.78 + ch * 0.038
+        container:draw_text(0.55, y,
+            string.format("%-4s %05X  %03X    %X",
+                ch == 0 and "A" or "B", addr, step, vol),
+            COL_WHITE, 0x00000000)
+    end
+
     -- Key help at bottom
     container:draw_text(0.02, 0.96,
         "0-9=mute chan  S=solo  R=reset mutes  Up/Dn=event  Lf/Rt=+/-0x10  Enter=play  .=stop",
@@ -388,13 +330,8 @@ local function init()
     KEY_R      = input_mgr:code_from_token("KEYCODE_R")
     KEY_PERIOD = input_mgr:code_from_token("KEYCODE_STOP")
 
-    -- Trap main CPU in an infinite watchdog loop:
-    -- Patched instruction results in cpu setting
-    -- the watchdog timer continuously prior to
-    -- ROM check
-    main_mem:write_direct_u16(0x2f0, 0x60F6)
-    print("G3 SoundTest: patched ROM at 0x2f0 (BRA.S 0x2e8)")
-
+    -- Halt main CPU
+    halt_main_cpu(main_mem)
 
     -- Shadow YM2151 register writes from Z80 + enforce mutes
     tap_ym_addr = audio_mem:install_write_tap(
@@ -430,27 +367,38 @@ local function init()
         end
     )
 
-    -- K007232 register tap: suppress triggers and volume for muted channels 8/9
-    tap_k232 = audio_mem:install_write_tap(
-        K232_BASE, K232_END,
-        "g3_k232_mute",
-        function(offset, data, mask)
-            local reg = offset - K232_BASE
+    -- K007232 register tap: shadow all registers + suppress triggers/volume for muted channels 8/9
+    tap_k7232 = audio_mem:install_write_tap(
+        K7232_BASE, K7232_END,
+        "g3_k7232_mute",
+        function(offset, data, _mask)
+            local reg = offset - K7232_BASE
+            k7232_regs[reg] = data  -- shadow every write
             -- Reg 5: ch A start trigger (channel 8)
-            if reg == K232_CHA_START and is_ch_muted(8) then
+            if reg == K7232_CHA_START and is_ch_muted(8) then
                 return nil  -- suppress sample trigger
             end
             -- Reg 11: ch B start trigger (channel 9)
-            if reg == K232_CHB_START and is_ch_muted(9) then
+            if reg == K7232_CHB_START and is_ch_muted(9) then
                 return nil  -- suppress sample trigger
             end
             -- Reg 12: volume (high nibble = ch A, low nibble = ch B)
-            if reg == K232_VOL_REG then
+            if reg == K7232_VOL_REG then
                 local vol = data
                 if is_ch_muted(8) then vol = vol & 0x0F end  -- zero ch A volume
                 if is_ch_muted(9) then vol = vol & 0xF0 end  -- zero ch B volume
                 return vol
             end
+            return data
+        end
+    )
+
+    -- K007232 bank register tap (separate address from the main register block)
+    tap_k7232_bank = audio_mem:install_write_tap(
+        K7232_BANK_ADDR, K7232_BANK_ADDR,
+        "g3_k7232_bank",
+        function(_offset, data, _mask)
+            k7232_bank = data
             return data
         end
     )
