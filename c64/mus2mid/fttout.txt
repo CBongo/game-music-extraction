@@ -1,0 +1,1813 @@
+Processing: /export/aspirin/Music/c64/CGSC/Harry_Bratt/For_the_Times.mus
+  File size: 1967 bytes
+  Load address: $C000 (ignored)
+  Voice sizes: 882, 624, 352 bytes
+  Description:
+    FOR THE TIMES
+    WORDS BY KEN FULLER
+    MUSIC BY HARRY BRATT
+    COPYRIGHT 1986 BY
+    KEN FULLER AND HARRY BRATT
+    [v0 pos=0000]  06 70  TEM $70 (MM 128)
+    [v0 pos=0002]  01 4B  F-X YES
+    [v0 pos=0004]  01 16  DEF phrase=1 (body at 0006)
+    [v0 pos=0006]  01 C7  WAV Saw+Pulse
+    [v0 pos=0008]  02 00  P-W 0
+    [v0 pos=000A]  B6 0B  AUX $0B
+    [v0 pos=000C]  76 05  VDP 5
+    [v0 pos=000E]  86 03  VRT 3
+    [v0 pos=0010]  01 06  DEF phrase=0 (body at 0012)
+    [v0 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v0 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v0 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v0 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v0 pos=001A]  26 32  PNT 50 jiffies
+    [v0 pos=001C]  01 2F  END (phrase 0 defined)
+    [v0 pos=001E]  01 2F  END (phrase 1 defined)
+    [v0 pos=0020]  46 01  FLG $01
+    [v0 pos=0022]  28 9E  NOTE A4 oct=4 pitch=69 sound=2023 dur=2880 ticks
+    [v1 pos=0372]  01 12  CALL phrase=1 (jump to 0006, return to 0374)
+    [v1 pos=0006]  01 C7  WAV Saw+Pulse
+    [v1 pos=0008]  02 00  P-W 0
+    [v1 pos=000A]  B6 0B  AUX $0B
+    [v1 pos=000C]  76 05  VDP 5
+    [v1 pos=000E]  86 03  VRT 3
+    [v1 pos=0010]  01 06  DEF phrase=0 (body at 0012)
+    [v1 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v1 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v1 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v1 pos=001A]  26 32  PNT 50 jiffies
+    [v1 pos=001C]  01 2F  END (phrase 0 defined)
+    [v1 pos=001E]  01 2F  END (return from CALL to 0374)
+    [v1 pos=0374]  28 9A  NOTE D4 oct=4 pitch=62 sound=2023 dur=2880 ticks
+    [v2 pos=05E2]  01 12  CALL phrase=1 (jump to 0006, return to 05E4)
+    [v2 pos=0006]  01 C7  WAV Saw+Pulse
+    [v2 pos=0008]  02 00  P-W 0
+    [v2 pos=000A]  B6 0B  AUX $0B
+    [v2 pos=000C]  76 05  VDP 5
+    [v2 pos=000E]  86 03  VRT 3
+    [v2 pos=0010]  01 06  DEF phrase=0 (body at 0012)
+    [v2 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v2 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v2 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v2 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v2 pos=001A]  26 32  PNT 50 jiffies
+    [v2 pos=001C]  01 2F  END (phrase 0 defined)
+    [v2 pos=001E]  01 2F  END (return from CALL to 05E4)
+    [v2 pos=05E4]  28 9B  NOTE E4 oct=4 pitch=64 sound=2023 dur=2880 ticks
+    [v0 pos=0024]  28 00  REST 2880 ticks
+    [v1 pos=0376]  00 A2  ABS D3 oct=3 pitch=50 vel=75
+    [v1 pos=0378]  14 00  ABS-REST pitch=50 vel=75 dur=240 ticks
+    [v2 pos=05E6]  28 00  REST 2880 ticks
+    [v1 pos=037A]  0C 00  ABS-REST (extend pitch=50) +960 ticks
+    [v1 pos=037C]  00 A3  ABS E3 oct=3 pitch=52 vel=56
+    [v1 pos=037E]  30 00  ABS-REST pitch=52 vel=56 dur=720 ticks
+    [v1 pos=0380]  00 A5  ABS G3 oct=3 pitch=55 vel=42
+    [v1 pos=0382]  0C 00  ABS-REST pitch=55 vel=42 dur=960 ticks
+    [v0 pos=0026]  46 01  FLG $01
+    [v0 pos=0028]  28 00  REST 2880 ticks
+    [v1 pos=0384]  00 A6  ABS A3 oct=3 pitch=57 vel=31
+    [v1 pos=0386]  28 00  ABS-REST pitch=57 vel=31 dur=2880 ticks
+    [v2 pos=05E8]  28 00  REST 2880 ticks
+    [v0 pos=002A]  01 08  REL 0 (CC72=0)
+    [v0 pos=002C]  10 00  REST 480 ticks
+    [v1 pos=0388]  01 08  REL 0 (CC72=0)
+    [v1 pos=038A]  10 00  REST 480 ticks
+    [v2 pos=05EA]  01 08  REL 0 (CC72=0)
+    [v2 pos=05EC]  10 00  REST 480 ticks
+    [v0 pos=002E]  01 16  DEF phrase=1 (body at 0030)
+    [v0 pos=0030]  01 27  WAV Triangle
+    [v0 pos=0032]  01 7C  ATK 15 (CC73=127)
+    [v0 pos=0034]  01 B8  REL 11 (CC72=92)
+    [v0 pos=0036]  01 2F  END (phrase 1 defined)
+    [v0 pos=0038]  1E 01  MS# 1
+    [v0 pos=003A]  46 01  FLG $01
+    [v0 pos=003C]  B6 06  AUX $06
+    [v0 pos=003E]  70 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=720 dur=720 ticks
+    [v1 pos=038C]  1E 01  MS# 1
+    [v1 pos=038E]  01 12  CALL phrase=1 (jump to 0030, return to 0390)
+    [v1 pos=0030]  01 27  WAV Triangle
+    [v1 pos=0032]  01 7C  ATK 15 (CC73=127)
+    [v1 pos=0034]  01 B8  REL 11 (CC72=92)
+    [v1 pos=0036]  01 2F  END (return from CALL to 0390)
+    [v1 pos=0390]  B6 06  AUX $06
+    [v1 pos=0392]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v2 pos=05EE]  1E 01  MS# 1
+    [v2 pos=05F0]  01 12  CALL phrase=1 (jump to 0030, return to 05F2)
+    [v2 pos=0030]  01 27  WAV Triangle
+    [v2 pos=0032]  01 7C  ATK 15 (CC73=127)
+    [v2 pos=0034]  01 B8  REL 11 (CC72=92)
+    [v2 pos=0036]  01 2F  END (return from CALL to 05F2)
+    [v2 pos=05F2]  B6 02  AUX $02
+    [v2 pos=05F4]  48 A2  NOTE(tie) D3 oct=3 pitch=50 sound=1920 dur=1920 ticks
+    [v1 pos=0394]  54 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=0394]  54 A6  NOTE(tie) A3 oct=3 pitch=57 sound=240 dur=240 ticks
+    [v0 pos=0040]  50 5C  TIE (same pitch=66) +480 ticks
+    [v1 pos=0396]  4C 9A  SLUR (prev pitch=57 -> new pitch=62)
+    [v1 pos=0396]  4C 9A  NOTE(tie) D4 oct=4 pitch=62 sound=960 dur=960 ticks
+    [v0 pos=0042]  54 9D  SLUR (prev pitch=66 -> new pitch=67)
+    [v0 pos=0042]  54 9D  NOTE(tie) G4 oct=4 pitch=67 sound=240 dur=240 ticks
+    [v0 pos=0044]  50 9E  SLUR (prev pitch=67 -> new pitch=69)
+    [v0 pos=0044]  50 9E  NOTE(tie) A4 oct=4 pitch=69 sound=480 dur=480 ticks
+    [v1 pos=0398]  54 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=0398]  54 A6  NOTE(tie) A3 oct=3 pitch=57 sound=240 dur=240 ticks
+    [v0 pos=0046]  70 9E  TIE (same pitch=69) +720 ticks
+    [v1 pos=039A]  48 A7  SLUR (prev pitch=57 -> new pitch=59)
+    [v1 pos=039A]  48 A7  NOTE(tie) B3 oct=3 pitch=59 sound=1920 dur=1920 ticks
+    [v2 pos=05F6]  48 A5  SLUR (prev pitch=50 -> new pitch=55)
+    [v2 pos=05F6]  48 A5  NOTE(tie) G3 oct=3 pitch=55 sound=1920 dur=1920 ticks
+    [v0 pos=0048]  50 9D  SLUR (prev pitch=69 -> new pitch=67)
+    [v0 pos=0048]  50 9D  NOTE(tie) G4 oct=4 pitch=67 sound=480 dur=480 ticks
+    [v0 pos=004A]  70 9A  SLUR (prev pitch=67 -> new pitch=62)
+    [v0 pos=004A]  70 9A  NOTE(tie) D4 oct=4 pitch=62 sound=720 dur=720 ticks
+    [v0 pos=004C]  70 5C  SLUR (prev pitch=62 -> new pitch=66)
+    [v0 pos=004C]  70 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=720 dur=720 ticks
+    [v1 pos=039C]  50 9A  SLUR (prev pitch=59 -> new pitch=62)
+    [v1 pos=039C]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v2 pos=05F8]  48 64  SLUR (prev pitch=55 -> new pitch=54)
+    [v2 pos=05F8]  48 64  NOTE(tie) F#3 oct=3 pitch=54 sound=1920 dur=1920 ticks
+    [v1 pos=039E]  54 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=039E]  54 A6  NOTE(tie) A3 oct=3 pitch=57 sound=240 dur=240 ticks
+    [v0 pos=004E]  50 5C  TIE (same pitch=66) +480 ticks
+    [v1 pos=03A0]  50 9A  SLUR (prev pitch=57 -> new pitch=62)
+    [v1 pos=03A0]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v0 pos=0050]  54 9B  SLUR (prev pitch=66 -> new pitch=64)
+    [v0 pos=0050]  54 9B  NOTE(tie) E4 oct=4 pitch=64 sound=240 dur=240 ticks
+    [v1 pos=03A2]  70 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=03A2]  70 A6  NOTE(tie) A3 oct=3 pitch=57 sound=720 dur=720 ticks
+    [v0 pos=0052]  50 9A  SLUR (prev pitch=64 -> new pitch=62)
+    [v0 pos=0052]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v0 pos=0054]  08 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v0 pos=0054]  08 A6  NOTE A3 oct=3 pitch=57 sound=1063 dur=1920 ticks
+    [v1 pos=03A4]  70 61  SLUR (prev pitch=57 -> new pitch=49)
+    [v1 pos=03A4]  70 61  NOTE(tie) C#3 oct=3 pitch=49 sound=720 dur=720 ticks
+    [v2 pos=05FA]  08 AE  SLUR (prev pitch=54 -> new pitch=45)
+    [v2 pos=05FA]  08 AE  NOTE A2 oct=2 pitch=45 sound=1063 dur=1920 ticks
+    [v1 pos=03A6]  70 A3  SLUR (prev pitch=49 -> new pitch=52)
+    [v1 pos=03A6]  70 A3  NOTE(tie) E3 oct=3 pitch=52 sound=720 dur=720 ticks
+    [v1 pos=03A8]  10 A3  TIE (same pitch=52) +480 ticks
+    [v0 pos=0056]  01 16  DEF phrase=1 (body at 0058)
+    [v0 pos=0058]  01 1C  ATK 3 (CC73=38)
+    [v0 pos=005A]  01 30  DCY 3 (CC75=38)
+    [v0 pos=005C]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=005E]  01 A8  REL 10 (CC72=85)
+    [v0 pos=0060]  26 08  PNT 8 jiffies
+    [v0 pos=0062]  01 2F  END (phrase 1 defined)
+    [v0 pos=0064]  01 64  ATK 12 (CC73=95)
+    [v0 pos=0066]  54 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=240 dur=240 ticks
+    [v1 pos=03AA]  01 12  CALL phrase=1 (jump to 0058, return to 03AC)
+    [v1 pos=0058]  01 1C  ATK 3 (CC73=38)
+    [v1 pos=005A]  01 30  DCY 3 (CC75=38)
+    [v1 pos=005C]  01 D4  SUS 10 (CC79=85)
+    [v1 pos=005E]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0060]  26 08  PNT 8 jiffies
+    [v1 pos=0062]  01 2F  END (return from CALL to 03AC)
+    [v1 pos=03AC]  01 3C  ATK 7 (CC73=56)
+    [v1 pos=03AE]  4C A6  NOTE(tie) A3 oct=3 pitch=57 sound=960 dur=960 ticks
+    [v2 pos=05FC]  01 44  ATK 8 (CC73=60)
+    [v2 pos=05FE]  01 12  CALL phrase=1 (jump to 0058, return to 0600)
+    [v2 pos=0058]  01 1C  ATK 3 (CC73=38)
+    [v2 pos=005A]  01 30  DCY 3 (CC75=38)
+    [v2 pos=005C]  01 D4  SUS 10 (CC79=85)
+    [v2 pos=005E]  01 A8  REL 10 (CC72=85)
+    [v2 pos=0060]  26 08  PNT 8 jiffies
+    [v2 pos=0062]  01 2F  END (return from CALL to 0600)
+    [v2 pos=0600]  08 A2  NOTE D3 oct=3 pitch=50 sound=1783 dur=1920 ticks
+    [v0 pos=0068]  54 9B  SLUR (prev pitch=66 -> new pitch=64)
+    [v0 pos=0068]  54 9B  NOTE(tie) E4 oct=4 pitch=64 sound=240 dur=240 ticks
+    [v0 pos=006A]  14 9A  SLUR (prev pitch=64 -> new pitch=62)
+    [v0 pos=006A]  14 9A  NOTE D4 oct=4 pitch=62 sound=103 dur=240 ticks
+    [v0 pos=006C]  01 1C  ATK 3 (CC73=38)
+    [v0 pos=006E]  10 5C  NOTE F#4 oct=4 pitch=66 sound=343 dur=480 ticks
+    [v1 pos=03B0]  30 A6  TIE (same pitch=57) +720 ticks
+    [v0 pos=0070]  14 9D  NOTE G4 oct=4 pitch=67 sound=103 dur=240 ticks
+    [v0 pos=0072]  10 9E  NOTE A4 oct=4 pitch=69 sound=343 dur=480 ticks
+    [v1 pos=03B2]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=0074]  10 9E  NOTE A4 oct=4 pitch=69 sound=343 dur=480 ticks
+    [v1 pos=03B4]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=0602]  08 A5  NOTE G3 oct=3 pitch=55 sound=1783 dur=1920 ticks
+    [v0 pos=0076]  14 9F  NOTE B4 oct=4 pitch=71 sound=103 dur=240 ticks
+    [v0 pos=0078]  0C 9D  NOTE G4 oct=4 pitch=67 sound=823 dur=960 ticks
+    [v0 pos=007A]  14 9D  NOTE G4 oct=4 pitch=67 sound=103 dur=240 ticks
+    [v0 pos=007C]  14 5C  NOTE F#4 oct=4 pitch=66 sound=103 dur=240 ticks
+    [v1 pos=03B6]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v2 pos=0604]  08 64  NOTE F#3 oct=3 pitch=54 sound=1783 dur=1920 ticks
+    [v0 pos=007E]  14 9B  NOTE E4 oct=4 pitch=64 sound=103 dur=240 ticks
+    [v0 pos=0080]  14 9A  NOTE D4 oct=4 pitch=62 sound=103 dur=240 ticks
+    [v0 pos=0082]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v1 pos=03B8]  70 A2  NOTE(tie) D3 oct=3 pitch=50 sound=720 dur=720 ticks
+    [v0 pos=0084]  10 A6  NOTE A3 oct=3 pitch=57 sound=343 dur=480 ticks
+    [v1 pos=03BA]  10 A2  TIE (same pitch=50) +480 ticks
+    [v0 pos=0086]  01 E4  SUS 12 (CC79=102)
+    [v0 pos=0088]  30 A7  NOTE B3 oct=3 pitch=59 sound=583 dur=720 ticks
+    [v1 pos=03BC]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=03BE]  30 A2  NOTE D3 oct=3 pitch=50 sound=583 dur=720 ticks
+    [v2 pos=0606]  01 E4  SUS 12 (CC79=102)
+    [v2 pos=0608]  08 A5  NOTE G3 oct=3 pitch=55 sound=1783 dur=1920 ticks
+    [v0 pos=008A]  01 EC  SUS 13 (CC79=110)
+    [v0 pos=008C]  30 9A  NOTE D4 oct=4 pitch=62 sound=583 dur=720 ticks
+    [v1 pos=03C0]  01 EC  SUS 13 (CC79=110)
+    [v1 pos=03C2]  30 A7  NOTE B3 oct=3 pitch=59 sound=583 dur=720 ticks
+    [v0 pos=008E]  01 F4  SUS 14 (CC79=119)
+    [v0 pos=0090]  10 9F  NOTE B4 oct=4 pitch=71 sound=343 dur=480 ticks
+    [v1 pos=03C4]  01 F4  SUS 14 (CC79=119)
+    [v1 pos=03C6]  10 9D  NOTE G4 oct=4 pitch=67 sound=343 dur=480 ticks
+    [v0 pos=0092]  26 32  PNT 50 jiffies
+    [v0 pos=0094]  46 01  FLG $01
+    [v0 pos=0096]  08 9E  NOTE A4 oct=4 pitch=69 sound=1063 dur=1920 ticks
+    [v1 pos=03C8]  26 32  PNT 50 jiffies
+    [v1 pos=03CA]  08 59  NOTE C#4 oct=4 pitch=61 sound=1063 dur=1920 ticks
+    [v2 pos=060A]  01 FC  SUS 15 (CC79=127)
+    [v2 pos=060C]  26 32  PNT 50 jiffies
+    [v2 pos=060E]  08 A6  NOTE A3 oct=3 pitch=57 sound=1063 dur=1920 ticks
+    [v0 pos=0098]  1E 02  MS# 2
+    [v0 pos=009A]  46 01  FLG $01
+    [v0 pos=009C]  01 16  DEF phrase=1 (body at 009E)
+    [v0 pos=009E]  01 5C  ATK 11 (CC73=92)
+    [v0 pos=00A0]  01 A0  DCY 10 (CC75=85)
+    [v0 pos=00A2]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=00A4]  01 A8  REL 10 (CC72=85)
+    [v0 pos=00A6]  26 09  PNT 9 jiffies
+    [v0 pos=00A8]  01 2F  END (phrase 1 defined)
+    [v0 pos=00AA]  01 47  WAV Sawtooth
+    [v0 pos=00AC]  A6 0C  TPS $0C -> +12 semitones
+    [v0 pos=00AE]  76 0C  VDP 12
+    [v0 pos=00B0]  86 03  VRT 3
+    [v0 pos=00B2]  01 02  CALL phrase=0 (jump to 0012, return to 00B4)
+    [v0 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v0 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v0 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v0 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v0 pos=001A]  26 32  PNT 50 jiffies
+    [v0 pos=001C]  01 2F  END (return from CALL to 00B4)
+    [v0 pos=00B4]  B6 04  AUX $04
+    [v0 pos=00B6]  70 5C  NOTE(tie) F#4(+12) oct=4 pitch=78 sound=720 dur=720 ticks
+    [v1 pos=03CC]  1E 02  MS# 2
+    [v1 pos=03CE]  01 87  WAV Pulse
+    [v1 pos=03D0]  32 20  P-W 800
+    [v1 pos=03D2]  56 07  P-S 7
+    [v1 pos=03D4]  01 02  CALL phrase=0 (jump to 0012, return to 03D6)
+    [v1 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v1 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v1 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v1 pos=001A]  26 32  PNT 50 jiffies
+    [v1 pos=001C]  01 2F  END (return from CALL to 03D6)
+    [v1 pos=03D6]  76 03  VDP 3
+    [v1 pos=03D8]  86 02  VRT 2
+    [v1 pos=03DA]  B6 0C  AUX $0C
+    [v1 pos=03DC]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v2 pos=0610]  01 47  WAV Sawtooth
+    [v2 pos=0612]  01 02  CALL phrase=0 (jump to 0012, return to 0614)
+    [v2 pos=0012]  01 74  ATK 14 (CC73=120)
+    [v2 pos=0014]  01 D0  DCY 13 (CC75=112)
+    [v2 pos=0016]  01 84  SUS 0 (CC79=0)
+    [v2 pos=0018]  01 D8  REL 13 (CC72=112)
+    [v2 pos=001A]  26 32  PNT 50 jiffies
+    [v2 pos=001C]  01 2F  END (return from CALL to 0614)
+    [v2 pos=0614]  76 00  VDP 0
+    [v2 pos=0616]  B6 02  AUX $02
+    [v2 pos=0618]  6C A2  NOTE(tie) D3 oct=3 pitch=50 sound=1440 dur=1440 ticks
+    [v1 pos=03DE]  54 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=03DE]  54 A6  NOTE(tie) A3 oct=3 pitch=57 sound=240 dur=240 ticks
+    [v0 pos=00B8]  50 5C  TIE (same pitch=78) +480 ticks
+    [v1 pos=03E0]  50 9A  SLUR (prev pitch=57 -> new pitch=62)
+    [v1 pos=03E0]  50 9A  NOTE(tie) D4 oct=4 pitch=62 sound=480 dur=480 ticks
+    [v0 pos=00BA]  01 64  ATK 12 (CC73=95)
+    [v0 pos=00BC]  54 9D  SLUR (prev pitch=78 -> new pitch=79)
+    [v0 pos=00BC]  54 9D  NOTE(tie) G4(+12) oct=4 pitch=79 sound=240 dur=240 ticks
+    [v1 pos=03E2]  01 64  ATK 12 (CC73=95)
+    [v1 pos=03E4]  50 9A  TIE (same pitch=62) +480 ticks
+    [v0 pos=00BE]  10 9E  SLUR (prev pitch=79 -> new pitch=81)
+    [v0 pos=00BE]  10 9E  NOTE A4(+12) oct=4 pitch=81 sound=1 dur=480 ticks
+    [v2 pos=061A]  01 5C  ATK 11 (CC73=92)
+    [v2 pos=061C]  10 A2  TIE (same pitch=50) +480 ticks
+    [v1 pos=03E6]  14 A6  SLUR (prev pitch=62 -> new pitch=57)
+    [v1 pos=03E6]  14 A6  NOTE A3 oct=3 pitch=57 sound=1 dur=240 ticks
+    [v0 pos=00C0]  01 12  CALL phrase=1 (jump to 009E, return to 00C2)
+    [v0 pos=009E]  01 5C  ATK 11 (CC73=92)
+    [v0 pos=00A0]  01 A0  DCY 10 (CC75=85)
+    [v0 pos=00A2]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=00A4]  01 A8  REL 10 (CC72=85)
+    [v0 pos=00A6]  26 09  PNT 9 jiffies
+    [v0 pos=00A8]  01 2F  END (return from CALL to 00C2)
+    [v0 pos=00C2]  01 46  DEF phrase=4 (body at 00C4)
+    [v0 pos=00C4]  1E 00  MS# 0
+    [v0 pos=00C6]  30 9E  NOTE A4(+12) oct=4 pitch=81 sound=566 dur=720 ticks
+    [v1 pos=03E8]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=03EA]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=03EC]  01 84  SUS 0 (CC79=0)
+    [v1 pos=03EE]  01 98  REL 9 (CC72=74)
+    [v1 pos=03F0]  26 01  PNT 1 jiffies
+    [v1 pos=03F2]  01 56  DEF phrase=5 (body at 03F4)
+    [v1 pos=03F4]  08 A7  NOTE B3 oct=3 pitch=59 sound=1903 dur=1920 ticks
+    [v2 pos=061E]  01 34  ATK 6 (CC73=54)
+    [v2 pos=0620]  01 90  DCY 9 (CC75=74)
+    [v2 pos=0622]  01 DC  SUS 11 (CC79=93)
+    [v2 pos=0624]  01 B8  REL 11 (CC72=92)
+    [v2 pos=0626]  26 14  PNT 20 jiffies
+    [v2 pos=0628]  01 66  DEF phrase=6 (body at 062A)
+    [v2 pos=062A]  08 A5  NOTE G3 oct=3 pitch=55 sound=1577 dur=1920 ticks
+    [v0 pos=00C8]  10 9D  NOTE G4(+12) oct=4 pitch=79 sound=326 dur=480 ticks
+    [v0 pos=00CA]  30 9A  NOTE D4(+12) oct=4 pitch=74 sound=566 dur=720 ticks
+    [v0 pos=00CC]  46 01  FLG $01
+    [v0 pos=00CE]  30 5C  NOTE F#4(+12) oct=4 pitch=78 sound=566 dur=720 ticks
+    [v1 pos=03F6]  10 9A  NOTE D4 oct=4 pitch=62 sound=463 dur=480 ticks
+    [v2 pos=062C]  08 64  NOTE F#3 oct=3 pitch=54 sound=1577 dur=1920 ticks
+    [v1 pos=03F8]  14 A6  NOTE A3 oct=3 pitch=57 sound=223 dur=240 ticks
+    [v0 pos=00D0]  10 5C  NOTE F#4(+12) oct=4 pitch=78 sound=326 dur=480 ticks
+    [v1 pos=03FA]  10 9A  NOTE D4 oct=4 pitch=62 sound=463 dur=480 ticks
+    [v0 pos=00D2]  14 9B  NOTE E4(+12) oct=4 pitch=76 sound=86 dur=240 ticks
+    [v1 pos=03FC]  30 A6  NOTE A3 oct=3 pitch=57 sound=703 dur=720 ticks
+    [v0 pos=00D4]  10 9A  NOTE D4(+12) oct=4 pitch=74 sound=326 dur=480 ticks
+    [v0 pos=00D6]  08 A6  NOTE A3(+12) oct=3 pitch=69 sound=1766 dur=1920 ticks
+    [v1 pos=03FE]  01 04  ATK 0 (CC73=0)
+    [v1 pos=0400]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=0402]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0404]  01 27  WAV Triangle
+    [v1 pos=0406]  B6 07  AUX $07
+    [v1 pos=0408]  01 2F  END (phrase 5 defined)
+    [v1 pos=040A]  30 96  NOTE A5 oct=5 pitch=81 sound=703 dur=720 ticks
+    [v2 pos=062E]  08 AE  NOTE A2 oct=2 pitch=45 sound=1577 dur=1920 ticks
+    [v1 pos=040C]  30 49  NOTE C#6 oct=6 pitch=85 sound=703 dur=720 ticks
+    [v1 pos=040E]  10 8B  NOTE E6 oct=6 pitch=88 sound=463 dur=480 ticks
+    [v0 pos=00D8]  46 01  FLG $01
+    [v0 pos=00DA]  14 5C  NOTE F#4(+12) oct=4 pitch=78 sound=86 dur=240 ticks
+    [v1 pos=0410]  30 8A  NOTE D6 oct=6 pitch=86 sound=703 dur=720 ticks
+    [v2 pos=0630]  08 AA  NOTE D2 oct=2 pitch=38 sound=1577 dur=1920 ticks
+    [v0 pos=00DC]  14 9B  NOTE E4(+12) oct=4 pitch=76 sound=86 dur=240 ticks
+    [v0 pos=00DE]  14 9A  NOTE D4(+12) oct=4 pitch=74 sound=86 dur=240 ticks
+    [v0 pos=00E0]  10 5C  NOTE F#4(+12) oct=4 pitch=78 sound=326 dur=480 ticks
+    [v1 pos=0412]  01 86  DEF phrase=8 (body at 0414)
+    [v1 pos=0414]  B6 0C  AUX $0C
+    [v1 pos=0416]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=0418]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=041A]  01 87  WAV Pulse
+    [v1 pos=041C]  0C A6  NOTE A3 oct=3 pitch=57 sound=943 dur=960 ticks
+    [v0 pos=00E2]  14 9D  NOTE G4(+12) oct=4 pitch=79 sound=86 dur=240 ticks
+    [v0 pos=00E4]  10 9E  NOTE A4(+12) oct=4 pitch=81 sound=326 dur=480 ticks
+    [v1 pos=041E]  14 A6  NOTE A3 oct=3 pitch=57 sound=223 dur=240 ticks
+    [v0 pos=00E6]  46 01  FLG $01
+    [v0 pos=00E8]  10 9E  NOTE A4(+12) oct=4 pitch=81 sound=326 dur=480 ticks
+    [v1 pos=0420]  08 A7  NOTE B3 oct=3 pitch=59 sound=1903 dur=1920 ticks
+    [v2 pos=0632]  08 AD  NOTE G2 oct=2 pitch=43 sound=1577 dur=1920 ticks
+    [v0 pos=00EA]  14 9F  NOTE B4(+12) oct=4 pitch=83 sound=86 dur=240 ticks
+    [v0 pos=00EC]  0C 9D  NOTE G4(+12) oct=4 pitch=79 sound=806 dur=960 ticks
+    [v0 pos=00EE]  46 01  FLG $01
+    [v0 pos=00F0]  14 9D  NOTE G4(+12) oct=4 pitch=79 sound=86 dur=240 ticks
+    [v0 pos=00F2]  14 5C  NOTE F#4(+12) oct=4 pitch=78 sound=86 dur=240 ticks
+    [v1 pos=0422]  30 A6  NOTE A3 oct=3 pitch=57 sound=703 dur=720 ticks
+    [v2 pos=0634]  08 6C  NOTE F#2 oct=2 pitch=42 sound=1577 dur=1920 ticks
+    [v0 pos=00F4]  14 9B  NOTE E4(+12) oct=4 pitch=76 sound=86 dur=240 ticks
+    [v0 pos=00F6]  14 9A  NOTE D4(+12) oct=4 pitch=74 sound=86 dur=240 ticks
+    [v0 pos=00F8]  30 A6  NOTE A3(+12) oct=3 pitch=69 sound=566 dur=720 ticks
+    [v1 pos=0424]  70 A2  NOTE(tie) D3 oct=3 pitch=50 sound=720 dur=720 ticks
+    [v0 pos=00FA]  10 A6  NOTE A3(+12) oct=3 pitch=69 sound=326 dur=480 ticks
+    [v1 pos=0426]  10 A2  TIE (same pitch=50) +480 ticks
+    [v0 pos=00FC]  46 01  FLG $01
+    [v0 pos=00FE]  30 A7  NOTE B3(+12) oct=3 pitch=71 sound=566 dur=720 ticks
+    [v1 pos=0428]  30 A2  NOTE D3 oct=3 pitch=50 sound=703 dur=720 ticks
+    [v2 pos=0636]  08 AD  NOTE G2 oct=2 pitch=43 sound=1577 dur=1920 ticks
+    [v0 pos=0100]  30 9A  NOTE D4(+12) oct=4 pitch=74 sound=566 dur=720 ticks
+    [v1 pos=042A]  30 A7  NOTE B3 oct=3 pitch=59 sound=703 dur=720 ticks
+    [v0 pos=0102]  10 9F  NOTE B4(+12) oct=4 pitch=83 sound=326 dur=480 ticks
+    [v1 pos=042C]  10 9D  NOTE G4 oct=4 pitch=67 sound=463 dur=480 ticks
+    [v0 pos=0104]  1E 64  MS# 100
+    [v0 pos=0106]  01 2F  END (phrase 4 defined)
+    [v0 pos=0108]  2C 9E  NOTE A4(+12) oct=4 pitch=81 sound=1286 dur=1440 ticks
+    [v1 pos=042E]  01 C0  DCY 12 (CC75=95)
+    [v1 pos=0430]  01 2F  END (phrase 8 defined)
+    [v1 pos=0432]  30 59  NOTE C#4 oct=4 pitch=61 sound=703 dur=720 ticks
+    [v2 pos=0638]  30 AE  NOTE A2 oct=2 pitch=45 sound=377 dur=720 ticks
+    [v1 pos=0434]  70 9B  NOTE(tie) E4 oct=4 pitch=64 sound=720 dur=720 ticks
+    [v2 pos=063A]  30 AE  NOTE A2 oct=2 pitch=45 sound=377 dur=720 ticks
+    [v0 pos=010A]  10 00  REST 480 ticks
+    [v1 pos=0436]  10 9B  TIE (same pitch=64) +480 ticks
+    [v2 pos=063C]  10 AE  NOTE A2 oct=2 pitch=45 sound=137 dur=480 ticks
+    [v0 pos=010C]  01 E6  DEF phrase=14 (body at 010E)
+    [v0 pos=010E]  01 87  WAV Pulse
+    [v0 pos=0110]  32 DE  P-W 990
+    [v0 pos=0112]  56 05  P-S 5
+    [v0 pos=0114]  01 14  ATK 2 (CC73=32)
+    [v0 pos=0116]  01 80  DCY 8 (CC75=60)
+    [v0 pos=0118]  01 EC  SUS 13 (CC79=110)
+    [v0 pos=011A]  01 A8  REL 10 (CC72=85)
+    [v0 pos=011C]  26 07  PNT 7 jiffies
+    [v0 pos=011E]  01 2F  END (phrase 14 defined)
+    [v0 pos=0120]  A6 0E  TPS $0E -> +0 semitones
+    [v0 pos=0122]  46 01  FLG $01
+    [v0 pos=0124]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=0438]  01 F6  DEF phrase=15 (body at 043A)
+    [v1 pos=043A]  01 87  WAV Pulse
+    [v1 pos=043C]  32 20  P-W 800
+    [v1 pos=043E]  56 FD  P-S -3
+    [v1 pos=0440]  01 1C  ATK 3 (CC73=38)
+    [v1 pos=0442]  01 80  DCY 8 (CC75=60)
+    [v1 pos=0444]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=0446]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0448]  26 08  PNT 8 jiffies
+    [v1 pos=044A]  01 2F  END (phrase 15 defined)
+    [v1 pos=044C]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v2 pos=063E]  01 2F  END (phrase 6 defined)
+    [v2 pos=0640]  01 96  DEF phrase=9 (body at 0642)
+    [v2 pos=0642]  01 87  WAV Pulse
+    [v2 pos=0644]  72 08  P-W 1800
+    [v2 pos=0646]  56 04  P-S 4
+    [v2 pos=0648]  01 1C  ATK 3 (CC73=38)
+    [v2 pos=064A]  01 D0  DCY 13 (CC75=112)
+    [v2 pos=064C]  01 84  SUS 0 (CC79=0)
+    [v2 pos=064E]  01 98  REL 9 (CC72=74)
+    [v2 pos=0650]  26 01  PNT 1 jiffies
+    [v2 pos=0652]  01 2F  END (phrase 9 defined)
+    [v2 pos=0654]  08 AA  NOTE D2 oct=2 pitch=38 sound=1903 dur=1920 ticks
+    [v0 pos=0126]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=044E]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=0128]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=0450]  0C 9A  NOTE D4 oct=4 pitch=62 sound=823 dur=960 ticks
+    [v0 pos=012A]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v0 pos=012C]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=0452]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=012E]  01 42  CALL phrase=4 (jump to 00C4, return to 0130)
+    [v0 pos=00C4]  1E 00  MS# 0
+  WARNING: MS# 0 on voice 0 at tick 45600; first seen at tick 28320 (diff +17280)
+    [v0 pos=00C6]  30 9E  NOTE A4 oct=4 pitch=69 sound=600 dur=720 ticks
+    [v1 pos=0454]  01 52  CALL phrase=5 (jump to 03F4, return to 0456)
+    [v1 pos=03F4]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=0656]  01 62  CALL phrase=6 (jump to 062A, return to 0658)
+    [v2 pos=062A]  08 A5  NOTE G3 oct=3 pitch=55 sound=1903 dur=1920 ticks
+    [v0 pos=00C8]  10 9D  NOTE G4 oct=4 pitch=67 sound=360 dur=480 ticks
+    [v0 pos=00CA]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v0 pos=00CC]  46 01  FLG $01
+    [v0 pos=00CE]  30 5C  NOTE F#4 oct=4 pitch=66 sound=600 dur=720 ticks
+    [v1 pos=03F6]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v2 pos=062C]  08 64  NOTE F#3 oct=3 pitch=54 sound=1903 dur=1920 ticks
+    [v1 pos=03F8]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=00D0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=03FA]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v0 pos=00D2]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v1 pos=03FC]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v0 pos=00D4]  10 9A  NOTE D4 oct=4 pitch=62 sound=360 dur=480 ticks
+    [v0 pos=00D6]  08 A6  NOTE A3 oct=3 pitch=57 sound=1800 dur=1920 ticks
+    [v1 pos=03FE]  01 04  ATK 0 (CC73=0)
+    [v1 pos=0400]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=0402]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0404]  01 27  WAV Triangle
+    [v1 pos=0406]  B6 07  AUX $07
+    [v1 pos=0408]  01 2F  END (return from CALL to 0456)
+    [v1 pos=0456]  30 8E  NOTE A6 oct=6 pitch=93 sound=583 dur=720 ticks
+    [v2 pos=062E]  08 AE  NOTE A2 oct=2 pitch=45 sound=1903 dur=1920 ticks
+    [v1 pos=0458]  30 8B  NOTE E6 oct=6 pitch=88 sound=583 dur=720 ticks
+    [v1 pos=045A]  10 49  NOTE C#6 oct=6 pitch=85 sound=343 dur=480 ticks
+    [v0 pos=00D8]  46 01  FLG $01
+    [v0 pos=00DA]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=045C]  30 8A  NOTE D6 oct=6 pitch=86 sound=583 dur=720 ticks
+    [v2 pos=0630]  08 AA  NOTE D2 oct=2 pitch=38 sound=1903 dur=1920 ticks
+    [v0 pos=00DC]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00DE]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v0 pos=00E0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=045E]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=0460]  01 82  CALL phrase=8 (jump to 0414, return to 0462)
+    [v1 pos=0414]  B6 0C  AUX $0C
+    [v1 pos=0416]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=0418]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=041A]  01 87  WAV Pulse
+    [v1 pos=041C]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v0 pos=00E2]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v0 pos=00E4]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=041E]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=00E6]  46 01  FLG $01
+    [v0 pos=00E8]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=0420]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=0632]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=00EA]  14 9F  NOTE B4 oct=4 pitch=71 sound=120 dur=240 ticks
+    [v0 pos=00EC]  0C 9D  NOTE G4 oct=4 pitch=67 sound=840 dur=960 ticks
+    [v0 pos=00EE]  46 01  FLG $01
+    [v0 pos=00F0]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v0 pos=00F2]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=0422]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v2 pos=0634]  08 6C  NOTE F#2 oct=2 pitch=42 sound=1903 dur=1920 ticks
+    [v0 pos=00F4]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00F6]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v0 pos=00F8]  30 A6  NOTE A3 oct=3 pitch=57 sound=600 dur=720 ticks
+    [v1 pos=0424]  70 A2  NOTE(tie) D3 oct=3 pitch=50 sound=720 dur=720 ticks
+    [v0 pos=00FA]  10 A6  NOTE A3 oct=3 pitch=57 sound=360 dur=480 ticks
+    [v1 pos=0426]  10 A2  TIE (same pitch=50) +480 ticks
+    [v0 pos=00FC]  46 01  FLG $01
+    [v0 pos=00FE]  30 A7  NOTE B3 oct=3 pitch=59 sound=600 dur=720 ticks
+    [v1 pos=0428]  30 A2  NOTE D3 oct=3 pitch=50 sound=583 dur=720 ticks
+    [v2 pos=0636]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=0100]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v1 pos=042A]  30 A7  NOTE B3 oct=3 pitch=59 sound=583 dur=720 ticks
+    [v0 pos=0102]  10 9F  NOTE B4 oct=4 pitch=71 sound=360 dur=480 ticks
+    [v1 pos=042C]  10 9D  NOTE G4 oct=4 pitch=67 sound=343 dur=480 ticks
+    [v0 pos=0104]  1E 64  MS# 100
+  WARNING: MS# 100 on voice 0 at tick 59040; first seen at tick 41760 (diff +17280)
+    [v0 pos=0106]  01 2F  END (return from CALL to 0130)
+    [v0 pos=0130]  06 70  TEM $70 (MM 128)
+    [v0 pos=0132]  2C 9E  NOTE A4 oct=4 pitch=69 sound=1320 dur=1440 ticks
+    [v1 pos=042E]  01 C0  DCY 12 (CC75=95)
+    [v1 pos=0430]  01 2F  END (return from CALL to 0462)
+    [v1 pos=0462]  0C 59  NOTE C#4 oct=4 pitch=61 sound=823 dur=960 ticks
+    [v2 pos=0638]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v2 pos=063A]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v1 pos=0464]  0C 59  NOTE C#4 oct=4 pitch=61 sound=823 dur=960 ticks
+    [v0 pos=0134]  14 00  REST 240 ticks
+    [v2 pos=063C]  10 AE  NOTE A2 oct=2 pitch=45 sound=463 dur=480 ticks
+    [v0 pos=0136]  58 9B  NOTE(tie) E4 oct=4 pitch=64 sound=120 dur=120 ticks
+    [v0 pos=0138]  18 9A  SLUR (prev pitch=64 -> new pitch=62)
+    [v0 pos=0138]  18 9A  NOTE D4 oct=4 pitch=62 sound=1 dur=120 ticks
+    [v0 pos=013A]  01 DC  SUS 11 (CC79=93)
+    [v0 pos=013C]  46 01  FLG $01
+    [v0 pos=013E]  48 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=1920 dur=1920 ticks
+    [v1 pos=0466]  01 C4  SUS 8 (CC79=68)
+    [v1 pos=0468]  36 08  HED count=8 t=60960
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=063E]  01 2F  END (return from CALL to 0658)
+    [v2 pos=0658]  36 04  HED count=4 t=60960
+    [v2 pos=065A]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v2 pos=065C]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 7 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=065E]  10 AA  NOTE D2 oct=2 pitch=38 sound=463 dur=480 ticks
+    [v0 pos=0140]  2C 5C  TIE (same pitch=66) +1440 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 6 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=0660]  01 0F  TAL (repeat, 3 left)
+    [v2 pos=065A]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v2 pos=065C]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 5 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v0 pos=0142]  14 00  REST 240 ticks
+    [v2 pos=065E]  10 AA  NOTE D2 oct=2 pitch=38 sound=463 dur=480 ticks
+    [v0 pos=0144]  58 93  NOTE(tie) E5 oct=5 pitch=76 sound=120 dur=120 ticks
+    [v0 pos=0146]  18 92  SLUR (prev pitch=76 -> new pitch=74)
+    [v0 pos=0146]  18 92  NOTE D5 oct=5 pitch=74 sound=1 dur=120 ticks
+    [v0 pos=0148]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=014A]  48 54  NOTE(tie) F#5 oct=5 pitch=78 sound=1920 dur=1920 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 4 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=0660]  01 0F  TAL (repeat, 2 left)
+    [v2 pos=065A]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v2 pos=065C]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 3 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=065E]  10 AA  NOTE D2 oct=2 pitch=38 sound=463 dur=480 ticks
+    [v0 pos=014C]  2C 54  TIE (same pitch=78) +1440 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 2 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=0660]  01 0F  TAL (repeat, 1 left)
+    [v2 pos=065A]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v2 pos=065C]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v1 pos=046C]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=046A]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v0 pos=014E]  14 93  NOTE E5 oct=5 pitch=76 sound=120 dur=240 ticks
+    [v2 pos=065E]  10 AA  NOTE D2 oct=2 pitch=38 sound=463 dur=480 ticks
+    [v0 pos=0150]  14 92  NOTE D5 oct=5 pitch=74 sound=120 dur=240 ticks
+    [v0 pos=0152]  01 E8  REL 14 (CC72=120)
+    [v0 pos=0154]  10 92  NOTE D5 oct=5 pitch=74 sound=360 dur=480 ticks
+    [v1 pos=046C]  01 0F  TAL (done) t=68640
+    [v1 pos=046E]  1E 03  MS# 3
+    [v1 pos=0470]  01 D6  DEF phrase=13 (body at 0472)
+    [v1 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=0474]  01 A7  WAV Tri+Pulse
+    [v1 pos=0476]  02 00  P-W 0
+    [v1 pos=0478]  56 00  P-S 0
+    [v1 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v1 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v1 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v1 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0482]  26 05  PNT 5 jiffies
+    [v1 pos=0484]  01 2F  END (phrase 13 defined)
+    [v1 pos=0486]  01 B6  DEF phrase=11 (body at 0488)
+    [v1 pos=0488]  36 04  HED count=4 t=68640
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0660]  01 0F  TAL (done) t=68640
+    [v2 pos=0662]  1E 03  MS# 3
+    [v2 pos=0664]  01 D2  CALL phrase=13 (jump to 0472, return to 0666)
+    [v2 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v2 pos=0474]  01 A7  WAV Tri+Pulse
+    [v2 pos=0476]  02 00  P-W 0
+    [v2 pos=0478]  56 00  P-S 0
+    [v2 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v2 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v2 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v2 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v2 pos=0482]  26 05  PNT 5 jiffies
+    [v2 pos=0484]  01 2F  END (return from CALL to 0666)
+    [v2 pos=0666]  01 C4  SUS 8 (CC79=68)
+    [v2 pos=0668]  01 47  WAV Sawtooth
+    [v2 pos=066A]  01 C6  DEF phrase=12 (body at 066C)
+    [v2 pos=066C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0156]  08 00  REST 1920 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 3 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=066E]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 2 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0670]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0158]  0C 00  REST 960 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0672]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=015A]  46 01  FLG $01
+    [v0 pos=015C]  10 00  REST 480 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=015E]  1E 03  MS# 3
+  WARNING: MS# 3 on voice 0 at tick 72480; first seen at tick 68640 (diff +3840)
+    [v0 pos=0160]  06 70  TEM $70 (MM 128)
+    [v0 pos=0162]  01 8E  VOL 8 (master)
+    [v0 pos=0164]  01 36  DEF phrase=3 (body at 0166)
+    [v0 pos=0166]  01 27  WAV Triangle
+    [v0 pos=0168]  01 2F  END (phrase 3 defined)
+    [v0 pos=016A]  01 A6  DEF phrase=10 (body at 016C)
+    [v0 pos=016C]  10 00  REST 480 ticks
+    [v1 pos=0492]  01 0F  TAL (done) t=72480
+    [v1 pos=0494]  01 26  DEF phrase=2 (body at 0496)
+    [v1 pos=0496]  36 02  HED count=2 t=72480
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0674]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=016E]  01 D2  CALL phrase=13 (jump to 0472, return to 0170)
+    [v0 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v0 pos=0474]  01 A7  WAV Tri+Pulse
+    [v0 pos=0476]  02 00  P-W 0
+    [v0 pos=0478]  56 00  P-S 0
+    [v0 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v0 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v0 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v0 pos=0482]  26 05  PNT 5 jiffies
+    [v0 pos=0484]  01 2F  END (return from CALL to 0170)
+    [v0 pos=0170]  01 32  CALL phrase=3 (jump to 0166, return to 0172)
+    [v0 pos=0166]  01 27  WAV Triangle
+    [v0 pos=0168]  01 2F  END (return from CALL to 0172)
+    [v0 pos=0172]  76 1E  VDP 30
+    [v0 pos=0174]  86 03  VRT 3
+    [v0 pos=0176]  01 0C  ATK 1 (CC73=21)
+    [v0 pos=0178]  01 98  REL 9 (CC72=74)
+    [v0 pos=017A]  01 FC  SUS 15 (CC79=127)
+    [v0 pos=017C]  46 01  FLG $01
+    [v0 pos=017E]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=0180]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0182]  10 92  NOTE D5 oct=5 pitch=74 sound=394 dur=480 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0676]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0184]  46 01  FLG $01
+    [v0 pos=0186]  16 07  UTL 7 jiffies
+    [v0 pos=0188]  04 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=0188]  04 92  NOTE D5 oct=5 pitch=74 sound=34 dur=120 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=018A]  04 93  UTL-note E5 (7.0 jiffies = 120 ticks)
+    [v0 pos=018A]  04 93  NOTE E5 oct=5 pitch=76 sound=34 dur=120 ticks
+    [v0 pos=018C]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=018E]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=74400
+    [v1 pos=04A2]  01 2F  END (phrase 2 defined)
+    [v1 pos=04A4]  A6 91  TPS $91 -> -2 semitones
+    [v1 pos=04A6]  01 22  CALL phrase=2 (jump to 0496, return to 04A8)
+    [v1 pos=0496]  36 02  HED count=2 t=74400
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0678]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=0190]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=0192]  10 93  NOTE E5 oct=5 pitch=76 sound=394 dur=480 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=067A]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=0194]  10 92  NOTE D5 oct=5 pitch=74 sound=394 dur=480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=0196]  46 01  FLG $01
+    [v0 pos=0198]  14 92  NOTE D5 oct=5 pitch=74 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=019A]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=76320
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04A8)
+    [v1 pos=04A8]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=04AA]  01 22  CALL phrase=2 (jump to 0496, return to 04AC)
+    [v1 pos=0496]  36 02  HED count=2 t=76320
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=067C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=019C]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=019E]  14 92  NOTE D5 oct=5 pitch=74 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01A0]  30 9E  NOTE A4 oct=4 pitch=69 sound=634 dur=720 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=067E]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01A2]  44 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01A2]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=120 dur=120 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01A4]  04 93  UTL-note E5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01A4]  04 93  SLUR (prev pitch=74 -> new pitch=76)
+    [v0 pos=01A4]  04 93  NOTE E5 oct=5 pitch=76 sound=34 dur=120 ticks
+    [v0 pos=01A6]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01A8]  48 93  NOTE(tie) E5 oct=5 pitch=76 sound=1920 dur=1920 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=78240
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04AC)
+    [v1 pos=04AC]  14 A3  NOTE E3 oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0680]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=04AE]  14 A5  NOTE G3 oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04B0]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04B2]  14 A5  NOTE G3 oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04B4]  01 C8  REL 12 (CC72=95)
+    [v1 pos=04B6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v2 pos=0682]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=04B8]  00 99  ABS C4 oct=4 pitch=60 vel=75
+    [v1 pos=04BA]  14 00  ABS-REST pitch=60 vel=75 dur=240 ticks
+    [v1 pos=04BC]  01 E8  REL 14 (CC72=120)
+    [v1 pos=04BE]  00 A6  ABS A3 oct=3 pitch=57 vel=56
+    [v1 pos=04C0]  14 00  ABS-REST pitch=57 vel=56 dur=240 ticks
+    [v1 pos=04C2]  00 99  ABS C4 oct=4 pitch=60 vel=42
+    [v1 pos=04C4]  14 00  ABS-REST pitch=60 vel=42 dur=240 ticks
+    [v0 pos=01AA]  10 93  TIE (same pitch=76) +480 ticks
+    [v1 pos=04C6]  01 A8  REL 10 (CC72=85)
+    [v1 pos=04C8]  01 22  CALL phrase=2 (jump to 0496, return to 04CA)
+    [v1 pos=0496]  36 02  HED count=2 t=80160
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0684]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01AC]  46 01  FLG $01
+    [v0 pos=01AE]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01B0]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01B2]  16 07  UTL 7 jiffies
+    [v0 pos=01B4]  44 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01B4]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=120 dur=120 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0686]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=01B6]  10 92  TIE (same pitch=74) +480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01B8]  16 04  UTL 4 jiffies
+    [v0 pos=01BA]  44 92  UTL-note D5 (4.0 jiffies = 69 ticks)
+    [v0 pos=01BA]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=69 dur=69 ticks
+    [v0 pos=01BC]  16 03  UTL 3 jiffies
+    [v0 pos=01BE]  04 93  UTL-note E5 (3.0 jiffies = 51 ticks)
+    [v0 pos=01BE]  04 93  SLUR (prev pitch=74 -> new pitch=76)
+    [v0 pos=01BE]  04 93  NOTE E5 oct=5 pitch=76 sound=1 dur=51 ticks
+    [v0 pos=01C0]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01C2]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=82080
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04CA)
+    [v1 pos=04CA]  A6 91  TPS $91 -> -2 semitones
+    [v1 pos=04CC]  01 22  CALL phrase=2 (jump to 0496, return to 04CE)
+    [v1 pos=0496]  36 02  HED count=2 t=82080
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0688]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=01C4]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=01C6]  10 93  NOTE E5 oct=5 pitch=76 sound=394 dur=480 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=068A]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=01C8]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=01CA]  46 01  FLG $01
+    [v0 pos=01CC]  14 95  NOTE G5 oct=5 pitch=79 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=01CE]  01 2F  END (phrase 10 defined)
+    [v0 pos=01D0]  16 13  UTL 19 jiffies
+    [v0 pos=01D2]  04 D7  UTL-note Bb5 (19.0 jiffies = 326 ticks)
+    [v0 pos=01D2]  04 D7  NOTE Bb5 oct=5 pitch=82 sound=240 dur=326 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=84000
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04CE)
+    [v1 pos=04CE]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=04D0]  36 02  HED count=2 t=84000
+    [v1 pos=04D2]  14 A4  NOTE F3 oct=3 pitch=53 sound=154 dur=240 ticks
+    [v2 pos=068C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=04D4]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v0 pos=01D4]  16 13  UTL 19 jiffies
+    [v0 pos=01D6]  04 96  UTL-note A5 (19.0 jiffies = 326 ticks)
+    [v0 pos=01D6]  04 96  NOTE A5 oct=5 pitch=81 sound=240 dur=326 ticks
+    [v1 pos=04D6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01D8]  16 12  UTL 18 jiffies
+    [v0 pos=01DA]  04 94  UTL-note F5 (18.0 jiffies = 309 ticks)
+    [v0 pos=01DA]  04 94  NOTE F5 oct=5 pitch=77 sound=223 dur=309 ticks
+    [v1 pos=04D8]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v1 pos=04DA]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=04D2]  14 A4  NOTE F3 oct=3 pitch=53 sound=154 dur=240 ticks
+    [v2 pos=068E]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=01DC]  16 13  UTL 19 jiffies
+    [v0 pos=01DE]  04 92  UTL-note D5 (19.0 jiffies = 326 ticks)
+    [v0 pos=01DE]  04 92  NOTE D5 oct=5 pitch=74 sound=240 dur=326 ticks
+    [v1 pos=04D4]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v0 pos=01E0]  16 13  UTL 19 jiffies
+    [v0 pos=01E2]  04 94  UTL-note F5 (19.0 jiffies = 326 ticks)
+    [v0 pos=01E2]  04 94  NOTE F5 oct=5 pitch=77 sound=240 dur=326 ticks
+    [v1 pos=04D6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01E4]  16 12  UTL 18 jiffies
+    [v0 pos=01E6]  04 92  UTL-note D5 (18.0 jiffies = 309 ticks)
+    [v0 pos=01E6]  04 92  NOTE D5 oct=5 pitch=74 sound=223 dur=309 ticks
+    [v1 pos=04D8]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v1 pos=04DA]  01 0F  TAL (done) t=85920
+    [v1 pos=04DC]  14 A3  NOTE E3 oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0690]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=01E8]  46 01  FLG $01
+    [v0 pos=01EA]  30 92  NOTE D5 oct=5 pitch=74 sound=634 dur=720 ticks
+    [v1 pos=04DE]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=04E0]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04E2]  14 9B  NOTE E4 oct=4 pitch=64 sound=154 dur=240 ticks
+    [v0 pos=01EC]  10 91  NOTE C5 oct=5 pitch=72 sound=394 dur=480 ticks
+    [v1 pos=04E4]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v2 pos=0692]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=04E6]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01EE]  30 9D  NOTE G4 oct=4 pitch=67 sound=634 dur=720 ticks
+    [v1 pos=04E8]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04EA]  14 5C  NOTE F#4 oct=4 pitch=66 sound=154 dur=240 ticks
+    [v1 pos=04EC]  01 47  WAV Sawtooth
+    [v1 pos=04EE]  30 9A  NOTE D4 oct=4 pitch=62 sound=634 dur=720 ticks
+    [v2 pos=0694]  2C A3  NOTE E3 oct=3 pitch=52 sound=1354 dur=1440 ticks
+    [v0 pos=01F0]  2C 9E  NOTE A4 oct=4 pitch=69 sound=1354 dur=1440 ticks
+    [v1 pos=04F0]  30 59  NOTE C#4 oct=4 pitch=61 sound=634 dur=720 ticks
+    [v1 pos=04F2]  10 9E  NOTE A4 oct=4 pitch=69 sound=394 dur=480 ticks
+    [v2 pos=0696]  10 59  NOTE C#4 oct=4 pitch=61 sound=394 dur=480 ticks
+    [v0 pos=01F2]  10 00  REST 480 ticks
+    [v1 pos=04F4]  01 2F  END (phrase 11 defined)
+    [v1 pos=04F6]  1E 04  MS# 4
+    [v1 pos=04F8]  10 9E  NOTE A4 oct=4 pitch=69 sound=394 dur=480 ticks
+    [v2 pos=0698]  01 2F  END (phrase 12 defined)
+    [v2 pos=069A]  1E 04  MS# 4
+    [v2 pos=069C]  01 92  CALL phrase=9 (jump to 0642, return to 069E)
+    [v2 pos=0642]  01 87  WAV Pulse
+    [v2 pos=0644]  72 08  P-W 1800
+    [v2 pos=0646]  56 04  P-S 4
+    [v2 pos=0648]  01 1C  ATK 3 (CC73=38)
+    [v2 pos=064A]  01 D0  DCY 13 (CC75=112)
+    [v2 pos=064C]  01 84  SUS 0 (CC79=0)
+    [v2 pos=064E]  01 98  REL 9 (CC72=74)
+    [v2 pos=0650]  26 01  PNT 1 jiffies
+    [v2 pos=0652]  01 2F  END (return from CALL to 069E)
+    [v2 pos=069E]  2C A2  NOTE D3 oct=3 pitch=50 sound=1423 dur=1440 ticks
+    [v0 pos=01F4]  1E 04  MS# 4
+  WARNING: MS# 4 on voice 0 at tick 89762; first seen at tick 89760 (diff +2)
+    [v0 pos=01F6]  76 16  VDP 22
+    [v0 pos=01F8]  01 E2  CALL phrase=14 (jump to 010E, return to 01FA)
+    [v0 pos=010E]  01 87  WAV Pulse
+    [v0 pos=0110]  32 DE  P-W 990
+    [v0 pos=0112]  56 05  P-S 5
+    [v0 pos=0114]  01 14  ATK 2 (CC73=32)
+    [v0 pos=0116]  01 80  DCY 8 (CC75=60)
+    [v0 pos=0118]  01 EC  SUS 13 (CC79=110)
+    [v0 pos=011A]  01 A8  REL 10 (CC72=85)
+    [v0 pos=011C]  26 07  PNT 7 jiffies
+    [v0 pos=011E]  01 2F  END (return from CALL to 01FA)
+    [v0 pos=01FA]  46 01  FLG $01
+    [v0 pos=01FC]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=04FA]  14 00  REST 240 ticks
+    [v0 pos=01FE]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=04FC]  01 F2  CALL phrase=15 (jump to 043A, return to 04FE)
+    [v1 pos=043A]  01 87  WAV Pulse
+    [v1 pos=043C]  32 20  P-W 800
+    [v1 pos=043E]  56 FD  P-S -3
+    [v1 pos=0440]  01 1C  ATK 3 (CC73=38)
+    [v1 pos=0442]  01 80  DCY 8 (CC75=60)
+    [v1 pos=0444]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=0446]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0448]  26 08  PNT 8 jiffies
+    [v1 pos=044A]  01 2F  END (return from CALL to 04FE)
+    [v1 pos=04FE]  0C 9A  NOTE D4 oct=4 pitch=62 sound=823 dur=960 ticks
+    [v0 pos=0200]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v0 pos=0202]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v2 pos=06A0]  10 A2  NOTE D3 oct=3 pitch=50 sound=463 dur=480 ticks
+    [v0 pos=0204]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=0500]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v1 pos=0502]  01 52  CALL phrase=5 (jump to 03F4, return to 0504)
+    [v1 pos=03F4]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=06A2]  01 62  CALL phrase=6 (jump to 062A, return to 06A4)
+    [v2 pos=062A]  08 A5  NOTE G3 oct=3 pitch=55 sound=1903 dur=1920 ticks
+    [v0 pos=0206]  01 42  CALL phrase=4 (jump to 00C4, return to 0208)
+    [v0 pos=00C4]  1E 00  MS# 0
+  WARNING: MS# 0 on voice 0 at tick 91682; first seen at tick 28320 (diff +63362)
+    [v0 pos=00C6]  30 9E  NOTE A4 oct=4 pitch=69 sound=600 dur=720 ticks
+    [v0 pos=00C8]  10 9D  NOTE G4 oct=4 pitch=67 sound=360 dur=480 ticks
+    [v0 pos=00CA]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v1 pos=03F6]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v2 pos=062C]  08 64  NOTE F#3 oct=3 pitch=54 sound=1903 dur=1920 ticks
+    [v0 pos=00CC]  46 01  FLG $01
+    [v0 pos=00CE]  30 5C  NOTE F#4 oct=4 pitch=66 sound=600 dur=720 ticks
+    [v1 pos=03F8]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v1 pos=03FA]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v0 pos=00D0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=03FC]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v0 pos=00D2]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00D4]  10 9A  NOTE D4 oct=4 pitch=62 sound=360 dur=480 ticks
+    [v1 pos=03FE]  01 04  ATK 0 (CC73=0)
+    [v1 pos=0400]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=0402]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0404]  01 27  WAV Triangle
+    [v1 pos=0406]  B6 07  AUX $07
+    [v1 pos=0408]  01 2F  END (return from CALL to 0504)
+    [v1 pos=0504]  30 96  NOTE A5 oct=5 pitch=81 sound=583 dur=720 ticks
+    [v2 pos=062E]  08 AE  NOTE A2 oct=2 pitch=45 sound=1903 dur=1920 ticks
+    [v0 pos=00D6]  08 A6  NOTE A3 oct=3 pitch=57 sound=1800 dur=1920 ticks
+    [v1 pos=0506]  30 8B  NOTE E6 oct=6 pitch=88 sound=583 dur=720 ticks
+    [v1 pos=0508]  10 49  NOTE C#6 oct=6 pitch=85 sound=343 dur=480 ticks
+    [v1 pos=050A]  30 8A  NOTE D6 oct=6 pitch=86 sound=583 dur=720 ticks
+    [v2 pos=0630]  08 AA  NOTE D2 oct=2 pitch=38 sound=1903 dur=1920 ticks
+    [v0 pos=00D8]  46 01  FLG $01
+    [v0 pos=00DA]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v0 pos=00DC]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00DE]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v1 pos=050C]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=050E]  01 82  CALL phrase=8 (jump to 0414, return to 0510)
+    [v1 pos=0414]  B6 0C  AUX $0C
+    [v1 pos=0416]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=0418]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=041A]  01 87  WAV Pulse
+    [v1 pos=041C]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v0 pos=00E0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v0 pos=00E2]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v0 pos=00E4]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=041E]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v1 pos=0420]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=0632]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=00E6]  46 01  FLG $01
+    [v0 pos=00E8]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v0 pos=00EA]  14 9F  NOTE B4 oct=4 pitch=71 sound=120 dur=240 ticks
+    [v0 pos=00EC]  0C 9D  NOTE G4 oct=4 pitch=67 sound=840 dur=960 ticks
+    [v0 pos=00EE]  46 01  FLG $01
+    [v0 pos=00F0]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v1 pos=0422]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v2 pos=0634]  08 6C  NOTE F#2 oct=2 pitch=42 sound=1903 dur=1920 ticks
+    [v0 pos=00F2]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v0 pos=00F4]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00F6]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v1 pos=0424]  70 A2  NOTE(tie) D3 oct=3 pitch=50 sound=720 dur=720 ticks
+    [v0 pos=00F8]  30 A6  NOTE A3 oct=3 pitch=57 sound=600 dur=720 ticks
+    [v1 pos=0426]  10 A2  TIE (same pitch=50) +480 ticks
+    [v0 pos=00FA]  10 A6  NOTE A3 oct=3 pitch=57 sound=360 dur=480 ticks
+    [v1 pos=0428]  30 A2  NOTE D3 oct=3 pitch=50 sound=583 dur=720 ticks
+    [v2 pos=0636]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=00FC]  46 01  FLG $01
+    [v0 pos=00FE]  30 A7  NOTE B3 oct=3 pitch=59 sound=600 dur=720 ticks
+    [v1 pos=042A]  30 A7  NOTE B3 oct=3 pitch=59 sound=583 dur=720 ticks
+    [v0 pos=0100]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v1 pos=042C]  10 9D  NOTE G4 oct=4 pitch=67 sound=343 dur=480 ticks
+    [v0 pos=0102]  10 9F  NOTE B4 oct=4 pitch=71 sound=360 dur=480 ticks
+    [v1 pos=042E]  01 C0  DCY 12 (CC75=95)
+    [v1 pos=0430]  01 2F  END (return from CALL to 0510)
+    [v1 pos=0510]  0C 9B  NOTE E4 oct=4 pitch=64 sound=823 dur=960 ticks
+    [v2 pos=0638]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v0 pos=0104]  1E 64  MS# 100
+  WARNING: MS# 100 on voice 0 at tick 105122; first seen at tick 41760 (diff +63362)
+    [v0 pos=0106]  01 2F  END (return from CALL to 0208)
+    [v0 pos=0208]  2C 9E  NOTE A4 oct=4 pitch=69 sound=1320 dur=1440 ticks
+    [v2 pos=063A]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v1 pos=0512]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v2 pos=063C]  10 AE  NOTE A2 oct=2 pitch=45 sound=463 dur=480 ticks
+    [v0 pos=020A]  16 07  UTL 7 jiffies
+    [v0 pos=020C]  44 9B  UTL-note E4 (7.0 jiffies = 120 ticks)
+    [v0 pos=020C]  44 9B  NOTE(tie) E4 oct=4 pitch=64 sound=120 dur=120 ticks
+    [v0 pos=020E]  44 5C  UTL-note F#4 (7.0 jiffies = 120 ticks)
+    [v0 pos=020E]  44 5C  SLUR (prev pitch=64 -> new pitch=66)
+    [v0 pos=020E]  44 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=120 dur=120 ticks
+    [v0 pos=0210]  16 08  UTL 8 jiffies
+    [v0 pos=0212]  44 9B  UTL-note E4 (8.0 jiffies = 137 ticks)
+    [v0 pos=0212]  44 9B  SLUR (prev pitch=66 -> new pitch=64)
+    [v0 pos=0212]  44 9B  NOTE(tie) E4 oct=4 pitch=64 sound=137 dur=137 ticks
+    [v0 pos=0214]  44 9A  UTL-note D4 (8.0 jiffies = 137 ticks)
+    [v0 pos=0214]  44 9A  SLUR (prev pitch=64 -> new pitch=62)
+    [v0 pos=0214]  44 9A  NOTE(tie) D4 oct=4 pitch=62 sound=137 dur=137 ticks
+    [v1 pos=0514]  01 D2  CALL phrase=13 (jump to 0472, return to 0516)
+    [v1 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=0474]  01 A7  WAV Tri+Pulse
+    [v1 pos=0476]  02 00  P-W 0
+    [v1 pos=0478]  56 00  P-S 0
+    [v1 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v1 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v1 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v1 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0482]  26 05  PNT 5 jiffies
+    [v1 pos=0484]  01 2F  END (return from CALL to 0516)
+    [v1 pos=0516]  01 B2  CALL phrase=11 (jump to 0488, return to 0518)
+    [v1 pos=0488]  36 04  HED count=4 t=107040
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=063E]  01 2F  END (return from CALL to 06A4)
+    [v2 pos=06A4]  01 D2  CALL phrase=13 (jump to 0472, return to 06A6)
+    [v2 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v2 pos=0474]  01 A7  WAV Tri+Pulse
+    [v2 pos=0476]  02 00  P-W 0
+    [v2 pos=0478]  56 00  P-S 0
+    [v2 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v2 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v2 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v2 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v2 pos=0482]  26 05  PNT 5 jiffies
+    [v2 pos=0484]  01 2F  END (return from CALL to 06A6)
+    [v2 pos=06A6]  01 C2  CALL phrase=12 (jump to 066C, return to 06A8)
+    [v2 pos=066C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=0216]  46 01  FLG $01
+    [v0 pos=0218]  14 5C  SLUR (prev pitch=62 -> new pitch=66)
+    [v0 pos=0218]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=021A]  01 E8  REL 14 (CC72=120)
+    [v0 pos=021C]  14 00  REST 240 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=021E]  08 00  REST 1920 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 3 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=066E]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 2 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0670]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=0220]  0C 00  REST 960 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=048A]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0672]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=048C]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=048E]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=0222]  46 01  FLG $01
+    [v0 pos=0224]  10 00  REST 480 ticks
+    [v1 pos=0490]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=0492]  01 0F  TAL (done) t=110880
+    [v1 pos=0494]  01 26  DEF phrase=2 (body at 0496)
+    [v1 pos=0496]  36 02  HED count=2 t=110880
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0674]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=0226]  06 70  TEM $70 (MM 128)
+    [v0 pos=0228]  01 36  DEF phrase=3 (body at 022A)
+    [v0 pos=022A]  01 27  WAV Triangle
+    [v0 pos=022C]  01 2F  END (phrase 3 defined)
+    [v0 pos=022E]  01 8E  VOL 8 (master)
+    [v0 pos=0230]  01 A2  CALL phrase=10 (jump to 016C, return to 0232)
+    [v0 pos=016C]  10 00  REST 480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=016E]  01 D2  CALL phrase=13 (jump to 0472, return to 0170)
+    [v0 pos=0472]  A6 0E  TPS $0E -> +0 semitones
+    [v0 pos=0474]  01 A7  WAV Tri+Pulse
+    [v0 pos=0476]  02 00  P-W 0
+    [v0 pos=0478]  56 00  P-S 0
+    [v0 pos=047A]  01 14  ATK 2 (CC73=32)
+    [v0 pos=047C]  01 20  DCY 2 (CC75=32)
+    [v0 pos=047E]  01 D4  SUS 10 (CC79=85)
+    [v0 pos=0480]  01 A8  REL 10 (CC72=85)
+    [v0 pos=0482]  26 05  PNT 5 jiffies
+    [v0 pos=0484]  01 2F  END (return from CALL to 0170)
+    [v0 pos=0170]  01 32  CALL phrase=3 (jump to 022A, return to 0172)
+    [v0 pos=022A]  01 27  WAV Triangle
+    [v0 pos=022C]  01 2F  END (return from CALL to 0172)
+    [v0 pos=0172]  76 1E  VDP 30
+    [v0 pos=0174]  86 03  VRT 3
+    [v0 pos=0176]  01 0C  ATK 1 (CC73=21)
+    [v0 pos=0178]  01 98  REL 9 (CC72=74)
+    [v0 pos=017A]  01 FC  SUS 15 (CC79=127)
+    [v0 pos=017C]  46 01  FLG $01
+    [v0 pos=017E]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0180]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0676]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=0182]  10 92  NOTE D5 oct=5 pitch=74 sound=394 dur=480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=0184]  46 01  FLG $01
+    [v0 pos=0186]  16 07  UTL 7 jiffies
+    [v0 pos=0188]  04 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=0188]  04 92  NOTE D5 oct=5 pitch=74 sound=34 dur=120 ticks
+    [v0 pos=018A]  04 93  UTL-note E5 (7.0 jiffies = 120 ticks)
+    [v0 pos=018A]  04 93  NOTE E5 oct=5 pitch=76 sound=34 dur=120 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=018C]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=112800
+    [v1 pos=04A2]  01 2F  END (phrase 2 defined)
+    [v1 pos=04A4]  A6 91  TPS $91 -> -2 semitones
+    [v1 pos=04A6]  01 22  CALL phrase=2 (jump to 0496, return to 04A8)
+    [v1 pos=0496]  36 02  HED count=2 t=112800
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0678]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=018E]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=0190]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=0192]  10 93  NOTE E5 oct=5 pitch=76 sound=394 dur=480 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=067A]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=0194]  10 92  NOTE D5 oct=5 pitch=74 sound=394 dur=480 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=0196]  46 01  FLG $01
+    [v0 pos=0198]  14 92  NOTE D5 oct=5 pitch=74 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=114720
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04A8)
+    [v1 pos=04A8]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=04AA]  01 22  CALL phrase=2 (jump to 0496, return to 04AC)
+    [v1 pos=0496]  36 02  HED count=2 t=114720
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=067C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=019A]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=019C]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=019E]  14 92  NOTE D5 oct=5 pitch=74 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01A0]  30 9E  NOTE A4 oct=4 pitch=69 sound=634 dur=720 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=067E]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01A2]  44 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01A2]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=120 dur=120 ticks
+    [v0 pos=01A4]  04 93  UTL-note E5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01A4]  04 93  SLUR (prev pitch=74 -> new pitch=76)
+    [v0 pos=01A4]  04 93  NOTE E5 oct=5 pitch=76 sound=34 dur=120 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01A6]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=116640
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04AC)
+    [v1 pos=04AC]  14 A3  NOTE E3 oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0680]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=01A8]  48 93  NOTE(tie) E5 oct=5 pitch=76 sound=1920 dur=1920 ticks
+    [v1 pos=04AE]  14 A5  NOTE G3 oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04B0]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04B2]  14 A5  NOTE G3 oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=04B4]  01 C8  REL 12 (CC72=95)
+    [v1 pos=04B6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v2 pos=0682]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=04B8]  00 99  ABS C4 oct=4 pitch=60 vel=75
+    [v1 pos=04BA]  14 00  ABS-REST pitch=60 vel=75 dur=240 ticks
+    [v1 pos=04BC]  01 E8  REL 14 (CC72=120)
+    [v1 pos=04BE]  00 A6  ABS A3 oct=3 pitch=57 vel=56
+    [v1 pos=04C0]  14 00  ABS-REST pitch=57 vel=56 dur=240 ticks
+    [v1 pos=04C2]  00 99  ABS C4 oct=4 pitch=60 vel=42
+    [v1 pos=04C4]  14 00  ABS-REST pitch=60 vel=42 dur=240 ticks
+    [v1 pos=04C6]  01 A8  REL 10 (CC72=85)
+    [v1 pos=04C8]  01 22  CALL phrase=2 (jump to 0496, return to 04CA)
+    [v1 pos=0496]  36 02  HED count=2 t=118560
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0684]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=01AA]  10 93  TIE (same pitch=76) +480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01AC]  46 01  FLG $01
+    [v0 pos=01AE]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01B0]  14 93  NOTE E5 oct=5 pitch=76 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3 oct=3 pitch=54 sound=154 dur=240 ticks
+    [v2 pos=0686]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=01B2]  16 07  UTL 7 jiffies
+    [v0 pos=01B4]  44 92  UTL-note D5 (7.0 jiffies = 120 ticks)
+    [v0 pos=01B4]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=120 dur=120 ticks
+    [v0 pos=01B6]  10 92  TIE (same pitch=74) +480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=01B8]  16 04  UTL 4 jiffies
+    [v0 pos=01BA]  44 92  UTL-note D5 (4.0 jiffies = 69 ticks)
+    [v0 pos=01BA]  44 92  NOTE(tie) D5 oct=5 pitch=74 sound=69 dur=69 ticks
+    [v0 pos=01BC]  16 03  UTL 3 jiffies
+    [v0 pos=01BE]  04 93  UTL-note E5 (3.0 jiffies = 51 ticks)
+    [v0 pos=01BE]  04 93  SLUR (prev pitch=74 -> new pitch=76)
+    [v0 pos=01BE]  04 93  NOTE E5 oct=5 pitch=76 sound=1 dur=51 ticks
+    [v1 pos=049E]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=01C0]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=120480
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04CA)
+    [v1 pos=04CA]  A6 91  TPS $91 -> -2 semitones
+    [v1 pos=04CC]  01 22  CALL phrase=2 (jump to 0496, return to 04CE)
+    [v1 pos=0496]  36 02  HED count=2 t=120480
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0688]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=01C2]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v0 pos=01C4]  14 54  NOTE F#5 oct=5 pitch=78 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=01C6]  10 93  NOTE E5 oct=5 pitch=76 sound=394 dur=480 ticks
+    [v1 pos=04A0]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0498]  14 64  NOTE F#3(-2) oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=068A]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=049A]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=01C8]  10 95  NOTE G5 oct=5 pitch=79 sound=394 dur=480 ticks
+    [v1 pos=049C]  14 9A  NOTE D4(-2) oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=049E]  14 A6  NOTE A3(-2) oct=3 pitch=55 sound=154 dur=240 ticks
+    [v0 pos=01CA]  46 01  FLG $01
+    [v0 pos=01CC]  14 95  NOTE G5 oct=5 pitch=79 sound=154 dur=240 ticks
+    [v1 pos=04A0]  01 0F  TAL (done) t=122400
+    [v1 pos=04A2]  01 2F  END (return from CALL to 04CE)
+    [v1 pos=04CE]  A6 0E  TPS $0E -> +0 semitones
+    [v1 pos=04D0]  36 02  HED count=2 t=122400
+    [v1 pos=04D2]  14 A4  NOTE F3 oct=3 pitch=53 sound=154 dur=240 ticks
+    [v2 pos=068C]  0C A2  NOTE D3 oct=3 pitch=50 sound=874 dur=960 ticks
+    [v0 pos=01CE]  01 2F  END (return from CALL to 0232)
+    [v0 pos=0232]  36 02  HED count=2 t=122436
+    [v0 pos=0234]  16 13  UTL 19 jiffies
+    [v0 pos=0236]  04 D7  UTL-note Bb5 (19.0 jiffies = 326 ticks)
+    [v0 pos=0236]  04 D7  NOTE Bb5 oct=5 pitch=82 sound=240 dur=326 ticks
+    [v1 pos=04D4]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v0 pos=0238]  16 13  UTL 19 jiffies
+    [v0 pos=023A]  04 96  UTL-note A5 (19.0 jiffies = 326 ticks)
+    [v0 pos=023A]  04 96  NOTE A5 oct=5 pitch=81 sound=240 dur=326 ticks
+    [v1 pos=04D6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=023C]  16 12  UTL 18 jiffies
+    [v0 pos=023E]  04 94  UTL-note F5 (18.0 jiffies = 309 ticks)
+    [v0 pos=023E]  04 94  NOTE F5 oct=5 pitch=77 sound=223 dur=309 ticks
+    [v1 pos=04D8]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v1 pos=04DA]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=04D2]  14 A4  NOTE F3 oct=3 pitch=53 sound=154 dur=240 ticks
+    [v2 pos=068E]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=0240]  01 0F  TAL (repeat, 1 left)
+    [v0 pos=0234]  16 13  UTL 19 jiffies
+    [v0 pos=0236]  04 D7  UTL-note Bb5 (19.0 jiffies = 326 ticks)
+    [v0 pos=0236]  04 D7  NOTE Bb5 oct=5 pitch=82 sound=240 dur=326 ticks
+    [v1 pos=04D4]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v0 pos=0238]  16 13  UTL 19 jiffies
+    [v0 pos=023A]  04 96  UTL-note A5 (19.0 jiffies = 326 ticks)
+    [v0 pos=023A]  04 96  NOTE A5 oct=5 pitch=81 sound=240 dur=326 ticks
+    [v1 pos=04D6]  14 9A  NOTE D4 oct=4 pitch=62 sound=154 dur=240 ticks
+    [v0 pos=023C]  16 12  UTL 18 jiffies
+    [v0 pos=023E]  04 94  UTL-note F5 (18.0 jiffies = 309 ticks)
+    [v0 pos=023E]  04 94  NOTE F5 oct=5 pitch=77 sound=223 dur=309 ticks
+    [v1 pos=04D8]  14 E7  NOTE Bb3 oct=3 pitch=58 sound=154 dur=240 ticks
+    [v1 pos=04DA]  01 0F  TAL (done) t=124320
+    [v1 pos=04DC]  14 A3  NOTE E3 oct=3 pitch=52 sound=154 dur=240 ticks
+    [v2 pos=0690]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v0 pos=0240]  01 0F  TAL (done) t=124358
+    [v0 pos=0242]  46 01  FLG $01
+    [v0 pos=0244]  30 95  NOTE G5 oct=5 pitch=79 sound=634 dur=720 ticks
+    [v1 pos=04DE]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v1 pos=04E0]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04E2]  14 9B  NOTE E4 oct=4 pitch=64 sound=154 dur=240 ticks
+    [v0 pos=0246]  50 94  NOTE(tie) F5 oct=5 pitch=77 sound=480 dur=480 ticks
+    [v1 pos=04E4]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v2 pos=0692]  0C A1  NOTE C3 oct=3 pitch=48 sound=874 dur=960 ticks
+    [v1 pos=04E6]  14 A6  NOTE A3 oct=3 pitch=57 sound=154 dur=240 ticks
+    [v0 pos=0248]  0F 3E  POR 830 (set bend range +/-12)
+    [v0 pos=024A]  30 96  SLUR (prev pitch=77 -> new pitch=81)
+    [v0 pos=024A]  30 96  NOTE A5 oct=5 pitch=81 sound=634 dur=720 ticks
+    [v0 pos=024A]  30 96  POR ramp last=77 new=81 rate=830 steps=4
+    [v1 pos=04E8]  14 99  NOTE C4 oct=4 pitch=60 sound=154 dur=240 ticks
+    [v1 pos=04EA]  14 5C  NOTE F#4 oct=4 pitch=66 sound=154 dur=240 ticks
+    [v1 pos=04EC]  01 47  WAV Sawtooth
+    [v1 pos=04EE]  30 9A  NOTE D4 oct=4 pitch=62 sound=634 dur=720 ticks
+    [v2 pos=0694]  2C A3  NOTE E3 oct=3 pitch=52 sound=1354 dur=1440 ticks
+    [v0 pos=024C]  03 00  POR 0 (off)
+    [v0 pos=024E]  2C 96  NOTE A5 oct=5 pitch=81 sound=1354 dur=1440 ticks
+    [v1 pos=04F0]  30 59  NOTE C#4 oct=4 pitch=61 sound=634 dur=720 ticks
+    [v1 pos=04F2]  10 9E  NOTE A4 oct=4 pitch=69 sound=394 dur=480 ticks
+    [v2 pos=0696]  10 59  NOTE C#4 oct=4 pitch=61 sound=394 dur=480 ticks
+    [v0 pos=0250]  10 00  REST 480 ticks
+    [v1 pos=04F4]  01 2F  END (return from CALL to 0518)
+    [v1 pos=0518]  1E 05  MS# 5
+    [v1 pos=051A]  76 32  VDP 50
+    [v1 pos=051C]  86 01  VRT 1
+    [v1 pos=051E]  01 47  WAV Sawtooth
+    [v1 pos=0520]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=0522]  01 A0  DCY 10 (CC75=85)
+    [v1 pos=0524]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=0526]  01 98  REL 9 (CC72=74)
+    [v1 pos=0528]  26 01  PNT 1 jiffies
+    [v1 pos=052A]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v2 pos=0698]  01 2F  END (return from CALL to 06A8)
+    [v2 pos=06A8]  1E 05  MS# 5
+    [v2 pos=06AA]  01 87  WAV Pulse
+    [v2 pos=06AC]  82 00  P-W 2048
+    [v2 pos=06AE]  56 07  P-S 7
+    [v2 pos=06B0]  01 1C  ATK 3 (CC73=38)
+    [v2 pos=06B2]  01 80  DCY 8 (CC75=60)
+    [v2 pos=06B4]  01 C4  SUS 8 (CC79=68)
+    [v2 pos=06B6]  01 A8  REL 10 (CC72=85)
+    [v2 pos=06B8]  26 07  PNT 7 jiffies
+    [v2 pos=06BA]  76 03  VDP 3
+    [v2 pos=06BC]  86 03  VRT 3
+    [v2 pos=06BE]  30 AA  NOTE D2 oct=2 pitch=38 sound=600 dur=720 ticks
+    [v0 pos=0252]  01 8E  VOL 8 (master)
+    [v0 pos=0254]  1E 05  MS# 5
+  WARNING: MS# 5 on voice 0 at tick 128198; first seen at tick 128160 (diff +38)
+    [v0 pos=0256]  46 01  FLG $01
+    [v0 pos=0258]  01 34  ATK 6 (CC73=54)
+    [v0 pos=025A]  01 80  DCY 8 (CC75=60)
+    [v0 pos=025C]  01 DC  SUS 11 (CC79=93)
+    [v0 pos=025E]  01 A8  REL 10 (CC72=85)
+    [v0 pos=0260]  26 02  PNT 2 jiffies
+    [v0 pos=0262]  01 87  WAV Pulse
+    [v0 pos=0264]  82 00  P-W 2048
+    [v0 pos=0266]  56 05  P-S 5
+    [v0 pos=0268]  76 1E  VDP 30
+    [v0 pos=026A]  86 02  VRT 2
+    [v0 pos=026C]  17 DC  POR 1500
+    [v0 pos=026E]  36 02  HED count=2 t=128198
+    [v0 pos=0270]  14 54  NOTE F#5 oct=5 pitch=78 sound=206 dur=240 ticks
+    [v0 pos=0270]  14 54  POR ramp last=81 new=78 rate=1500 steps=2
+    [v1 pos=052C]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=0272]  14 93  NOTE E5 oct=5 pitch=76 sound=206 dur=240 ticks
+    [v0 pos=0272]  14 93  POR ramp last=78 new=76 rate=1500 steps=1
+    [v1 pos=052E]  14 54  NOTE F#5 oct=5 pitch=78 sound=223 dur=240 ticks
+    [v0 pos=0274]  14 92  NOTE D5 oct=5 pitch=74 sound=206 dur=240 ticks
+    [v0 pos=0274]  14 92  POR ramp last=76 new=74 rate=1500 steps=1
+    [v1 pos=0530]  30 96  NOTE A5 oct=5 pitch=81 sound=703 dur=720 ticks
+    [v2 pos=06C0]  10 AA  NOTE D2 oct=2 pitch=38 sound=360 dur=480 ticks
+    [v0 pos=0276]  01 0F  TAL (repeat, 1 left)
+    [v0 pos=0270]  14 54  NOTE F#5 oct=5 pitch=78 sound=206 dur=240 ticks
+    [v0 pos=0270]  14 54  POR ramp last=74 new=78 rate=1500 steps=2
+    [v0 pos=0272]  14 93  NOTE E5 oct=5 pitch=76 sound=206 dur=240 ticks
+    [v0 pos=0272]  14 93  POR ramp last=78 new=76 rate=1500 steps=1
+    [v2 pos=06C2]  10 AA  NOTE D2 oct=2 pitch=38 sound=360 dur=480 ticks
+    [v0 pos=0274]  14 92  NOTE D5 oct=5 pitch=74 sound=206 dur=240 ticks
+    [v0 pos=0274]  14 92  POR ramp last=76 new=74 rate=1500 steps=1
+    [v1 pos=0532]  10 96  NOTE A5 oct=5 pitch=81 sound=463 dur=480 ticks
+    [v0 pos=0276]  01 0F  TAL (done) t=129638
+    [v0 pos=0278]  16 07  UTL 7 jiffies
+    [v0 pos=027A]  44 54  UTL-note F#5 (7.0 jiffies = 120 ticks)
+    [v0 pos=027A]  44 54  NOTE(tie) F#5 oct=5 pitch=78 sound=120 dur=120 ticks
+    [v0 pos=027A]  44 54  POR ramp last=74 new=78 rate=1500 steps=2
+    [v0 pos=027C]  44 95  UTL-note G5 (7.0 jiffies = 120 ticks)
+    [v0 pos=027C]  44 95  SLUR (prev pitch=78 -> new pitch=79)
+    [v0 pos=027C]  44 95  NOTE(tie) G5 oct=5 pitch=79 sound=120 dur=120 ticks
+    [v0 pos=027C]  44 95  POR ramp last=78 new=79 rate=1500 steps=1
+    [v2 pos=06C4]  14 AA  NOTE D2 oct=2 pitch=38 sound=120 dur=240 ticks
+    [v0 pos=027E]  14 96  SLUR (prev pitch=79 -> new pitch=81)
+    [v0 pos=027E]  14 96  NOTE A5 oct=5 pitch=81 sound=206 dur=240 ticks
+    [v0 pos=027E]  14 96  POR ramp last=79 new=81 rate=1500 steps=2
+    [v1 pos=0534]  14 97  NOTE B5 oct=5 pitch=83 sound=223 dur=240 ticks
+    [v2 pos=06C6]  30 AD  NOTE G2 oct=2 pitch=43 sound=600 dur=720 ticks
+    [v0 pos=0280]  14 97  NOTE B5 oct=5 pitch=83 sound=206 dur=240 ticks
+    [v0 pos=0280]  14 97  POR ramp last=81 new=83 rate=1500 steps=2
+    [v1 pos=0536]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v0 pos=0282]  14 96  NOTE A5 oct=5 pitch=81 sound=206 dur=240 ticks
+    [v0 pos=0282]  14 96  POR ramp last=83 new=81 rate=1500 steps=2
+    [v1 pos=0538]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=0284]  14 95  NOTE G5 oct=5 pitch=79 sound=206 dur=240 ticks
+    [v0 pos=0284]  14 95  POR ramp last=81 new=79 rate=1500 steps=2
+    [v1 pos=053A]  30 97  NOTE B5 oct=5 pitch=83 sound=703 dur=720 ticks
+    [v2 pos=06C8]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=0286]  30 95  NOTE G5 oct=5 pitch=79 sound=686 dur=720 ticks
+    [v2 pos=06CA]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v1 pos=053C]  10 97  NOTE B5 oct=5 pitch=83 sound=463 dur=480 ticks
+    [v0 pos=0288]  16 07  UTL 7 jiffies
+    [v0 pos=028A]  44 95  UTL-note G5 (7.0 jiffies = 120 ticks)
+    [v0 pos=028A]  44 95  NOTE(tie) G5 oct=5 pitch=79 sound=120 dur=120 ticks
+    [v0 pos=028C]  44 96  UTL-note A5 (7.0 jiffies = 120 ticks)
+    [v0 pos=028C]  44 96  SLUR (prev pitch=79 -> new pitch=81)
+    [v0 pos=028C]  44 96  NOTE(tie) A5 oct=5 pitch=81 sound=120 dur=120 ticks
+    [v0 pos=028C]  44 96  POR ramp last=79 new=81 rate=1500 steps=2
+    [v2 pos=06CC]  14 AD  NOTE G2 oct=2 pitch=43 sound=120 dur=240 ticks
+    [v0 pos=028E]  14 97  SLUR (prev pitch=81 -> new pitch=83)
+    [v0 pos=028E]  14 97  NOTE B5 oct=5 pitch=83 sound=206 dur=240 ticks
+    [v0 pos=028E]  14 97  POR ramp last=81 new=83 rate=1500 steps=2
+    [v1 pos=053E]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v2 pos=06CE]  30 6C  NOTE F#2 oct=2 pitch=42 sound=600 dur=720 ticks
+    [v0 pos=0290]  14 96  NOTE A5 oct=5 pitch=81 sound=206 dur=240 ticks
+    [v0 pos=0290]  14 96  POR ramp last=83 new=81 rate=1500 steps=2
+    [v1 pos=0540]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=0292]  14 95  NOTE G5 oct=5 pitch=79 sound=206 dur=240 ticks
+    [v0 pos=0292]  14 95  POR ramp last=81 new=79 rate=1500 steps=2
+    [v1 pos=0542]  14 54  NOTE F#5 oct=5 pitch=78 sound=223 dur=240 ticks
+    [v0 pos=0294]  26 08  PNT 8 jiffies
+    [v0 pos=0296]  10 54  NOTE F#5 oct=5 pitch=78 sound=343 dur=480 ticks
+    [v0 pos=0296]  10 54  POR ramp last=79 new=78 rate=1500 steps=1
+    [v1 pos=0544]  30 96  NOTE A5 oct=5 pitch=81 sound=703 dur=720 ticks
+    [v2 pos=06D0]  10 6C  NOTE F#2 oct=2 pitch=42 sound=360 dur=480 ticks
+    [v0 pos=0298]  10 54  NOTE F#5 oct=5 pitch=78 sound=343 dur=480 ticks
+    [v2 pos=06D2]  10 6C  NOTE F#2 oct=2 pitch=42 sound=360 dur=480 ticks
+    [v1 pos=0546]  10 96  NOTE A5 oct=5 pitch=81 sound=463 dur=480 ticks
+    [v0 pos=029A]  26 02  PNT 2 jiffies
+    [v0 pos=029C]  14 54  NOTE F#5 oct=5 pitch=78 sound=206 dur=240 ticks
+    [v2 pos=06D4]  14 6C  NOTE F#2 oct=2 pitch=42 sound=120 dur=240 ticks
+    [v0 pos=029E]  50 93  NOTE(tie) E5 oct=5 pitch=76 sound=480 dur=480 ticks
+    [v0 pos=029E]  50 93  POR ramp last=78 new=76 rate=1500 steps=1
+    [v1 pos=0548]  14 49  NOTE C#6 oct=6 pitch=85 sound=223 dur=240 ticks
+    [v2 pos=06D6]  30 AE  NOTE A2 oct=2 pitch=45 sound=600 dur=720 ticks
+    [v1 pos=054A]  14 8A  NOTE D6 oct=6 pitch=86 sound=223 dur=240 ticks
+    [v0 pos=02A0]  56 EC  P-S -20
+    [v0 pos=02A2]  50 93  TIE (same pitch=76) +480 ticks
+    [v1 pos=054C]  14 8B  NOTE E6 oct=6 pitch=88 sound=223 dur=240 ticks
+    [v1 pos=054E]  30 49  NOTE C#6 oct=6 pitch=85 sound=703 dur=720 ticks
+    [v2 pos=06D8]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v0 pos=02A4]  56 0A  P-S 10
+    [v0 pos=02A6]  54 93  TIE (same pitch=76) +240 ticks
+    [v0 pos=02A8]  0C 93  TIE (same pitch=76) +960 ticks
+    [v2 pos=06DA]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v1 pos=0550]  EB 98  POR 15000 (set bend range +/-12)
+    [v1 pos=0552]  10 8E  NOTE A6 oct=6 pitch=93 sound=463 dur=480 ticks
+    [v1 pos=0552]  10 8E  POR ramp last=85 new=93 rate=15000 steps=1
+    [v2 pos=06DC]  14 AE  NOTE A2 oct=2 pitch=45 sound=120 dur=240 ticks
+    [v1 pos=0554]  03 00  POR 0 (off)
+    [v1 pos=0556]  14 54  NOTE F#5 oct=5 pitch=78 sound=223 dur=240 ticks
+    [v2 pos=06DE]  30 AA  NOTE D2 oct=2 pitch=38 sound=600 dur=720 ticks
+    [v0 pos=02AA]  03 00  POR 0 (off)
+    [v0 pos=02AC]  14 54  NOTE F#5 oct=5 pitch=78 sound=206 dur=240 ticks
+    [v1 pos=0558]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=02AE]  14 93  NOTE E5 oct=5 pitch=76 sound=206 dur=240 ticks
+    [v1 pos=055A]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v0 pos=02B0]  14 92  NOTE D5 oct=5 pitch=74 sound=206 dur=240 ticks
+    [v1 pos=055C]  30 96  NOTE A5 oct=5 pitch=81 sound=703 dur=720 ticks
+    [v2 pos=06E0]  10 AA  NOTE D2 oct=2 pitch=38 sound=360 dur=480 ticks
+    [v0 pos=02B2]  16 0A  UTL 10 jiffies
+    [v0 pos=02B4]  04 93  UTL-note E5 (10.0 jiffies = 171 ticks)
+    [v0 pos=02B4]  04 93  NOTE E5 oct=5 pitch=76 sound=137 dur=171 ticks
+    [v0 pos=02B6]  04 54  UTL-note F#5 (10.0 jiffies = 171 ticks)
+    [v0 pos=02B6]  04 54  NOTE F#5 oct=5 pitch=78 sound=137 dur=171 ticks
+    [v0 pos=02B8]  04 95  UTL-note G5 (10.0 jiffies = 171 ticks)
+    [v0 pos=02B8]  04 95  NOTE G5 oct=5 pitch=79 sound=137 dur=171 ticks
+    [v2 pos=06E2]  10 AA  NOTE D2 oct=2 pitch=38 sound=360 dur=480 ticks
+    [v0 pos=02BA]  04 96  UTL-note A5 (10.0 jiffies = 171 ticks)
+    [v0 pos=02BA]  04 96  NOTE A5 oct=5 pitch=81 sound=137 dur=171 ticks
+    [v1 pos=055E]  10 96  NOTE A5 oct=5 pitch=81 sound=463 dur=480 ticks
+    [v0 pos=02BC]  04 8A  UTL-note D6 (10.0 jiffies = 171 ticks)
+    [v0 pos=02BC]  04 8A  NOTE D6 oct=6 pitch=86 sound=137 dur=171 ticks
+    [v0 pos=02BE]  16 0A  UTL 10 jiffies
+    [v0 pos=02C0]  04 8B  UTL-note E6 (10.0 jiffies = 171 ticks)
+    [v0 pos=02C0]  04 8B  NOTE E6 oct=6 pitch=88 sound=137 dur=171 ticks
+    [v2 pos=06E4]  14 AA  NOTE D2 oct=2 pitch=38 sound=120 dur=240 ticks
+    [v0 pos=02C2]  04 4C  UTL-note F#6 (10.0 jiffies = 171 ticks)
+    [v0 pos=02C2]  04 4C  NOTE F#6 oct=6 pitch=90 sound=137 dur=171 ticks
+    [v1 pos=0560]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v2 pos=06E6]  30 AD  NOTE G2 oct=2 pitch=43 sound=600 dur=720 ticks
+    [v0 pos=02C4]  10 8E  NOTE A6 oct=6 pitch=93 sound=446 dur=480 ticks
+    [v1 pos=0562]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v1 pos=0564]  14 97  NOTE B5 oct=5 pitch=83 sound=223 dur=240 ticks
+    [v0 pos=02C6]  01 98  REL 9 (CC72=74)
+    [v0 pos=02C8]  14 8D  NOTE G6 oct=6 pitch=91 sound=206 dur=240 ticks
+    [v1 pos=0566]  30 97  NOTE B5 oct=5 pitch=83 sound=703 dur=720 ticks
+    [v2 pos=06E8]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=02CA]  10 8D  NOTE G6 oct=6 pitch=91 sound=446 dur=480 ticks
+    [v2 pos=06EA]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=02CC]  16 15  UTL 21 jiffies
+    [v0 pos=02CE]  04 8D  UTL-note G6 (21.0 jiffies = 360 ticks)
+    [v0 pos=02CE]  04 8D  NOTE G6 oct=6 pitch=91 sound=326 dur=360 ticks
+    [v1 pos=0568]  10 97  NOTE B5 oct=5 pitch=83 sound=463 dur=480 ticks
+    [v0 pos=02D0]  04 8A  UTL-note D6 (21.0 jiffies = 360 ticks)
+    [v0 pos=02D0]  04 8A  NOTE D6 oct=6 pitch=86 sound=326 dur=360 ticks
+    [v2 pos=06EC]  14 AD  NOTE G2 oct=2 pitch=43 sound=120 dur=240 ticks
+    [v1 pos=056A]  14 54  NOTE F#5 oct=5 pitch=78 sound=223 dur=240 ticks
+    [v2 pos=06EE]  30 6C  NOTE F#2 oct=2 pitch=42 sound=600 dur=720 ticks
+    [v0 pos=02D2]  14 4C  NOTE F#6 oct=6 pitch=90 sound=206 dur=240 ticks
+    [v1 pos=056C]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=02D4]  14 8B  NOTE E6 oct=6 pitch=88 sound=206 dur=240 ticks
+    [v1 pos=056E]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v0 pos=02D6]  14 8A  NOTE D6 oct=6 pitch=86 sound=206 dur=240 ticks
+    [v1 pos=0570]  30 96  NOTE A5 oct=5 pitch=81 sound=703 dur=720 ticks
+    [v2 pos=06F0]  10 6C  NOTE F#2 oct=2 pitch=42 sound=360 dur=480 ticks
+    [v0 pos=02D8]  10 96  NOTE A5 oct=5 pitch=81 sound=446 dur=480 ticks
+    [v2 pos=06F2]  10 6C  NOTE F#2 oct=2 pitch=42 sound=360 dur=480 ticks
+    [v0 pos=02DA]  16 05  UTL 5 jiffies
+    [v0 pos=02DC]  04 92  UTL-note D5 (5.0 jiffies = 86 ticks)
+    [v0 pos=02DC]  04 92  NOTE D5 oct=5 pitch=74 sound=52 dur=86 ticks
+    [v0 pos=02DE]  04 93  UTL-note E5 (5.0 jiffies = 86 ticks)
+    [v0 pos=02DE]  04 93  NOTE E5 oct=5 pitch=76 sound=52 dur=86 ticks
+    [v0 pos=02E0]  04 54  UTL-note F#5 (5.0 jiffies = 86 ticks)
+    [v0 pos=02E0]  04 54  NOTE F#5 oct=5 pitch=78 sound=52 dur=86 ticks
+    [v1 pos=0572]  10 96  NOTE A5 oct=5 pitch=81 sound=463 dur=480 ticks
+    [v0 pos=02E2]  04 95  UTL-note G5 (5.0 jiffies = 86 ticks)
+    [v0 pos=02E2]  04 95  NOTE G5 oct=5 pitch=79 sound=52 dur=86 ticks
+    [v0 pos=02E4]  04 96  UTL-note A5 (5.0 jiffies = 86 ticks)
+    [v0 pos=02E4]  04 96  NOTE A5 oct=5 pitch=81 sound=52 dur=86 ticks
+    [v0 pos=02E6]  04 8A  UTL-note D6 (5.0 jiffies = 86 ticks)
+    [v0 pos=02E6]  04 8A  NOTE D6 oct=6 pitch=86 sound=52 dur=86 ticks
+    [v2 pos=06F4]  14 6C  NOTE F#2 oct=2 pitch=42 sound=120 dur=240 ticks
+    [v0 pos=02E8]  16 06  UTL 6 jiffies
+    [v0 pos=02EA]  04 8B  UTL-note E6 (6.0 jiffies = 103 ticks)
+    [v0 pos=02EA]  04 8B  NOTE E6 oct=6 pitch=88 sound=69 dur=103 ticks
+    [v0 pos=02EC]  44 4C  UTL-note F#6 (6.0 jiffies = 103 ticks)
+    [v0 pos=02EC]  44 4C  NOTE(tie) F#6 oct=6 pitch=90 sound=103 dur=103 ticks
+    [v1 pos=0574]  36 02  HED count=2 t=141600
+    [v1 pos=0576]  14 97  NOTE B5 oct=5 pitch=83 sound=223 dur=240 ticks
+    [v2 pos=06F6]  36 02  HED count=2 t=141600
+    [v2 pos=06F8]  30 AD  NOTE G2 oct=2 pitch=43 sound=600 dur=720 ticks
+    [v0 pos=02EE]  10 97  SLUR (prev pitch=90 -> new pitch=83)
+    [v0 pos=02EE]  10 97  NOTE B5 oct=5 pitch=83 sound=446 dur=480 ticks
+    [v1 pos=0578]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v1 pos=057A]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=02F0]  14 97  NOTE B5 oct=5 pitch=83 sound=206 dur=240 ticks
+    [v1 pos=057C]  14 93  NOTE E5 oct=5 pitch=76 sound=223 dur=240 ticks
+    [v2 pos=06FA]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=02F2]  30 8D  NOTE G6 oct=6 pitch=91 sound=686 dur=720 ticks
+    [v1 pos=057E]  01 0F  TAL (repeat, 1 left)
+    [v1 pos=0576]  14 97  NOTE B5 oct=5 pitch=83 sound=223 dur=240 ticks
+    [v1 pos=0578]  14 96  NOTE A5 oct=5 pitch=81 sound=223 dur=240 ticks
+    [v2 pos=06FC]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v1 pos=057A]  14 95  NOTE G5 oct=5 pitch=79 sound=223 dur=240 ticks
+    [v0 pos=02F4]  10 8F  NOTE B6 oct=6 pitch=95 sound=446 dur=480 ticks
+    [v1 pos=057C]  14 93  NOTE E5 oct=5 pitch=76 sound=223 dur=240 ticks
+    [v2 pos=06FE]  14 AD  NOTE G2 oct=2 pitch=43 sound=120 dur=240 ticks
+    [v1 pos=057E]  01 0F  TAL (done) t=143520
+    [v1 pos=0580]  14 51  NOTE C#5 oct=5 pitch=73 sound=223 dur=240 ticks
+    [v2 pos=0700]  30 AE  NOTE A2 oct=2 pitch=45 sound=600 dur=720 ticks
+    [v0 pos=02F6]  01 A8  REL 10 (CC72=85)
+    [v0 pos=02F8]  2C 8E  NOTE A6 oct=6 pitch=93 sound=1406 dur=1440 ticks
+    [v1 pos=0582]  14 92  NOTE D5 oct=5 pitch=74 sound=223 dur=240 ticks
+    [v1 pos=0584]  14 93  NOTE E5 oct=5 pitch=76 sound=223 dur=240 ticks
+    [v1 pos=0586]  30 51  NOTE C#5 oct=5 pitch=73 sound=703 dur=720 ticks
+    [v2 pos=0702]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v2 pos=0704]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v1 pos=0588]  10 96  NOTE A5 oct=5 pitch=81 sound=463 dur=480 ticks
+    [v0 pos=02FA]  17 14  POR 1300
+    [v0 pos=02FC]  14 8D  NOTE G6 oct=6 pitch=91 sound=206 dur=240 ticks
+    [v0 pos=02FC]  14 8D  POR ramp last=93 new=91 rate=1300 steps=3
+    [v2 pos=0706]  14 AE  NOTE A2 oct=2 pitch=45 sound=120 dur=240 ticks
+    [v0 pos=02FE]  03 00  POR 0 (off)
+    [v0 pos=0300]  14 4C  NOTE F#6 oct=6 pitch=90 sound=206 dur=240 ticks
+    [v1 pos=058A]  56 09  P-S 9
+    [v1 pos=058C]  0C 92  NOTE D5 oct=5 pitch=74 sound=943 dur=960 ticks
+    [v2 pos=0708]  01 0F  TAL (repeat, 1 left)
+    [v2 pos=06F8]  30 AD  NOTE G2 oct=2 pitch=43 sound=600 dur=720 ticks
+    [v0 pos=0302]  14 8D  NOTE G6 oct=6 pitch=91 sound=206 dur=240 ticks
+    [v0 pos=0304]  14 4C  NOTE F#6 oct=6 pitch=90 sound=206 dur=240 ticks
+    [v0 pos=0306]  14 8B  NOTE E6 oct=6 pitch=88 sound=206 dur=240 ticks
+    [v2 pos=06FA]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=0308]  16 24  UTL 36 jiffies
+    [v0 pos=030A]  04 8A  UTL-note D6 (36.0 jiffies = 617 ticks)
+    [v0 pos=030A]  04 8A  NOTE D6 oct=6 pitch=86 sound=583 dur=617 ticks
+    [v1 pos=058E]  0C 9F  NOTE B4 oct=4 pitch=71 sound=943 dur=960 ticks
+    [v2 pos=06FC]  10 AD  NOTE G2 oct=2 pitch=43 sound=360 dur=480 ticks
+    [v0 pos=030C]  16 03  UTL 3 jiffies
+    [v0 pos=030E]  44 96  UTL-note A5 (3.0 jiffies = 51 ticks)
+    [v0 pos=030E]  44 96  NOTE(tie) A5 oct=5 pitch=81 sound=51 dur=51 ticks
+    [v0 pos=0310]  44 8A  UTL-note D6 (3.0 jiffies = 51 ticks)
+    [v0 pos=0310]  44 8A  SLUR (prev pitch=81 -> new pitch=86)
+    [v0 pos=0310]  44 8A  NOTE(tie) D6 oct=6 pitch=86 sound=51 dur=51 ticks
+    [v0 pos=0312]  10 4C  SLUR (prev pitch=86 -> new pitch=90)
+    [v0 pos=0312]  10 4C  NOTE F#6 oct=6 pitch=90 sound=446 dur=480 ticks
+    [v2 pos=06FE]  14 AD  NOTE G2 oct=2 pitch=43 sound=120 dur=240 ticks
+    [v1 pos=0590]  50 51  NOTE(tie) C#5 oct=5 pitch=73 sound=480 dur=480 ticks
+    [v2 pos=0700]  30 AE  NOTE A2 oct=2 pitch=45 sound=600 dur=720 ticks
+    [v0 pos=0314]  16 35  UTL 53 jiffies
+    [v0 pos=0316]  04 8B  UTL-note E6 (53.0 jiffies = 909 ticks)
+    [v0 pos=0316]  04 8B  NOTE E6 oct=6 pitch=88 sound=875 dur=909 ticks
+    [v1 pos=0592]  01 D0  DCY 13 (CC75=112)
+    [v1 pos=0594]  50 9E  SLUR (prev pitch=73 -> new pitch=69)
+    [v1 pos=0594]  50 9E  NOTE(tie) A4 oct=4 pitch=69 sound=480 dur=480 ticks
+    [v2 pos=0702]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v0 pos=0318]  0B BC  POR 700
+    [v0 pos=031A]  16 0C  UTL 12 jiffies
+    [v0 pos=031C]  44 4C  UTL-note F#6 (12.0 jiffies = 206 ticks)
+    [v0 pos=031C]  44 4C  NOTE(tie) F#6 oct=6 pitch=90 sound=206 dur=206 ticks
+    [v0 pos=031C]  44 4C  POR ramp last=88 new=90 rate=700 steps=4
+    [v1 pos=0596]  50 51  SLUR (prev pitch=69 -> new pitch=73)
+    [v1 pos=0596]  50 51  NOTE(tie) C#5 oct=5 pitch=73 sound=480 dur=480 ticks
+    [v0 pos=031E]  03 00  POR 0 (off)
+    [v0 pos=0320]  16 05  UTL 5 jiffies
+    [v0 pos=0322]  44 8E  UTL-note A6 (5.0 jiffies = 86 ticks)
+    [v0 pos=0322]  44 8E  SLUR (prev pitch=90 -> new pitch=93)
+    [v0 pos=0322]  44 8E  NOTE(tie) A6 oct=6 pitch=93 sound=86 dur=86 ticks
+    [v2 pos=0704]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v0 pos=0324]  70 8E  TIE (same pitch=93) +720 ticks
+    [v1 pos=0598]  50 93  SLUR (prev pitch=73 -> new pitch=76)
+    [v1 pos=0598]  50 93  NOTE(tie) E5 oct=5 pitch=76 sound=480 dur=480 ticks
+    [v2 pos=0706]  14 AE  NOTE A2 oct=2 pitch=45 sound=120 dur=240 ticks
+    [v1 pos=059A]  56 00  P-S 0
+    [v1 pos=059C]  01 C0  DCY 12 (CC75=95)
+    [v1 pos=059E]  54 8A  SLUR (prev pitch=76 -> new pitch=86)
+    [v1 pos=059E]  54 8A  NOTE(tie) D6 oct=6 pitch=86 sound=240 dur=240 ticks
+    [v2 pos=0708]  01 0F  TAL (done) t=149280
+    [v2 pos=070A]  01 A4  SUS 4 (CC79=34)
+    [v2 pos=070C]  30 AE  NOTE A2 oct=2 pitch=45 sound=600 dur=720 ticks
+    [v0 pos=0326]  01 E0  DCY 14 (CC75=120)
+    [v0 pos=0328]  01 84  SUS 0 (CC79=0)
+    [v0 pos=032A]  26 01  PNT 1 jiffies
+    [v0 pos=032C]  6C 8E  TIE (same pitch=93) +1440 ticks
+    [v1 pos=05A0]  54 97  SLUR (prev pitch=86 -> new pitch=83)
+    [v1 pos=05A0]  54 97  NOTE(tie) B5 oct=5 pitch=83 sound=240 dur=240 ticks
+    [v1 pos=05A2]  54 96  SLUR (prev pitch=83 -> new pitch=81)
+    [v1 pos=05A2]  54 96  NOTE(tie) A5 oct=5 pitch=81 sound=240 dur=240 ticks
+    [v1 pos=05A4]  54 97  SLUR (prev pitch=81 -> new pitch=83)
+    [v1 pos=05A4]  54 97  NOTE(tie) B5 oct=5 pitch=83 sound=240 dur=240 ticks
+    [v2 pos=070E]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v1 pos=05A6]  54 8A  SLUR (prev pitch=83 -> new pitch=86)
+    [v1 pos=05A6]  54 8A  NOTE(tie) D6 oct=6 pitch=86 sound=240 dur=240 ticks
+    [v1 pos=05A8]  70 8D  SLUR (prev pitch=86 -> new pitch=91)
+    [v1 pos=05A8]  70 8D  NOTE(tie) G6 oct=6 pitch=91 sound=720 dur=720 ticks
+    [v2 pos=0710]  10 AE  NOTE A2 oct=2 pitch=45 sound=360 dur=480 ticks
+    [v0 pos=032E]  56 00  P-S 0
+    [v0 pos=0330]  01 D0  DCY 13 (CC75=112)
+    [v0 pos=0332]  54 8B  SLUR (prev pitch=93 -> new pitch=88)
+    [v0 pos=0332]  54 8B  NOTE(tie) E6 oct=6 pitch=88 sound=240 dur=240 ticks
+    [v2 pos=0712]  14 AE  NOTE A2 oct=2 pitch=45 sound=120 dur=240 ticks
+    [v0 pos=0334]  54 8A  SLUR (prev pitch=88 -> new pitch=86)
+    [v0 pos=0334]  54 8A  NOTE(tie) D6 oct=6 pitch=86 sound=240 dur=240 ticks
+    [v1 pos=05AA]  4C 95  SLUR (prev pitch=91 -> new pitch=79)
+    [v1 pos=05AA]  4C 95  NOTE(tie) G5 oct=5 pitch=79 sound=960 dur=960 ticks
+    [v2 pos=0714]  01 27  WAV Triangle
+    [v2 pos=0716]  01 B0  DCY 11 (CC75=92)
+    [v2 pos=0718]  01 84  SUS 0 (CC79=0)
+    [v2 pos=071A]  01 88  REL 8 (CC72=60)
+    [v2 pos=071C]  26 01  PNT 1 jiffies
+    [v2 pos=071E]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v0 pos=0336]  6C 8B  SLUR (prev pitch=86 -> new pitch=88)
+    [v0 pos=0336]  6C 8B  NOTE(tie) E6 oct=6 pitch=88 sound=1440 dur=1440 ticks
+    [v2 pos=0720]  10 AB  NOTE E2 oct=2 pitch=40 sound=463 dur=480 ticks
+    [v1 pos=05AC]  01 98  REL 9 (CC72=74)
+    [v1 pos=05AE]  0C 95  TIE (same pitch=79) +960 ticks
+    [v2 pos=0722]  10 AE  NOTE A2 oct=2 pitch=45 sound=463 dur=480 ticks
+    [v0 pos=0338]  01 B8  REL 11 (CC72=92)
+    [v0 pos=033A]  46 01  FLG $01
+    [v0 pos=033C]  54 8B  TIE (same pitch=88) +240 ticks
+    [v2 pos=0724]  14 AE  NOTE A2 oct=2 pitch=45 sound=223 dur=240 ticks
+    [v0 pos=033E]  14 8A  SLUR (prev pitch=88 -> new pitch=86)
+    [v0 pos=033E]  14 8A  NOTE D6 oct=6 pitch=86 sound=223 dur=240 ticks
+    [v1 pos=05B0]  1E 06  MS# 6
+    [v1 pos=05B2]  76 05  VDP 5
+    [v1 pos=05B4]  86 03  VRT 3
+    [v1 pos=05B6]  01 F2  CALL phrase=15 (jump to 043A, return to 05B8)
+    [v1 pos=043A]  01 87  WAV Pulse
+    [v1 pos=043C]  32 20  P-W 800
+    [v1 pos=043E]  56 FD  P-S -3
+    [v1 pos=0440]  01 1C  ATK 3 (CC73=38)
+    [v1 pos=0442]  01 80  DCY 8 (CC75=60)
+    [v1 pos=0444]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=0446]  01 A8  REL 10 (CC72=85)
+    [v1 pos=0448]  26 08  PNT 8 jiffies
+    [v1 pos=044A]  01 2F  END (return from CALL to 05B8)
+    [v1 pos=05B8]  30 9A  NOTE D4 oct=4 pitch=62 sound=583 dur=720 ticks
+    [v2 pos=0726]  1E 06  MS# 6
+    [v2 pos=0728]  01 92  CALL phrase=9 (jump to 0642, return to 072A)
+    [v2 pos=0642]  01 87  WAV Pulse
+    [v2 pos=0644]  72 08  P-W 1800
+    [v2 pos=0646]  56 04  P-S 4
+    [v2 pos=0648]  01 1C  ATK 3 (CC73=38)
+    [v2 pos=064A]  01 D0  DCY 13 (CC75=112)
+    [v2 pos=064C]  01 84  SUS 0 (CC79=0)
+    [v2 pos=064E]  01 98  REL 9 (CC72=74)
+    [v2 pos=0650]  26 01  PNT 1 jiffies
+    [v2 pos=0652]  01 2F  END (return from CALL to 072A)
+    [v2 pos=072A]  08 AA  NOTE D2 oct=2 pitch=38 sound=1903 dur=1920 ticks
+    [v0 pos=0340]  1E 06  MS# 6
+  WARNING: MS# 6 on voice 0 at tick 153157; first seen at tick 153120 (diff +37)
+    [v0 pos=0342]  46 01  FLG $01
+    [v0 pos=0344]  01 E2  CALL phrase=14 (jump to 010E, return to 0346)
+    [v0 pos=010E]  01 87  WAV Pulse
+    [v0 pos=0110]  32 DE  P-W 990
+    [v0 pos=0112]  56 05  P-S 5
+    [v0 pos=0114]  01 14  ATK 2 (CC73=32)
+    [v0 pos=0116]  01 80  DCY 8 (CC75=60)
+    [v0 pos=0118]  01 EC  SUS 13 (CC79=110)
+    [v0 pos=011A]  01 A8  REL 10 (CC72=85)
+    [v0 pos=011C]  26 07  PNT 7 jiffies
+    [v0 pos=011E]  01 2F  END (return from CALL to 0346)
+    [v0 pos=0346]  01 98  REL 9 (CC72=74)
+    [v0 pos=0348]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v0 pos=034A]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v1 pos=05BA]  0C 9A  NOTE D4 oct=4 pitch=62 sound=823 dur=960 ticks
+    [v0 pos=034C]  01 A8  REL 10 (CC72=85)
+    [v0 pos=034E]  30 5C  NOTE F#4 oct=4 pitch=66 sound=600 dur=720 ticks
+    [v0 pos=0350]  58 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=120 dur=120 ticks
+    [v0 pos=0352]  58 9D  SLUR (prev pitch=66 -> new pitch=67)
+    [v0 pos=0352]  58 9D  NOTE(tie) G4 oct=4 pitch=67 sound=120 dur=120 ticks
+    [v1 pos=05BC]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v0 pos=0354]  14 9E  SLUR (prev pitch=67 -> new pitch=69)
+    [v0 pos=0354]  14 9E  NOTE A4 oct=4 pitch=69 sound=120 dur=240 ticks
+    [v1 pos=05BE]  01 52  CALL phrase=5 (jump to 03F4, return to 05C0)
+    [v1 pos=03F4]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=072C]  01 62  CALL phrase=6 (jump to 062A, return to 072E)
+    [v2 pos=062A]  08 A5  NOTE G3 oct=3 pitch=55 sound=1903 dur=1920 ticks
+    [v0 pos=0356]  01 42  CALL phrase=4 (jump to 00C4, return to 0358)
+    [v0 pos=00C4]  1E 00  MS# 0
+  WARNING: MS# 0 on voice 0 at tick 155077; first seen at tick 28320 (diff +126757)
+    [v0 pos=00C6]  30 9E  NOTE A4 oct=4 pitch=69 sound=600 dur=720 ticks
+    [v0 pos=00C8]  10 9D  NOTE G4 oct=4 pitch=67 sound=360 dur=480 ticks
+    [v0 pos=00CA]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v1 pos=03F6]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v2 pos=062C]  08 64  NOTE F#3 oct=3 pitch=54 sound=1903 dur=1920 ticks
+    [v0 pos=00CC]  46 01  FLG $01
+    [v0 pos=00CE]  30 5C  NOTE F#4 oct=4 pitch=66 sound=600 dur=720 ticks
+    [v1 pos=03F8]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v1 pos=03FA]  10 9A  NOTE D4 oct=4 pitch=62 sound=343 dur=480 ticks
+    [v0 pos=00D0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v1 pos=03FC]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v0 pos=00D2]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00D4]  10 9A  NOTE D4 oct=4 pitch=62 sound=360 dur=480 ticks
+    [v1 pos=03FE]  01 04  ATK 0 (CC73=0)
+    [v1 pos=0400]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=0402]  01 84  SUS 0 (CC79=0)
+    [v1 pos=0404]  01 27  WAV Triangle
+    [v1 pos=0406]  B6 07  AUX $07
+    [v1 pos=0408]  01 2F  END (return from CALL to 05C0)
+    [v1 pos=05C0]  30 96  NOTE A5 oct=5 pitch=81 sound=583 dur=720 ticks
+    [v2 pos=062E]  08 AE  NOTE A2 oct=2 pitch=45 sound=1903 dur=1920 ticks
+    [v0 pos=00D6]  08 A6  NOTE A3 oct=3 pitch=57 sound=1800 dur=1920 ticks
+    [v1 pos=05C2]  30 8B  NOTE E6 oct=6 pitch=88 sound=583 dur=720 ticks
+    [v1 pos=05C4]  10 49  NOTE C#6 oct=6 pitch=85 sound=343 dur=480 ticks
+    [v1 pos=05C6]  30 8A  NOTE D6 oct=6 pitch=86 sound=583 dur=720 ticks
+    [v2 pos=0630]  08 AA  NOTE D2 oct=2 pitch=38 sound=1903 dur=1920 ticks
+    [v0 pos=00D8]  46 01  FLG $01
+    [v0 pos=00DA]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v0 pos=00DC]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00DE]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v1 pos=05C8]  01 E4  SUS 12 (CC79=102)
+    [v1 pos=05CA]  01 82  CALL phrase=8 (jump to 0414, return to 05CC)
+    [v1 pos=0414]  B6 0C  AUX $0C
+    [v1 pos=0416]  01 2C  ATK 5 (CC73=51)
+    [v1 pos=0418]  01 B0  DCY 11 (CC75=92)
+    [v1 pos=041A]  01 87  WAV Pulse
+    [v1 pos=041C]  0C A6  NOTE A3 oct=3 pitch=57 sound=823 dur=960 ticks
+    [v0 pos=00E0]  10 5C  NOTE F#4 oct=4 pitch=66 sound=360 dur=480 ticks
+    [v0 pos=00E2]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v0 pos=00E4]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v1 pos=041E]  14 A6  NOTE A3 oct=3 pitch=57 sound=103 dur=240 ticks
+    [v1 pos=0420]  08 A7  NOTE B3 oct=3 pitch=59 sound=1783 dur=1920 ticks
+    [v2 pos=0632]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=00E6]  46 01  FLG $01
+    [v0 pos=00E8]  10 9E  NOTE A4 oct=4 pitch=69 sound=360 dur=480 ticks
+    [v0 pos=00EA]  14 9F  NOTE B4 oct=4 pitch=71 sound=120 dur=240 ticks
+    [v0 pos=00EC]  0C 9D  NOTE G4 oct=4 pitch=67 sound=840 dur=960 ticks
+    [v0 pos=00EE]  46 01  FLG $01
+    [v0 pos=00F0]  14 9D  NOTE G4 oct=4 pitch=67 sound=120 dur=240 ticks
+    [v1 pos=0422]  30 A6  NOTE A3 oct=3 pitch=57 sound=583 dur=720 ticks
+    [v2 pos=0634]  08 6C  NOTE F#2 oct=2 pitch=42 sound=1903 dur=1920 ticks
+    [v0 pos=00F2]  14 5C  NOTE F#4 oct=4 pitch=66 sound=120 dur=240 ticks
+    [v0 pos=00F4]  14 9B  NOTE E4 oct=4 pitch=64 sound=120 dur=240 ticks
+    [v0 pos=00F6]  14 9A  NOTE D4 oct=4 pitch=62 sound=120 dur=240 ticks
+    [v1 pos=0424]  70 A2  NOTE(tie) D3 oct=3 pitch=50 sound=720 dur=720 ticks
+    [v0 pos=00F8]  30 A6  NOTE A3 oct=3 pitch=57 sound=600 dur=720 ticks
+    [v1 pos=0426]  10 A2  TIE (same pitch=50) +480 ticks
+    [v0 pos=00FA]  10 A6  NOTE A3 oct=3 pitch=57 sound=360 dur=480 ticks
+    [v1 pos=0428]  30 A2  NOTE D3 oct=3 pitch=50 sound=583 dur=720 ticks
+    [v2 pos=0636]  08 AD  NOTE G2 oct=2 pitch=43 sound=1903 dur=1920 ticks
+    [v0 pos=00FC]  46 01  FLG $01
+    [v0 pos=00FE]  30 A7  NOTE B3 oct=3 pitch=59 sound=600 dur=720 ticks
+    [v1 pos=042A]  30 A7  NOTE B3 oct=3 pitch=59 sound=583 dur=720 ticks
+    [v0 pos=0100]  30 9A  NOTE D4 oct=4 pitch=62 sound=600 dur=720 ticks
+    [v1 pos=042C]  10 9D  NOTE G4 oct=4 pitch=67 sound=343 dur=480 ticks
+    [v0 pos=0102]  10 9F  NOTE B4 oct=4 pitch=71 sound=360 dur=480 ticks
+    [v1 pos=042E]  01 C0  DCY 12 (CC75=95)
+    [v1 pos=0430]  01 2F  END (return from CALL to 05CC)
+    [v1 pos=05CC]  0C 9B  NOTE E4 oct=4 pitch=64 sound=823 dur=960 ticks
+    [v2 pos=0638]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v0 pos=0104]  1E 64  MS# 100
+  WARNING: MS# 100 on voice 0 at tick 168517; first seen at tick 41760 (diff +126757)
+    [v0 pos=0106]  01 2F  END (return from CALL to 0358)
+    [v0 pos=0358]  2C 9E  NOTE A4 oct=4 pitch=69 sound=1320 dur=1440 ticks
+    [v2 pos=063A]  30 AE  NOTE A2 oct=2 pitch=45 sound=703 dur=720 ticks
+    [v1 pos=05CE]  0C 00  REST 960 ticks
+    [v2 pos=063C]  10 AE  NOTE A2 oct=2 pitch=45 sound=463 dur=480 ticks
+    [v0 pos=035A]  54 9B  NOTE(tie) E4 oct=4 pitch=64 sound=240 dur=240 ticks
+    [v0 pos=035C]  54 9A  SLUR (prev pitch=64 -> new pitch=62)
+    [v0 pos=035C]  54 9A  NOTE(tie) D4 oct=4 pitch=62 sound=240 dur=240 ticks
+    [v1 pos=05D0]  08 A6  NOTE A3 oct=3 pitch=57 sound=1783 dur=1920 ticks
+    [v2 pos=063E]  01 2F  END (return from CALL to 072E)
+    [v2 pos=072E]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v0 pos=035E]  48 5C  SLUR (prev pitch=62 -> new pitch=66)
+    [v0 pos=035E]  48 5C  NOTE(tie) F#4 oct=4 pitch=66 sound=1920 dur=1920 ticks
+    [v2 pos=0730]  30 AA  NOTE D2 oct=2 pitch=38 sound=703 dur=720 ticks
+    [v2 pos=0732]  10 AA  NOTE D2 oct=2 pitch=38 sound=463 dur=480 ticks
+    [v1 pos=05D2]  48 A6  NOTE(tie) A3 oct=3 pitch=57 sound=1920 dur=1920 ticks
+    [v2 pos=0734]  48 AA  NOTE(tie) D2 oct=2 pitch=38 sound=1920 dur=1920 ticks
+    [v0 pos=0360]  2C 5C  TIE (same pitch=66) +1440 ticks
+    [v0 pos=0362]  10 9B  NOTE E4 oct=4 pitch=64 sound=360 dur=480 ticks
+    [v1 pos=05D4]  10 A6  TIE (same pitch=57) +480 ticks
+    [v2 pos=0736]  10 AA  TIE (same pitch=38) +480 ticks
+    [v0 pos=0364]  10 9A  NOTE D4 oct=4 pitch=62 sound=360 dur=480 ticks
+    [v1 pos=05D6]  56 03  P-S 3
+    [v1 pos=05D8]  48 A2  NOTE(tie) D3 oct=3 pitch=50 sound=1920 dur=1920 ticks
+    [v2 pos=0738]  56 03  P-S 3
+    [v2 pos=073A]  48 AA  NOTE(tie) D2 oct=2 pitch=38 sound=1920 dur=1920 ticks
+    [v0 pos=0366]  56 03  P-S 3
+    [v0 pos=0368]  48 9A  NOTE(tie) D4 oct=4 pitch=62 sound=1920 dur=1920 ticks
+    [v1 pos=05DA]  2C A2  TIE (same pitch=50) +1440 ticks
+    [v2 pos=073C]  08 AA  TIE (same pitch=38) +1920 ticks
+    [v0 pos=036A]  2C 9A  TIE (same pitch=62) +1440 ticks
+    [v1 pos=05DC]  10 00  REST 480 ticks
+    [v0 pos=036C]  10 00  REST 480 ticks
+    [v1 pos=05DE]  08 00  REST 1920 ticks
+    [v2 pos=073E]  08 00  REST 1920 ticks
+    [v0 pos=036E]  08 00  REST 1920 ticks
+    [v1 pos=05E0]  01 4F  HLT
+    [v2 pos=0740]  01 4F  HLT
+    [v0 pos=0370]  01 4F  HLT
+  Voice 0: 326 notes, 180517 MIDI ticks total
+  Voice 1: 352 notes, 180480 MIDI ticks total
+  Voice 2: 168 notes, 180480 MIDI ticks total
+  Written: For_the_Times.mid

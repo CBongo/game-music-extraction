@@ -96,7 +96,7 @@ ATK 12
 G 4 8 T
 A 4 QTR
 CAL 1
-DEF 4
+DEF 4      <===  4
 MS# 0
 A 4 QTR .
 G 4 QTR
@@ -130,10 +130,10 @@ B 3 QTR .
 D 4 QTR .
 B 4 QTR
 MS# 100
-END
+END         <==== end 4
 A 4 HALF .
 REST QTR
-DEF 14
+DEF 14      <==== 14  (f)
 WAV P
 P-W 990
 P-S 5
@@ -142,7 +142,7 @@ DCY 8
 SUS 13
 RLS 10
 PNT 7
-END
+END        <===== end 14
 TPS 0
 FLG 1
 F#4 QTR
@@ -180,15 +180,15 @@ VOL 8
 DEF 3
 WAV T
 END
-DEF 10
+DEF 10     <=== 10
 REST QTR
-CAL 13
+CAL 13     (mf)
 CAL 3
 VDP 30
 VRT 3
 ATK 1
 RLS 9
-SUS 15
+SUS 15     (ff)
 FLG 1
 F#5 8
 E 5 8
@@ -230,7 +230,7 @@ E 5 QTR
 G 5 QTR
 FLG 1
 G 5 8
-END
+END      <==== end 10
 UTL 19
 Bb5 U
 UTL 19
@@ -251,7 +251,7 @@ A 4 HALF .
 REST QTR
 MS# 4
 VDP 22
-CAL 14
+CAL 14 (f)
 FLG 1
 F#4 QTR
 F#4 8
@@ -315,7 +315,7 @@ F#5 8
 E 5 8
 D 5 8
 TAL
-UTL 7
+UTL 7  (= 16th)
 F#5 U T
 G 5 U T
 A 5 8
@@ -323,7 +323,7 @@ B 5 8
 A 5 8
 G 5 8
 G 5 QTR .
-UTL 7
+UTL 7    (= 16th)
 G 5 U T
 A 5 U T
 B 5 8
@@ -341,10 +341,11 @@ P-S 10
 E 5 8 T
 E 5 HALF
 POR 0
+----------------
 F#5 8
 E 5 8
 D 5 8
-UTL 10
+UTL 10   (roughly dotted 16th)
 E 5 U
 F#5 U
 G 5 U
@@ -352,18 +353,21 @@ A 5 U
 D 6 U
 UTL 10
 E 6 U
-F#6 U
-A 6 QTR
+F#6 U   7*10 = 70 = 5 8ths for 7 notes
+---------  (112 jif/measure)
+A 6 QTR (28)
 RLS 9
-G 6 8
-G 6 QTR
-UTL 21
-G 6 U
-D 6 U
-F#6 8
-E 6 8
-A 5 QTR
-UTL 5
+G 6 8   (14) 42
+G 6 QTR (28) 70
+UTL 21  21 = dotted 8th
+G 6 U    (21)91
+D 6 U    (21)112
+---------------
+F#6 8    (14)
+E 6 8    (14)28
+D 6 8    (14)42
+A 5 QTR  (28)70
+UTL 5    6*5=30
 D 5 U
 E 5 U
 F#5 U
@@ -371,51 +375,58 @@ G 5 U
 A 5 U
 D 6 U
 UTL 6
-E 6 U
-F#6 U T
-B 5 QTR
-B 5 8
-G 6 QTR .
-B 6 QTR
+E 6 U   +2*6=12 = 42 = 3 8ths for 8 notes
+F#6 U T      112
+------------------
+B 5 QTR   (28)
+B 5 8      (14) 42
+G 6 QTR .  (42) 84
+B 6 QTR    (28) 112
+---------------
 RLS 10
-A 6 HALF .
+A 6 HALF .  (84) 
 POR 1300
-G 6 8
+G 6 8     (14)98
 POR 0
-F#6 8
-G 6 8
-F#6 8
-E 6 8
-UTL 36
-D 6 U
+F#6 8     (14)112
+------------------
+G 6 8     (14)
+F#6 8     (14)28
+E 6 8     (14)42
+UTL 36             (= QTR + 16th + 1)
+D 6 U     (36)78
 UTL 3
-A 5 U T
-D 6 U T
-F#6 QTR T
-UTL 53
-E 6 U
+A 5 U T   (3)81
+D 6 U T   (3)84
+F#6 QTR T  (28) 112
+---------------------
+UTL 53             (= HALF - 32nd = QTR + 8th + 16th + 32nd)
+E 6 U      (53) 
 POR 700
-UTL 12
-F#6 U T
+UTL 12             (= 8th - 2 = 16th + 5) 2*8th triplet + 32nd
+F#6 U T       (12)65
 POR 0
 UTL 5
-A 6 U T
-A 6 QTR . T
+A 6 U T       (5)70  (= 16th - 2 = 32nd + 1.5) 8th triplet
+A 6 QTR . T   (42)112
 DCY 14 SUS 0
 PNT 1
-A 6 HALF . T
+---------------------
+A 6 HALF . T  (84)
 P-S 0
 DCY 13
-E 6 8 T
-D 6 8 T
-E 6 HALF . T
+E 6 8 T        (14)98
+D 6 8 T        (14)112
+----------------------
+E 6 HALF . T   (84)
 RLS 11
 FLG 1
-E 6 8 T
-D 6 8
+E 6 8 T   (14)98
+D 6 8     (14)112
+-----------------------
 MS# 6
 FLG 1
-CAL 14
+CAL 14  (f)
 RLS 9
 F#4 QTR
 F#4 8
@@ -566,7 +577,7 @@ HED 8
 A 3 HALF
 TAL
 MS# 3
-DEF 13
+DEF 13     <=== 13 (mf)
 TPS 0
 WAV TP
 P-W 0
@@ -576,7 +587,7 @@ DCY 2
 SUS 10
 RLS 10
 PNT 5
-END
+END        <==== end 13
 DEF 11
 HED 4
 F#3 8

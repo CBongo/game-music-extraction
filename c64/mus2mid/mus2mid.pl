@@ -13,6 +13,7 @@
 use strict;
 use warnings;
 use MIDI;
+use POSIX qw(log10);
 
 # -------------------------------------------------------------------------
 # Constants
@@ -25,12 +26,75 @@ my $TICKS_PER_QUARTER = 480;
 #        5=8th, 6=16th, 7=32nd
 my @DUR_TICKS = (30, 0, 1920, 960, 480, 240, 120, 60);
 
-# Default tempo byte (MM 100 per the Sidplayer book defaults)
-my $DEFAULT_TEMPO = 0x90;  # 144 decimal, BPM = 14400/144 = 100
-
-# CIA timer base for NTSC (used by JIF command)
+# CIA timer base for NTSC (used by JIF command); SID system clock for freq math
 my $CIA_BASE_NTSC = 0x4295;
 my $CLOCK_NTSC    = 1_022_727;  # Hz
+
+# SID envelope time values (ms) for register values 0-15
+my @SID_ENV_MS = (2, 8, 16, 24, 38, 56, 68, 80, 100, 250, 500, 800, 1000, 3000, 5000, 8000);
+
+# Map SID envelope time (0-15) to MIDI CC value (0-127) logarithmically
+# log(2ms)~=0.3, log(8000ms)~=3.9 -> scale to 0-127
+sub master_volume_sysex {
+    # Universal SysEx Master Volume: F0 7F 7F 04 01 LL HH F7
+    # SID vol 0-15 -> 14-bit value 0-16383; LL=low 7 bits, HH=high 7 bits.
+    my ($sid_vol) = @_;
+    my $val = int($sid_vol * 16383 / 15 + 0.5);
+    my $lsb = $val & 0x7F;
+    my $msb = ($val >> 7) & 0x7F;
+    return pack('C*', 0x7F, 0x7F, 0x04, 0x01, $lsb, $msb, 0xF7);
+}
+
+# Portamento pitch-bend range (semitones, +/-). Set via RPN at the start of
+# each voice track; the ramp generator clamps slides to this range.
+my $POR_BEND_RANGE = 12;
+
+sub sid_freq_for_pitch {
+    # Compute the SID frequency-register value for a MIDI pitch.
+    # f_reg = f_hz * 2^24 / clock_hz, with f_hz = 440 * 2^((p-69)/12).
+    my ($pitch) = @_;
+    my $hz = 440.0 * (2 ** (($pitch - 69) / 12.0));
+    return $hz * 16777216.0 / $CLOCK_NTSC;
+}
+
+sub bend_value_for_freq {
+    # Convert a SID frequency-register value to a 14-bit pitch-bend value
+    # (0..16383, center 8192) relative to a target MIDI pitch and bend range.
+    # Returns clamped value.
+    my ($cur_freq, $target_pitch) = @_;
+    my $target_freq = sid_freq_for_pitch($target_pitch);
+    return 8192 if $cur_freq <= 0 || $target_freq <= 0;
+    my $semitones = 12.0 * (log($cur_freq / $target_freq) / log(2));
+    my $bend = int(8192 + ($semitones / $POR_BEND_RANGE) * 8192 + 0.5);
+    $bend = 0     if $bend < 0;
+    $bend = 16383 if $bend > 16383;
+    return $bend;
+}
+
+sub bend_range_rpn_events {
+    # MIDI events to set pitch-bend range via Registered Parameter Number.
+    # RPN 0,0 = bend range; data entry MSB = semitones, LSB = cents (0).
+    # Returns a list of score-format ['control_change', time, channel, cc, val].
+    my ($time, $chan, $semitones) = @_;
+    return (
+        ['control_change', $time, $chan, 101, 0],   # RPN MSB
+        ['control_change', $time, $chan, 100, 0],   # RPN LSB
+        ['control_change', $time, $chan, 6,   $semitones],  # data entry MSB
+        ['control_change', $time, $chan, 38,  0],   # data entry LSB
+        ['control_change', $time, $chan, 101, 127], # null RPN MSB
+        ['control_change', $time, $chan, 100, 127], # null RPN LSB
+    );
+}
+
+sub sid_time_to_cc {
+    my ($val) = @_;
+    my $ms = $SID_ENV_MS[$val & 0x0F];
+    my $cc = int(($ms <= 2 ? 0 : log10($ms / 2) / log10(4000)) * 127 + 0.5);
+    return $cc > 127 ? 127 : $cc;
+}
+
+# Default tempo byte (MM 100 per the Sidplayer book defaults)
+my $DEFAULT_TEMPO = 0x90;  # 144 decimal, BPM = 14400/144 = 100
 
 # Semitone offsets for note names (index 1-7: C D E F G A B)
 my @NOTE_SEMITONES = (0, 0, 2, 4, 5, 7, 9, 11);
@@ -160,6 +224,8 @@ sub process_file {
         tempo       => $DEFAULT_TEMPO,
         jiffy_usec  => 1_000_000 / 60,   # default ~16667 usec/jiffy
         utl_jiffies => 0,                 # UTL affects all voices
+        ms_times    => {},                # MS# num => first totaltime seen
+        vol         => 8,                 # SID master volume 0-15 (default 8)
     };
 
     my @cevents = (
@@ -167,11 +233,15 @@ sub process_file {
         ['set_tempo', 0, calc_tempo_usec($shared->{tempo}, $shared->{jiffy_usec})],
     );
 
-    # Per-voice score event lists
+    # Per-voice score event lists. Master volume SysEx lives on voice 0's
+    # track (not the conductor track) so DAWs/notation tools that expect the
+    # conductor track to hold only meta events don't treat it as a regular
+    # track and invent a phantom labeled track in the UI.
     my @e;
     for my $v (0..2) {
         $e[$v] = [['track_name', 0, "Voice $v"]];
     }
+    push @{$e[0]}, ['sysex_f0', 0, master_volume_sysex($shared->{vol})];
 
     # Initialize per-voice state
     my @vs;
@@ -184,20 +254,26 @@ sub process_file {
             totaltime    => 0,
             transpose    => 0,
             velocity     => $DEFAULT_VELOCITY,
-            vol          => 15,
             utv_jiffies  => 0,
             pnt_jiffies  => 4,
             hld_jiffies  => 0,
             repeat_pos   => undef,
             repeat_count => undef,
+            # Unified call/def stack matching SID player behavior.
+            # Each frame is { type => 'call', ret => addr }
+            #             or { type => 'def',  phrase => num }
+            # END pops one frame: 'call' jumps to ret, 'def' falls through.
             call_stack   => [],
-            defining     => [],   # stack of phrase numbers currently being defined
             note_count   => 0,
             done         => 0,
             tie_note_ev  => undef,  # pending tied note score event ref
             tie_pitch    => undef,  # MIDI pitch of pending tied note
             abs_pitch    => undef,  # pitch set by absolute pitch command (cmd==0x00)
             abs_velocity => undef,  # velocity for next abs-pitch note (stepped down each set)
+            por_val      => 0,      # current portamento slide rate (0 = off)
+            last_pitch   => undef,  # previous note pitch for portamento source freq
+            bend_range_set => 0,    # 1 once we've emitted the bend-range RPN
+            bend_active  => 0,      # 1 if last emitted bend is non-centered
         };
     }
 
@@ -243,7 +319,9 @@ sub advance_voice {
     my ($s, $shared, $e, $cevents) = @_;
     my $v = $s->{v};
 
-    while ($s->{pos} < $s->{vend}) {
+    my $vdata_len = length($vdata);
+    my $in_call = sub { grep { $_->{type} eq 'call' } @{$s->{call_stack}} };
+    while ($s->{pos} < ($in_call->() ? $vdata_len : $s->{vend})) {
         my ($cmd, $opt) = unpack('CC', substr($vdata, $s->{pos}, 2));
         my $next_pos = $s->{pos} + 2;
         $disasm_bytes = sprintf("%02X %02X  ", $cmd, $opt);
@@ -377,9 +455,51 @@ sub advance_voice {
                         $v, $s->{pos}, ($tie ? 'NOTE(tie)' : 'NOTE'),
                         note_name($note_idx, $accidental, $octave, $s->{transpose}),
                         $octave, $pitch, $sound_ticks, $dur_ticks);
+                # Portamento: emit a pitch-bend ramp that mirrors the SID
+                # player's "add por_val to the 16-bit freq register per jiffy"
+                # behavior, sliding from last_pitch's freq toward pitch's freq.
+                # When portamento is inactive, snap any leftover bend to center.
+                if ($s->{por_val} > 0 && defined $s->{last_pitch} && $s->{last_pitch} != $pitch) {
+                    my $start_freq  = sid_freq_for_pitch($s->{last_pitch});
+                    my $target_freq = sid_freq_for_pitch($pitch);
+                    my $cur_freq = $start_freq;
+                    my $por = $s->{por_val};
+                    my $jiffy_ticks = jiffies_to_ticks(1, $shared->{tempo}, $shared->{jiffy_usec});
+                    $jiffy_ticks = 1 if $jiffy_ticks < 1;
+                    my $direction = ($target_freq > $start_freq) ? 1 : -1;
+                    # Initial bend at the note start (offset = full slide span).
+                    my $bend = bend_value_for_freq($cur_freq, $pitch);
+                    push @{$e->[$v]}, ['pitch_wheel_change', $s->{totaltime}, $v, $bend - 8192];
+                    $s->{bend_active} = 1;
+                    my $step_time = $s->{totaltime};
+                    my $max_steps = int($sound_ticks / $jiffy_ticks) + 2;
+                    my $steps = 0;
+                    while ($steps++ < $max_steps) {
+                        $cur_freq += $direction * $por;
+                        if (($direction > 0 && $cur_freq >= $target_freq)
+                         || ($direction < 0 && $cur_freq <= $target_freq)) {
+                            $cur_freq = $target_freq;
+                            $step_time += $jiffy_ticks;
+                            push @{$e->[$v]}, ['pitch_wheel_change', $step_time, $v, 0];
+                            $s->{bend_active} = 0;
+                            last;
+                        }
+                        $step_time += $jiffy_ticks;
+                        last if $step_time >= $s->{totaltime} + $sound_ticks;
+                        my $b = bend_value_for_freq($cur_freq, $pitch);
+                        push @{$e->[$v]}, ['pitch_wheel_change', $step_time, $v, $b - 8192];
+                    }
+                    vprintf("    [v%d pos=%04X]  POR ramp last=%d new=%d rate=%d steps=%d\n",
+                            $v, $s->{pos}, $s->{last_pitch}, $pitch, $por, $steps);
+                } elsif ($s->{bend_active}) {
+                    # Stale bend from a prior portamento — recenter at note start.
+                    push @{$e->[$v]}, ['pitch_wheel_change', $s->{totaltime}, $v, 0];
+                    $s->{bend_active} = 0;
+                }
                 my $ev = ['note', $s->{totaltime}, $sound_ticks, $v, $pitch, $s->{velocity}];
                 push @{$e->[$v]}, $ev;
                 $s->{note_count}++;
+                $s->{last_pitch} = $pitch;
                 if ($tie) {
                     $s->{tie_note_ev} = $ev;
                     $s->{tie_pitch}   = $pitch;
@@ -431,30 +551,36 @@ sub advance_voice {
                 return;
 
             } elsif ($opt == 0x2F) {
-                # END - end phrase definition or return from call
-                if (@{$s->{defining}}) {
-                    my $phrase = pop @{$s->{defining}};
-                    vprintf("    [v%d pos=%04X]  END (phrase %d defined)\n",
-                            $v, $s->{pos}, $phrase);
-                }
+                # END - pop one frame from the unified call/def stack.
+                # 'def' frames fall through to next instruction;
+                # 'call' frames jump to saved return address.
                 if (@{$s->{call_stack}}) {
-                    my $ret = pop @{$s->{call_stack}};
-                    vprintf("    [v%d pos=%04X]  END (return from CALL to %04X)\n",
-                            $v, $s->{pos}, $ret);
-                    $s->{pos} = $ret;
-                    next;
+                    my $frame = pop @{$s->{call_stack}};
+                    if ($frame->{type} eq 'def') {
+                        vprintf("    [v%d pos=%04X]  END (phrase %d defined)\n",
+                                $v, $s->{pos}, $frame->{phrase});
+                        $s->{pos} = $next_pos;
+                        next;
+                    } else {
+                        vprintf("    [v%d pos=%04X]  END (return from CALL to %04X)\n",
+                                $v, $s->{pos}, $frame->{ret});
+                        $s->{pos} = $frame->{ret};
+                        next;
+                    }
                 }
+                vprintf("    [v%d pos=%04X]  END (no frame, falling through)\n",
+                        $v, $s->{pos});
                 $s->{pos} = $next_pos;
                 next;
 
             } elsif ($lo4 == 0x0E) {
-                # VOL - volume
-                $s->{vol} = $hi4;
-                my $cc7 = int($s->{vol} * 127 / 15);
-                vprintf("    [v%d pos=%04X]  VOL %d (CC7=%d)\n", $v, $s->{pos}, $s->{vol}, $cc7);
-                for my $ch (0..2) {
-                    push @{$e->[$v]}, ['control_change', $s->{totaltime}, $ch, 7, $cc7];
-                }
+                # VOL - SID master volume (affects all voices). Emit on voice 0's
+                # track rather than the conductor track to avoid creating a
+                # phantom track in DAWs that expect the conductor to hold only
+                # meta events.
+                $shared->{vol} = $hi4;
+                vprintf("    [v%d pos=%04X]  VOL %d (master)\n", $v, $s->{pos}, $shared->{vol});
+                push @{$e->[0]}, ['sysex_f0', $s->{totaltime}, master_volume_sysex($shared->{vol})];
 
             } elsif ($lo4 == 0x02) {
                 # CAL 0-15
@@ -462,22 +588,19 @@ sub advance_voice {
                 next;
 
             } elsif ($opt == 0x0B || (($opt & 0x0F) == 0x0B && ($opt & 0x80))) {
-                # BMP - bump volume up/down
+                # BMP - bump master volume up/down
                 my $down = ($opt >> 2) & 0x01;
-                if ($down) { $s->{vol}-- if $s->{vol} > 0; }
-                else        { $s->{vol}++ if $s->{vol} < 15; }
-                my $cc7 = int($s->{vol} * 127 / 15);
-                vprintf("    [v%d pos=%04X]  BMP %s -> vol=%d (CC7=%d)\n",
-                        $v, $s->{pos}, ($down ? "DN" : "UP"), $s->{vol}, $cc7);
-                for my $ch (0..2) {
-                    push @{$e->[$v]}, ['control_change', $s->{totaltime}, $ch, 7, $cc7];
-                }
+                if ($down) { $shared->{vol}-- if $shared->{vol} > 0; }
+                else        { $shared->{vol}++ if $shared->{vol} < 15; }
+                vprintf("    [v%d pos=%04X]  BMP %s -> vol=%d (master)\n",
+                        $v, $s->{pos}, ($down ? "DN" : "UP"), $shared->{vol});
+                push @{$e->[0]}, ['sysex_f0', $s->{totaltime}, master_volume_sysex($shared->{vol})];
 
             } elsif ($lo4 == 0x06) {
                 # DEF 0-15
                 my $phrase = $hi4;
                 $phrases[$phrase] = $next_pos;
-                push @{$s->{defining}}, $phrase;
+                push @{$s->{call_stack}}, { type => 'def', phrase => $phrase };
                 vprintf("    [v%d pos=%04X]  DEF phrase=%d (body at %04X)\n",
                         $v, $s->{pos}, $phrase, $next_pos);
 
@@ -485,7 +608,7 @@ sub advance_voice {
                 # DEF 16-23: pattern 1nnn 0011
                 my $phrase = ($opt >> 4) + 8;
                 $phrases[$phrase] = $next_pos;
-                push @{$s->{defining}}, $phrase;
+                push @{$s->{call_stack}}, { type => 'def', phrase => $phrase };
                 vprintf("    [v%d pos=%04X]  DEF phrase=%d (body at %04X)\n",
                         $v, $s->{pos}, $phrase, $next_pos);
 
@@ -502,19 +625,30 @@ sub advance_voice {
 
             } elsif (($opt & 0x07) == 0x04 && !($opt & 0x80)) {
                 # ATK: pattern 0nnn n100, value = bits 6-3
-                vprintf("    [v%d pos=%04X]  ATK %d\n", $v, $s->{pos}, ($opt >> 3) & 0x0F);
+                my $atk = ($opt >> 3) & 0x0F;
+                my $cc  = sid_time_to_cc($atk);
+                vprintf("    [v%d pos=%04X]  ATK %d (CC73=%d)\n", $v, $s->{pos}, $atk, $cc);
+                push @{$e->[$v]}, ['control_change', $s->{totaltime}, $v, 73, $cc];
             } elsif ($lo4 == 0x00 && $hi4 > 0) {
                 # DCY: aaan0000, aaa != 0
-                vprintf("    [v%d pos=%04X]  DCY %d\n", $v, $s->{pos}, $hi4);
+                my $dcy = $hi4;
+                my $cc  = sid_time_to_cc($dcy);
+                vprintf("    [v%d pos=%04X]  DCY %d (CC75=%d)\n", $v, $s->{pos}, $dcy, $cc);
+                push @{$e->[$v]}, ['control_change', $s->{totaltime}, $v, 75, $cc];
             } elsif (($opt & 0x07) == 0x04 && ($opt & 0x80)) {
                 # SUS: pattern 1nnn n100, value = bits 6-3
-                vprintf("    [v%d pos=%04X]  SUS %d\n", $v, $s->{pos}, ($opt >> 3) & 0x0F);
+                my $sus = ($opt >> 3) & 0x0F;
+                my $cc  = int($sus * 127 / 15 + 0.5);
+                vprintf("    [v%d pos=%04X]  SUS %d (CC79=%d)\n", $v, $s->{pos}, $sus, $cc);
+                push @{$e->[$v]}, ['control_change', $s->{totaltime}, $v, 79, $cc];
             } elsif ($lo4 == 0x08) {
                 if ($hi4 == 0) {
                     $s->{abs_pitch}    = undef;
                     $s->{abs_velocity} = undef;
                 }
-                vprintf("    [v%d pos=%04X]  REL %d\n", $v, $s->{pos}, $hi4);
+                my $cc = sid_time_to_cc($hi4);
+                vprintf("    [v%d pos=%04X]  REL %d (CC72=%d)\n", $v, $s->{pos}, $hi4, $cc);
+                push @{$e->[$v]}, ['control_change', $s->{totaltime}, $v, 72, $cc];
             } elsif ($lo4 == 0x0A) {
                 vprintf("    [v%d pos=%04X]  RES %d\n", $v, $s->{pos}, $hi4);
             } elsif ($opt == 0x13) { vprintf("    [v%d pos=%04X]  FLT NO\n",  $v, $s->{pos});
@@ -547,9 +681,26 @@ sub advance_voice {
         }
 
         # ---- bits 0-1 = 11: Portamento ----------------------------------
+        # The slide is realized as MIDI pitch-bend ramps emitted at each
+        # subsequent note-on (see note handler). On first activation per voice
+        # we emit a one-time RPN to set the pitch-bend range so the bend
+        # values are interpreted at the expected semitone scale.
         if ($cmdtype == 3) {
             my $por_val = (($cmd >> 2) << 8) | $opt;
-            vprintf("    [v%d pos=%04X]  POR %d\n", $v, $s->{pos}, $por_val);
+            $s->{por_val} = $por_val;
+            if ($por_val == 0) {
+                vprintf("    [v%d pos=%04X]  POR 0 (off)\n", $v, $s->{pos});
+            } else {
+                if (!$s->{bend_range_set}) {
+                    push @{$e->[$v]},
+                        bend_range_rpn_events($s->{totaltime}, $v, $POR_BEND_RANGE);
+                    $s->{bend_range_set} = 1;
+                    vprintf("    [v%d pos=%04X]  POR %d (set bend range +/-%d)\n",
+                            $v, $s->{pos}, $por_val, $POR_BEND_RANGE);
+                } else {
+                    vprintf("    [v%d pos=%04X]  POR %d\n", $v, $s->{pos}, $por_val);
+                }
+            }
             $s->{pos} = $next_pos;
             next;
         }
@@ -603,6 +754,17 @@ sub advance_voice {
             # MS# - measure number
             my $msnum = (($cmd >> 6) << 8) | $opt;
             vprintf("    [v%d pos=%04X]  MS# %d\n", $v, $s->{pos}, $msnum);
+            my $ms_times = $shared->{ms_times};
+            if (!exists $ms_times->{$msnum}) {
+                $ms_times->{$msnum} = $s->{totaltime};
+                push @$cevents, ['marker', $s->{totaltime}, sprintf("M%d", $msnum)];
+            } else {
+                my $expected = $ms_times->{$msnum};
+                if ($s->{totaltime} != $expected) {
+                    warn sprintf("  WARNING: MS# %d on voice %d at tick %d; first seen at tick %d (diff %+d)\n",
+                                 $msnum, $v, $s->{totaltime}, $expected, $s->{totaltime} - $expected);
+                }
+            }
 
         } elsif (($cmd & 0x3F) == 0x3E) {
             # JIF - jiffy clock adjustment
@@ -689,7 +851,7 @@ sub handle_call {
     }
     vprintf("    [v%d pos=%04X]  CALL phrase=%d (jump to %04X, return to %04X)\n",
             $v, $s->{pos}, $phrase, $phrases[$phrase], $next_pos);
-    push @{$s->{call_stack}}, $next_pos;
+    push @{$s->{call_stack}}, { type => 'call', ret => $next_pos };
     $s->{pos} = $phrases[$phrase];
 }
 
