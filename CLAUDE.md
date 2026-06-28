@@ -14,11 +14,17 @@ FF7/8/9, Chrono Cross, plus SNES titles).
 music formats (including AKAO) and exports MIDI/SF2/DLS. GME's relationship with it is
 **complementary, not competing**:
 
-- **GME is the oracle/spec, not code to be migrated.** GME's Perl/Python extractors are
-  *not* destined to be ported into vgmtrans. Their lasting value is as a *reference
-  implementation and documentation of how the game code actually works* — used to improve
-  conversion correctness/musicality and to cross-check vgmtrans's parsers for parity gaps.
-  An oracle that can say "vgmtrans got this opcode wrong" is worth more than a second engine.
+- **GME is a fallible second implementation, not gospel and not code to be migrated.**
+  GME's Perl/Python extractors are *not* destined to be ported into vgmtrans — but neither
+  are they ground truth. Decades of accreted RE notes carry their own bugs and
+  incompleteness, so treating them as a spec vgmtrans must match is the wrong stance. Their
+  value is as an *independent second reading of how the game code actually works*: when GME
+  and vgmtrans disagree on an opcode (or one covers a case the other doesn't), that
+  **discrepancy is the signal** — it means at least one side is wrong or incomplete. The job
+  is to surface those mismatches and reconcile *both* against the real authority — the game's
+  own code and runtime behaviour. Sometimes reconciliation fixes vgmtrans; sometimes it fixes
+  GME's notes. The deliverable is reconciled parity and better documentation of the format,
+  not declaring a winner.
 
 - **Three integration paths** (sequenced, not exclusive; not yet committed to any):
   - **Path A — Upstream the generically-useful pieces** (raw ROM/CD-image input loaders,
