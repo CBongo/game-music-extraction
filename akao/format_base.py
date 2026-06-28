@@ -3,11 +3,31 @@ Base classes and shared utilities for sequence format handlers.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional
+import math
 
 # Import IR event classes
 from ir_events import IREvent, IREventType
+
+
+def linear_to_midi(linear_value: float) -> int:
+    """Convert linear amplitude (0.0-1.0) to MIDI value (0-127).
+
+    Uses square-root curve to match GM logarithmic interpretation.
+    GM synths apply: dB = 40 × log₁₀(cc/127)
+    We want linear 0.5 → -6dB (half amplitude)
+    Solution: cc = 127 × sqrt(linear)
+
+    Args:
+        linear_value: Linear amplitude from 0.0 (silent) to 1.0 (full volume)
+
+    Returns:
+        MIDI value from 0 to 127
+    """
+    if linear_value <= 0:
+        return 0
+    return int(min(127, max(0, math.sqrt(linear_value) * 127)))
 
 
 # Global constants
@@ -103,6 +123,27 @@ class PatchMapper:
 
 class SequenceFormat(ABC):
     """Abstract base class for sequence format handlers."""
+
+    # Attributes that subclasses must define (type hints for Pylance)
+    config: Dict
+    rom_data: bytes
+
+    # _read_rom_table() is implemented by subclasses but not abstract
+    # (type hint for Pylance to recognize the method exists)
+    def _read_rom_table(self, address: int, size: int, data_type: str) -> List[int]:
+        """Read a table from ROM data.
+
+        Subclasses must implement this method.
+
+        Args:
+            address: ROM/file address to read from
+            size: Number of items to read
+            data_type: Data type code (e.g., 'B' for byte, 'H' for ushort)
+
+        Returns:
+            List of integers read from ROM
+        """
+        raise NotImplementedError("Subclasses must implement _read_rom_table()")
 
     @abstractmethod
     def parse_header(self, data: bytes, song_id: int = 0, use_alternate_pointers: bool = False) -> Dict:
@@ -441,6 +482,282 @@ class SequenceFormat(ABC):
 
         return events
 
+    def _load_config_table(self, config_key: str, default_values: List[int],
+                          default_size: Optional[int] = None,
+                          default_type: str = 'B') -> List[int]:
+        """Load optional ROM table from config with fallback to defaults.
+
+        Args:
+            config_key: Key name in config dict (e.g., 'duration_table')
+            default_values: Fallback values if config key not present
+            default_size: Default table size if not in config (None = len(default_values))
+            default_type: Default data type code (e.g., 'B' for byte)
+
+        Returns:
+            List of integers from either ROM or default values
+        """
+        if config_key in self.config:
+            table_cfg = self.config[config_key]
+            if default_size is None:
+                default_size = len(default_values)
+            return self._read_rom_table(
+                table_cfg.get('address'),
+                table_cfg.get('size', default_size),
+                table_cfg.get('type', default_type)
+            )
+        else:
+            return default_values
+
+
+# ==============================================================================
+# MIDI Render Strategy Classes
+# ==============================================================================
+
+class MidiRenderStrategy(ABC):
+    """Abstract base for MIDI rendering strategies.
+
+    Strategies control how volume dynamics are represented in MIDI output:
+    - VelocityStrategy: Uses note-on velocity (SPC-accurate)
+    - ExpressionStrategy: Uses CC11 (Expression controller) with constant velocity
+    - CC7Strategy: Uses CC7 (Main Volume) with constant velocity
+    """
+
+    def __init__(self, constant_velocity: int = 100):
+        """Initialize strategy.
+
+        Args:
+            constant_velocity: Fixed velocity for controller strategies (ignored by velocity strategy)
+        """
+        self.constant_velocity = constant_velocity
+
+    @abstractmethod
+    def get_note_velocity(self, state: 'Pass2State', adjusted_velocity: int) -> int:
+        """Return velocity value for note-on event.
+
+        Args:
+            state: Current Pass2 state
+            adjusted_velocity: Calculated velocity after applying volume/multiplier
+
+        Returns:
+            MIDI velocity (0-127) to use for note-on
+        """
+        pass
+
+    @abstractmethod
+    def get_note_preamble_events(self, state: 'Pass2State', adjusted_velocity: int,
+                                  midi_channel: int) -> List[Dict]:
+        """Return MIDI events to emit before a note (e.g., CC11).
+
+        Args:
+            state: Current Pass2 state
+            adjusted_velocity: Calculated velocity after applying volume/multiplier
+            midi_channel: MIDI channel number
+
+        Returns:
+            List of MIDI event dicts to prepend before note-on
+        """
+        pass
+
+    @abstractmethod
+    def handle_volume_event(self, state: 'Pass2State', value: int,
+                           scaled_value: int, midi_channel: int) -> List[Dict]:
+        """Handle VOLUME IR event, return MIDI events to emit.
+
+        Args:
+            state: Current Pass2 state (may be modified)
+            value: Raw volume value from IR event
+            scaled_value: Scaled MIDI value (0-127)
+            midi_channel: MIDI channel number
+
+        Returns:
+            List of MIDI event dicts to emit
+        """
+        pass
+
+    @abstractmethod
+    def handle_volume_fade(self, state: 'Pass2State',
+                          start_volume: int, target_volume: int,
+                          start_scaled: int, target_scaled: int,
+                          fade_duration_midi: int, fade_duration_native: int,
+                          midi_channel: int,
+                          generate_fade_events_fn,
+                          calculate_fade_delta_fn) -> List[Dict]:
+        """Handle VOLUME_FADE IR event, return MIDI events to emit.
+
+        For velocity strategy: Activates internal fade state on state directly
+        For controller strategies: Returns interpolated CC events
+
+        Args:
+            state: Current Pass2 state (may be modified by velocity strategy)
+            start_volume: Starting volume value (IR range)
+            target_volume: Target volume value (IR range)
+            start_scaled: Starting volume (MIDI 0-127)
+            target_scaled: Target volume (MIDI 0-127)
+            fade_duration_midi: Fade duration in MIDI ticks
+            fade_duration_native: Fade duration in native ticks
+            midi_channel: MIDI channel number
+            generate_fade_events_fn: Function to generate interpolated events
+            calculate_fade_delta_fn: Function to calculate fade delta per tick
+
+        Returns:
+            List of MIDI event dicts to emit (empty for velocity strategy)
+        """
+        pass
+
+
+class VelocityStrategy(MidiRenderStrategy):
+    """Use note velocity for dynamics (SPC-accurate).
+
+    This strategy varies note-on velocity to represent volume changes,
+    matching the behavior of the original SPC700 sound chip.
+    """
+
+    def get_note_velocity(self, state: 'Pass2State', adjusted_velocity: int) -> int:
+        return adjusted_velocity  # Use calculated velocity
+
+    def get_note_preamble_events(self, state: 'Pass2State', adjusted_velocity: int,
+                                  midi_channel: int) -> List[Dict]:
+        return []  # No preamble events
+
+    def handle_volume_event(self, state: 'Pass2State', value: int,
+                           scaled_value: int, midi_channel: int) -> List[Dict]:
+        # Just update state, no controller events
+        return []
+
+    def handle_volume_fade(self, state: 'Pass2State',
+                          start_volume: int, target_volume: int,
+                          start_scaled: int, target_scaled: int,
+                          fade_duration_midi: int, fade_duration_native: int,
+                          midi_channel: int,
+                          generate_fade_events_fn,
+                          calculate_fade_delta_fn) -> List[Dict]:
+        # Activate internal fade state directly
+        state.volume_fade_active = True
+        state.volume_fade_target = float(target_volume)
+        state.volume_fade_delta = calculate_fade_delta_fn(
+            start_volume, target_volume, fade_duration_native)
+        state.volume_fade_ticks_remaining = fade_duration_native
+        return []  # No controller events
+
+
+class ExpressionStrategy(MidiRenderStrategy):
+    """Use CC11 (Expression) for dynamics.
+
+    This strategy uses MIDI Expression controller (CC11) to represent volume
+    changes, with notes played at constant velocity. Better suited for some
+    MIDI players that don't handle velocity variation well.
+    """
+
+    CONTROLLER_NUM = 11  # Expression
+
+    def get_note_velocity(self, state: 'Pass2State', adjusted_velocity: int) -> int:
+        return self.constant_velocity  # Use constant velocity
+
+    def get_note_preamble_events(self, state: 'Pass2State', adjusted_velocity: int,
+                                  midi_channel: int) -> List[Dict]:
+        # Emit CC11 before each note
+        return [{
+            'type': 'controller',
+            'time': state.total_time,
+            'channel': midi_channel,
+            'controller': self.CONTROLLER_NUM,
+            'value': adjusted_velocity
+        }]
+
+    def handle_volume_event(self, state: 'Pass2State', value: int,
+                           scaled_value: int, midi_channel: int) -> List[Dict]:
+        # Emit CC11 immediately
+        return [{
+            'type': 'controller',
+            'time': state.total_time,
+            'channel': midi_channel,
+            'controller': self.CONTROLLER_NUM,
+            'value': scaled_value
+        }]
+
+    def handle_volume_fade(self, state: 'Pass2State',
+                          start_volume: int, target_volume: int,
+                          start_scaled: int, target_scaled: int,
+                          fade_duration_midi: int, fade_duration_native: int,
+                          midi_channel: int,
+                          generate_fade_events_fn,
+                          calculate_fade_delta_fn) -> List[Dict]:
+        # Generate CC11 fade events (ignore native duration and delta fn)
+        return generate_fade_events_fn(
+            'controller', start_scaled, target_scaled,
+            fade_duration_midi, state.total_time,
+            midi_channel, self.CONTROLLER_NUM
+        )
+
+
+class CC7Strategy(MidiRenderStrategy):
+    """Use CC7 (Main Volume) for dynamics.
+
+    This strategy uses MIDI Main Volume controller (CC7) to represent volume
+    changes, with notes played at constant velocity. Some MIDI players prefer
+    this over Expression (CC11).
+    """
+
+    CONTROLLER_NUM = 7  # Main Volume
+
+    def get_note_velocity(self, state: 'Pass2State', adjusted_velocity: int) -> int:
+        return self.constant_velocity  # Use constant velocity
+
+    def get_note_preamble_events(self, state: 'Pass2State', adjusted_velocity: int,
+                                  midi_channel: int) -> List[Dict]:
+        # Emit CC7 before each note
+        return [{
+            'type': 'controller',
+            'time': state.total_time,
+            'channel': midi_channel,
+            'controller': self.CONTROLLER_NUM,
+            'value': adjusted_velocity
+        }]
+
+    def handle_volume_event(self, state: 'Pass2State', value: int,
+                           scaled_value: int, midi_channel: int) -> List[Dict]:
+        # Emit CC7 immediately
+        return [{
+            'type': 'controller',
+            'time': state.total_time,
+            'channel': midi_channel,
+            'controller': self.CONTROLLER_NUM,
+            'value': scaled_value
+        }]
+
+    def handle_volume_fade(self, state: 'Pass2State',
+                          start_volume: int, target_volume: int,
+                          start_scaled: int, target_scaled: int,
+                          fade_duration_midi: int, fade_duration_native: int,
+                          midi_channel: int,
+                          generate_fade_events_fn,
+                          calculate_fade_delta_fn) -> List[Dict]:
+        # Generate CC7 fade events (ignore native duration and delta fn)
+        return generate_fade_events_fn(
+            'controller', start_scaled, target_scaled,
+            fade_duration_midi, state.total_time,
+            midi_channel, self.CONTROLLER_NUM
+        )
+
+
+def create_render_strategy(strategy_name: str, constant_velocity: int = 100) -> MidiRenderStrategy:
+    """Create a render strategy instance from config name.
+
+    Args:
+        strategy_name: Strategy name ('velocity', 'expression', 'cc7')
+        constant_velocity: Fixed velocity for controller strategies
+
+    Returns:
+        MidiRenderStrategy instance
+    """
+    strategies = {
+        'velocity': VelocityStrategy,
+        'expression': ExpressionStrategy,
+        'cc7': CC7Strategy,
+    }
+    strategy_class = strategies.get(strategy_name, VelocityStrategy)
+    return strategy_class(constant_velocity)
+
 
 @dataclass
 class ROMTable:
@@ -459,3 +776,62 @@ class SongMetadata:
     length: int = 0
     offset: Optional[int] = None
     file_path: Optional[str] = None  # ISO path or default_source_file path
+
+
+@dataclass
+class Pass2State:
+    """Mutable state for Pass 2 MIDI event generation.
+
+    This dataclass consolidates all state variables used during Pass 2 processing,
+    eliminating ~70 lines of duplicated initialization code between PSX and SNES formats.
+
+    Volume representation is normalized to float (0.0-1.0 range, 1.0 = normal) across
+    both PSX and SNES formats for consistency and cleaner math.
+    """
+
+    # Configuration (immutable after init)
+    midi_strategy: str = 'velocity'
+    constant_velocity: int = 100
+    render_strategy: Optional[MidiRenderStrategy] = None  # Strategy instance (replaces midi_strategy branching)
+    apply_multiplier: bool = True
+    apply_master_volume_config: bool = True
+    velocity_scale: float = 1.0
+    tick_scale: int = 2
+
+    # Playback state (mutable)
+    total_time: int = 0
+    octave: int = 4
+    velocity: int = 100
+    tempo: float = 120.0  # BPM
+    current_pan: int = 64
+    perc_key: int = 0
+    transpose_octaves: int = 0
+    current_channel: int = 0
+
+    # Volume state (mutable) - NORMALIZED TO FLOAT (1.0 = normal)
+    master_volume: float = 1.0
+    volume_multiplier: float = 1.0
+
+    # Volume fade state (mutable) - BOTH PSX AND SNES
+    volume_fade_active: bool = False
+    volume_fade_target: float = 0.0
+    volume_fade_delta: float = 0.0
+    volume_fade_ticks_remaining: int = 0
+
+    # Articulation state (mutable)
+    slur_enabled: bool = False
+    roll_enabled: bool = False
+    staccato_percentage: int = 100
+    utility_duration_override: Optional[int] = None
+    gate_time: int = 2  # Native ticks before full duration when note-off happens
+
+    # Execution state (mutable)
+    current_voice_num: int = 0
+    i: int = 0  # Event stream pointer
+    iteration_count: int = 0
+    midi_events: List[Dict] = field(default_factory=list)
+    loop_stack: List[Dict] = field(default_factory=list)
+
+    # References (immutable) - set during initialization
+    ir_events: List[IREvent] = field(default_factory=list)
+    loop_info: Dict = field(default_factory=dict)

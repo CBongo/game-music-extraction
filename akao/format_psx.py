@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from extractor import SequenceExtractor
 
 # Import base classes
-from format_base import SequenceFormat, NOTE_NAMES
+from format_base import SequenceFormat, NOTE_NAMES, Pass2State, create_render_strategy, linear_to_midi
 
 # Import IR event classes
 from ir_events import (
@@ -21,9 +21,10 @@ from ir_events import (
     make_octave_set, make_octave_inc, make_octave_dec,
     make_volume, make_volume_fade, make_pan_fade,
     make_patch_change, make_loop_start, make_loop_end, make_goto,
+    make_vibrato_on, make_vibrato_off, make_tremolo_on, make_tremolo_off,
     make_slur_on, make_slur_off, make_roll_on, make_roll_off,
     make_staccato, make_utility_duration, make_master_volume, make_volume_multiplier,
-    make_percussion_mode_on, make_percussion_mode_off, make_halt
+    make_percussion_mode_on, make_percussion_mode_off, make_halt, make_unknown
 )
 
 
@@ -129,17 +130,17 @@ class AKAOBase(SequenceFormat):
     patch_map: Dict[int, Dict]  # Optional patch mapping
 
     def _calculate_adjusted_velocity(self, base_velocity: int,
-                                      volume_multiplier: int,
-                                      master_volume: int,
+                                      volume_multiplier: float,
+                                      master_volume: float,
                                       velocity_scale: float,
                                       apply_multiplier: bool,
                                       apply_master_volume: bool) -> int:
-        """Calculate final MIDI velocity with all multipliers applied.
+        """Calculate final MIDI velocity with sqrt curve for GM compatibility.
 
         Args:
             base_velocity: Base velocity value (0-255 IR range)
-            volume_multiplier: PSX volume multiplier (0 = normal)
-            master_volume: PSX master volume (256 = 100%)
+            volume_multiplier: Volume multiplier (0.0-1.0 range, 1.0 = normal)
+            master_volume: Master volume (0.0-1.0 range, 1.0 = 100%)
             velocity_scale: Global velocity scaling factor
             apply_multiplier: Whether to apply volume_multiplier
             apply_master_volume: Whether to apply master_volume
@@ -147,26 +148,38 @@ class AKAOBase(SequenceFormat):
         Returns:
             Final MIDI velocity value (0-127)
         """
-        adjusted = float(base_velocity)
+        # Normalize base_velocity (0-255) to 0.0-1.0 linear range
+        linear = base_velocity / 255.0
 
-        # Apply volume multiplier if enabled
-        if apply_multiplier and volume_multiplier != 0:
-            # PSX volume_multiplier: 0 = normal (no change), positive values multiply
-            # Formula: velocity = base * (0.5 + multiplier/256)
-            multiplier_factor = 0.5 + (volume_multiplier / 256.0)
-            adjusted *= multiplier_factor
+        # Apply multipliers (all in linear domain)
+        if apply_multiplier and volume_multiplier != 1.0:
+            linear *= volume_multiplier
+        if apply_master_volume and master_volume != 1.0:
+            linear *= master_volume
+        linear *= velocity_scale
 
-        # Apply master volume if enabled
-        if apply_master_volume and master_volume != 256:
-            # PSX master_volume: 256 = 100% (no change)
-            master_factor = master_volume / 256.0
-            adjusted *= master_factor
+        # Convert to MIDI with sqrt curve for GM compatibility
+        return linear_to_midi(linear)
 
-        # Apply velocity scale
-        adjusted *= velocity_scale
+    def _calculate_fade_delta(self, start_value, target_value, duration_ticks):
+        """Calculate per-tick delta for parameter fade (SPC-style).
 
-        # Clamp to MIDI range 0-127
-        return int(min(127, max(0, adjusted)))
+        This implements the SPC fade algorithm:
+        delta = (target - start) / duration
+
+        Used for VOLUME_FADE internal fade state in velocity strategy.
+
+        Args:
+            start_value: Current parameter value (any range)
+            target_value: Target parameter value (same range as start)
+            duration_ticks: Fade duration in native ticks
+
+        Returns:
+            float: Delta to add/subtract per tick
+        """
+        if duration_ticks <= 0:
+            return 0.0
+        return float(target_value - start_value) / float(duration_ticks)
 
     def _resolve_patch_info(self, inst_id: int) -> Tuple[int, int, str]:
         """Look up GM patch, transpose, and annotation for instrument.
@@ -198,47 +211,46 @@ class AKAOBase(SequenceFormat):
         """Pass 2: Expand IR events with loop execution to generate MIDI events.
 
         Args:
-            all_track_data: Complete track data from parse_all_tracks() (includes loop_info per track)
+            all_track_data: Complete track data from parse_all_tracks() (includes state.loop_info per track)
             start_voice_num: Starting voice/track number to execute from
             target_loop_time: Target playthrough time in ticks (0 = no loop expansion)
 
         Returns:
             List of MIDI event dictionaries
         """
-        # Initialize from starting track
-        current_voice_num = start_voice_num
-        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
-        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
-
         # Read MIDI rendering configuration
         midi_config = self.config.get('midi_render', {})
+
+        # Create render strategy instance
         midi_strategy = midi_config.get('strategy', 'velocity')
         constant_velocity = midi_config.get('constant_velocity', 100)
-        apply_multiplier = midi_config.get('apply_multiplier', True)
-        apply_master_volume_config = midi_config.get('apply_master_volume', True)
-        velocity_scale = midi_config.get('velocity_scale', 1.0)
+        render_strategy = create_render_strategy(midi_strategy, constant_velocity)
 
-        # Playback state
-        octave = self.default_octave
-        velocity = self.default_velocity
-        tempo = self.default_tempo
-        current_pan = 64  # MIDI center pan
-        perc_key = 0
-        transpose_octaves = 0
-        current_channel = start_voice_num
+        # Initialize Pass 2 state
+        state = Pass2State(
+            # Configuration from MIDI config
+            midi_strategy=midi_strategy,
+            constant_velocity=constant_velocity,
+            render_strategy=render_strategy,
+            apply_multiplier=midi_config.get('apply_multiplier', True),
+            apply_master_volume_config=midi_config.get('apply_master_volume', True),
+            velocity_scale=midi_config.get('velocity_scale', 1.0),
+            tick_scale=2,  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
 
-        # Output MIDI events
-        midi_events = []
+            # Playback state from defaults
+            octave=self.default_octave,
+            velocity=self.default_velocity,
+            tempo=self.default_tempo,
+            current_channel=start_voice_num,
 
-        # Timing
-        total_time = 0
-
-        # Loop execution state
-        loop_stack = []  # Stack of {start_idx, count, iteration, max_count}
+            # References
+            current_voice_num=start_voice_num,
+            ir_events=all_track_data['tracks'][start_voice_num]['ir_events'],
+            loop_info=all_track_data['tracks'][start_voice_num].get('loop_info', {})
+        )
 
         # Iteration limit (failsafe)
-        max_iterations = max(len(ir_events) * 200, 10000)
-        iteration_count = 0
+        max_iterations = max(len(state.ir_events) * 200, 10000)
 
         # Emergency brakes (match SNESFF2/FF3)
         import time
@@ -246,352 +258,337 @@ class AKAOBase(SequenceFormat):
         max_time_seconds = 5.0  # 5 second time limit
         max_midi_events = 100000  # Max MIDI events per track
 
-        # Gate timing (native ticks before full duration when note-off happens)
-        gate_time = 2  # Default: 2 native ticks from end
-                       # Can be modified by slur/roll opcodes
-        slur_enabled = False  # Track slur state
-        roll_enabled = False  # Track roll state
-        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
-        utility_duration_override = None  # One-shot duration override for next note
-        master_volume = 256  # Master volume multiplier (SoM) - 256 = normal (100%)
-        volume_multiplier = 0  # Volume multiplier (CT/FF3) - 0 = normal
-
-        # Tick scaling factor (native ticks -> MIDI ticks)
-        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
-
         # Scale target_loop_time from native ticks to MIDI ticks
         # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
-        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
+        target_loop_time_midi = target_loop_time * state.tick_scale if target_loop_time > 0 else 0
 
         # Execute IR events
-        i = 0
-        while i < len(ir_events):
-            iteration_count += 1
-            if iteration_count > max_iterations:
+        while state.i < len(state.ir_events):
+            state.iteration_count += 1
+            if state.iteration_count > max_iterations:
                 print(f"WARNING: Track {start_voice_num} hit max iteration limit", file=sys.stderr)
                 break
 
             # Check if we've reached target playthrough time
-            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
+            if target_loop_time_midi > 0 and state.total_time >= target_loop_time_midi:
                 break
 
             # Emergency brakes (only warn, not error - looping is normal)
             if time.time() - start_time > max_time_seconds:
                 # Silently stop - time limit reached (normal for looping songs)
                 break
-            if len(midi_events) > max_midi_events:
+            if len(state.midi_events) > max_midi_events:
                 # Silently stop - MIDI event limit reached (normal for looping songs)
                 break
 
-            event = ir_events[i]
+            event = state.ir_events[state.i]
 
             if event.type == IREventType.NOTE:
                 # Generate MIDI note
+                assert event.note_num is not None and event.duration is not None, "NOTE event must have note_num and duration"
                 note_num = event.note_num
                 dur = event.duration  # Native duration from Pass 1
 
-                # Apply octave and transposition
-                midi_note = (octave * 12) + note_num + (transpose_octaves * 12)
+                # Apply state.octave and transposition
+                midi_note = (state.octave * 12) + note_num + (state.transpose_octaves * 12)
                 midi_note = max(0, min(127, midi_note))
 
-                # Get velocity from event metadata or current state
-                base_velocity = event.metadata.get('velocity', velocity)
+                # Get state.velocity from event metadata or current state
+                base_velocity = event.metadata.get('velocity', state.velocity)
 
                 # Apply volume multipliers
                 adjusted_velocity = self._calculate_adjusted_velocity(
-                    base_velocity, volume_multiplier, master_volume, velocity_scale,
-                    apply_multiplier, apply_master_volume_config
+                    base_velocity, state.volume_multiplier, state.master_volume, state.velocity_scale,
+                    state.apply_multiplier, state.apply_master_volume_config
                 )
 
-                # Strategy: velocity or expression
-                if midi_strategy == 'expression':
-                    # Expression strategy: constant velocity, use CC11 for dynamics
-                    note_velocity = constant_velocity
-                    # Generate CC11 event BEFORE the note
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 11,  # Expression
-                        'value': adjusted_velocity
-                    })
-                else:
-                    # Velocity strategy (default): use calculated velocity
-                    note_velocity = adjusted_velocity
+                # Use render strategy to determine note velocity and preamble events
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                note_velocity = state.render_strategy.get_note_velocity(state, adjusted_velocity)
+                preamble_events = state.render_strategy.get_note_preamble_events(state, adjusted_velocity, state.current_channel)
+                state.midi_events.extend(preamble_events)
 
                 # Apply utility duration override (one-shot for this note only)
-                native_duration = utility_duration_override if utility_duration_override is not None else dur
-                utility_duration_override = None  # Clear after use
+                native_duration = state.utility_duration_override if state.utility_duration_override is not None else dur
+                state.utility_duration_override = None  # Clear after use
 
                 # Scale ORIGINAL native duration to MIDI ticks
                 # This is ALWAYS used for time advancement (next event timing)
-                midi_dur = native_duration * tick_scale
+                midi_dur = native_duration * state.tick_scale
 
                 # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
                 # Order of priority: slur/roll > staccato > gate
-                if slur_enabled or roll_enabled:
+                if state.slur_enabled or state.roll_enabled:
                     # Slur/roll: play full duration (no gap before next note)
                     gate_adjusted_dur = midi_dur
-                elif staccato_percentage < 100:
+                elif state.staccato_percentage < 100:
                     # Staccato: apply percentage reduction (replaces gate timing)
                     # Apply to ORIGINAL duration, not already-reduced duration
-                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
+                    gate_adjusted_dur = int(native_duration * state.staccato_percentage / 100) * state.tick_scale
                 else:
                     # Normal articulation: apply standard gate timing (2 native ticks before end)
-                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
+                    gate_adjusted_dur = (native_duration - state.gate_time) * state.tick_scale
 
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'note',
-                    'time': total_time,
+                    'time': state.total_time,
                     'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
-                    'velocity': note_velocity,  # Uses strategy-determined velocity
-                    'channel': current_channel
+                    'velocity': note_velocity,  # Uses strategy-determined state.velocity
+                    'channel': state.current_channel
                 })
 
                 # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
-                total_time += midi_dur
-                i += 1
+                state.total_time += midi_dur
+                state.i += 1
 
             elif event.type == IREventType.REST:
                 # Scale native duration to MIDI ticks
-                midi_dur = event.duration * tick_scale
-                total_time += midi_dur
-                i += 1
+                assert event.duration is not None, "REST event must have duration"
+                midi_dur = event.duration * state.tick_scale
+                state.total_time += midi_dur
+                state.i += 1
 
             elif event.type == IREventType.TIE:
                 # Extend previous note
                 # Scale native duration to MIDI ticks
-                tie_dur = event.duration * tick_scale
-                if midi_events and midi_events[-1]['type'] == 'note':
-                    midi_events[-1]['duration'] += tie_dur
-                total_time += tie_dur
-                i += 1
+                assert event.duration is not None, "TIE event must have duration"
+                tie_dur = event.duration * state.tick_scale
+                if state.midi_events and state.midi_events[-1]['type'] == 'note':
+                    state.midi_events[-1]['duration'] += tie_dur
+                state.total_time += tie_dur
+                state.i += 1
 
             elif event.type == IREventType.PATCH_CHANGE:
                 # Extract from IR event
+                assert event.gm_patch is not None, "PATCH_CHANGE event must have gm_patch"
                 gm_patch = event.gm_patch
-                transpose_octaves = event.transpose
+                state.transpose_octaves = event.transpose
 
                 # Percussion mode check
                 if gm_patch < 0:
-                    perc_key = abs(gm_patch)
+                    state.perc_key = abs(gm_patch)
                 else:
-                    perc_key = 0
-                    midi_events.append({
+                    state.perc_key = 0
+                    state.midi_events.append({
                         'type': 'program_change',
-                        'time': total_time,
+                        'time': state.total_time,
                         'patch': gm_patch
                     })
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.TEMPO:
-                # Tempo change - add to midi_events (will be placed on track 0)
+                # Tempo change - add to state.midi_events (will be placed on track 0)
                 assert event.value is not None, "TEMPO event must have value"
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'tempo',
-                    'time': total_time,
+                    'time': state.total_time,
                     'tempo': event.value
                 })
-                tempo = event.value
-                i += 1
+                state.tempo = event.value
+                state.i += 1
 
             elif event.type == IREventType.TEMPO_FADE:
-                # Tempo fade - generate tempo events at 2-tick intervals
+                # Tempo fade - generate state.tempo events at 2-tick intervals
                 assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                fade_duration = event.duration * state.tick_scale  # Convert to MIDI ticks
                 target_tempo = event.value
-                start_tempo = tempo
+                start_tempo = state.tempo
 
-                # Generate interpolated tempo events
+                # Generate interpolated state.tempo events
                 fade_events = self._generate_fade_events(
-                    'tempo', start_tempo, target_tempo, fade_duration, total_time
+                    'tempo', start_tempo, target_tempo, fade_duration, state.total_time
                 )
-                midi_events.extend(fade_events)
+                state.midi_events.extend(fade_events)
 
-                # Update current tempo to target
-                tempo = target_tempo
-                i += 1
+                # Update current state.tempo to target
+                state.tempo = target_tempo
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_SET:
-                octave = event.value
-                i += 1
+                assert event.value is not None, "OCTAVE_SET event must have value"
+                state.octave = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_INC:
-                octave += 1
-                i += 1
+                state.octave += 1
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_DEC:
-                octave -= 1
-                i += 1
+                state.octave -= 1
+                state.i += 1
 
             elif event.type == IREventType.VOLUME:
-                # IR stores normalized value (0-255 for PSX)
-                velocity = int(event.value)
+                # IR stores normalized value (0.0-1.0 float)
+                assert event.value is not None, "VOLUME event must have value"
+                state.velocity = int(event.value * 255)
 
-                # For expression strategy, generate CC11 immediately
-                # (velocity strategy waits until NOTE event to apply)
-                if midi_strategy == 'expression':
-                    # Apply volume multipliers
-                    expr_value = self._calculate_adjusted_velocity(
-                        velocity, volume_multiplier, master_volume, velocity_scale,
-                        apply_multiplier, apply_master_volume_config
-                    )
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 11,  # Expression
-                        'value': expr_value
-                    })
+                # Use render strategy to handle volume event
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                scaled_value = self._calculate_adjusted_velocity(
+                    state.velocity, state.volume_multiplier, state.master_volume, state.velocity_scale,
+                    state.apply_multiplier, state.apply_master_volume_config
+                )
+                volume_events = state.render_strategy.handle_volume_event(state, state.velocity, scaled_value, state.current_channel)
+                state.midi_events.extend(volume_events)
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.PAN:
                 # Update current pan value
-                current_pan = int(event.value)
+                assert event.value is not None, "PAN event must have value"
+                state.current_pan = int(event.value)
                 # Generate immediate MIDI CC 10 pan event
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
-                    'channel': current_channel,
+                    'time': state.total_time,
+                    'channel': state.current_channel,
                     'controller': 10,  # Pan CC
-                    'value': current_pan
+                    'value': state.current_pan
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.VOLUME_FADE:
-                # Volume fade - generate controller events at 2-tick intervals
-                # Use CC11 (Expression) for expression strategy, CC7 (Volume) for velocity strategy
+                # Volume fade - behavior depends on strategy
                 assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
 
-                # Determine which controller to use based on strategy
-                if midi_strategy == 'expression':
-                    controller_num = 11  # Expression
-                else:
-                    controller_num = 7   # Volume (traditional)
+                target_volume_ir = int(event.value * 255)  # IR value (0.0-1.0) → 0-255
+                fade_duration_native = event.duration  # Native ticks
+                fade_duration_midi = fade_duration_native * state.tick_scale  # Convert to MIDI ticks
+                start_volume_ir = state.velocity  # Current velocity state (IR value 0-255)
 
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
-                target_volume = event.value
-                start_volume = velocity
-
-                # Generate interpolated controller events
-                fade_events = self._generate_fade_events(
-                    'controller', start_volume, target_volume, fade_duration,
-                    total_time, current_channel, controller_num
+                # Scale BOTH start and target to MIDI range with multipliers
+                start_volume_midi = self._calculate_adjusted_velocity(
+                    start_volume_ir, state.volume_multiplier, state.master_volume, state.velocity_scale,
+                    state.apply_multiplier, state.apply_master_volume_config
                 )
-                midi_events.extend(fade_events)
+                target_volume_midi = self._calculate_adjusted_velocity(
+                    target_volume_ir, state.volume_multiplier, state.master_volume, state.velocity_scale,
+                    state.apply_multiplier, state.apply_master_volume_config
+                )
 
-                # Update current velocity to target
-                velocity = target_volume
-                i += 1
+                # Use render strategy to handle volume fade
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                fade_events = state.render_strategy.handle_volume_fade(
+                    state, start_volume_ir, target_volume_ir,
+                    start_volume_midi, target_volume_midi,
+                    fade_duration_midi, fade_duration_native,
+                    state.current_channel,
+                    self._generate_fade_events, self._calculate_fade_delta
+                )
+                state.midi_events.extend(fade_events)
+
+                # Update velocity state to target (IR value) for all strategies
+                state.velocity = int(target_volume_ir)
+
+                state.i += 1
 
             elif event.type == IREventType.PAN_FADE:
                 # Pan fade - generate CC 10 events at 2-tick intervals
                 assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                fade_duration = event.duration * state.tick_scale  # Convert to MIDI ticks
                 target_pan = event.value
-                start_pan = current_pan
+                start_pan = state.current_pan
 
                 # Generate interpolated pan events
                 fade_events = self._generate_fade_events(
                     'controller', start_pan, target_pan, fade_duration,
-                    total_time, current_channel, 10  # CC 10 = pan
+                    state.total_time, state.current_channel, 10  # CC 10 = pan
                 )
-                midi_events.extend(fade_events)
+                state.midi_events.extend(fade_events)
 
                 # Update current pan to target
-                current_pan = target_pan
-                i += 1
+                state.current_pan = int(target_pan)
+                state.i += 1
 
             elif event.type == IREventType.SLUR_ON:
-                slur_enabled = True
+                state.slur_enabled = True
                 # Emit MIDI CC 68 (legato pedal) = 127
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
+                    'time': state.total_time,
                     'controller': 68,  # Legato pedal CC
                     'value': 127
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.SLUR_OFF:
-                slur_enabled = False
+                state.slur_enabled = False
                 # Emit MIDI CC 68 (legato pedal) = 0
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
+                    'time': state.total_time,
                     'controller': 68,  # Legato pedal CC
                     'value': 0
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.ROLL_ON:
-                roll_enabled = True
-                i += 1
+                state.roll_enabled = True
+                state.i += 1
 
             elif event.type == IREventType.ROLL_OFF:
-                roll_enabled = False
-                i += 1
+                state.roll_enabled = False
+                state.i += 1
 
             elif event.type == IREventType.STACCATO:
                 # Set staccato percentage for all subsequent notes
                 assert event.value is not None, "STACCATO event must have value"
-                staccato_percentage = int(event.value)
-                i += 1
+                state.staccato_percentage = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.UTILITY_DURATION:
                 # Override duration for next note only
                 assert event.value is not None, "UTILITY_DURATION event must have value"
-                utility_duration_override = int(event.value)
-                i += 1
+                state.utility_duration_override = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.MASTER_VOLUME:
                 # Set master volume (SoM 0xF8) - global volume multiplier
                 assert event.value is not None, "MASTER_VOLUME event must have value"
-                master_volume = int(event.value)
-                i += 1
+                state.master_volume = float(event.value)
+                state.i += 1
 
             elif event.type == IREventType.VOLUME_MULTIPLIER:
                 # Set volume multiplier (CT/FF3 0xF4) - per-track multiplier
                 assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
-                volume_multiplier = int(event.value)
-                i += 1
+                state.volume_multiplier = float(event.value)
+                state.i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_ON:
                 # Percussion mode handling is done in Pass 1
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_OFF:
                 # Percussion mode handling is done in Pass 1
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.LOOP_START:
                 # Push loop onto stack
-                loop_stack.append({
-                    'start_idx': i + 1,  # Next event after LOOP_START
+                state.loop_stack.append({
+                    'start_idx': state.i + 1,  # Next event after LOOP_START
                     'count': 0,
                     'max_count': event.loop_count
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.LOOP_END:
                 # Pop and potentially repeat
-                if loop_stack:
-                    loop = loop_stack[-1]
+                if state.loop_stack:
+                    loop = state.loop_stack[-1]
                     loop['count'] += 1
 
                     if loop['count'] < loop['max_count']:
                         # Repeat - jump back to start
-                        i = loop['start_idx']
+                        state.i = loop['start_idx']
                     else:
                         # Done - pop and continue
-                        loop_stack.pop()
-                        i += 1
+                        state.loop_stack.pop()
+                        state.i += 1
                 else:
                     # Unmatched LOOP_END - skip
-                    i += 1
+                    state.i += 1
 
             elif event.type == IREventType.GOTO:
                 # Find target event
@@ -599,25 +596,25 @@ class AKAOBase(SequenceFormat):
                     # Invalid GOTO - halt
                     break
 
-                target_idx = self._find_event_by_offset(ir_events, event.target_offset)
+                target_idx = self._find_event_by_offset(state.ir_events, event.target_offset)
 
                 if target_idx is None:
                     # Invalid target - halt
                     break
 
                 # Check if backwards (loop)
-                if target_idx < i:
+                if target_idx < state.i:
                     # Backwards GOTO - loop condition
-                    if target_loop_time > 0 and total_time >= target_loop_time:
+                    if target_loop_time > 0 and state.total_time >= target_loop_time:
                         # Reached target duration - halt
                         break
                     else:
                         # Continue looping
-                        i = target_idx
+                        state.i = target_idx
                 else:
                     # Forward GOTO - could be cross-track
                     # For now, just jump forward
-                    i = target_idx
+                    state.i = target_idx
 
             elif event.type == IREventType.HALT:
                 # End of track
@@ -625,9 +622,9 @@ class AKAOBase(SequenceFormat):
 
             else:
                 # Unknown event type - skip
-                i += 1
+                state.i += 1
 
-        return midi_events
+        return state.midi_events
 
 
 class AKAONewStyle(AKAOBase):
@@ -690,30 +687,16 @@ class AKAONewStyle(AKAOBase):
         self.rom_data: bytes = rom_data
         self.exe_iso_reader = exe_iso_reader  # Optional: SequenceExtractor instance for reading from ISO
 
-        # Read duration table from ROM if specified
-        if 'duration_table' in config:
-            table_cfg = config['duration_table']
-            self.duration_table = self._read_rom_table(
-                table_cfg.get('address'),
-                table_cfg.get('size', 11),
-                table_cfg.get('type', 'B')
-            )
-        else:
-            # Fallback to hardcoded table
-            self.duration_table = [0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06,
-                                   0x03, 0x20, 0x10, 0x08, 0x04]
+        # Load duration table from config or use defaults
+        self.duration_table = self._load_config_table(
+            'duration_table',
+            [0xC0, 0x60, 0x30, 0x18, 0x0C, 0x06, 0x03, 0x20, 0x10, 0x08, 0x04]
+        )
 
-        # Read opcode length table from ROM if specified
-        if 'opcode_table' in config:
-            table_cfg = config['opcode_table']
-            self.oplen = self._read_rom_table(
-                table_cfg.get('address'),
-                table_cfg.get('size', 96),
-                table_cfg.get('type', 'B')
-            )
-        else:
-            # Fallback to hardcoded table
-            self.oplen = [
+        # Load opcode length table from config or use defaults
+        self.oplen = self._load_config_table(
+            'opcode_table',
+            [
                 0,2,2,2,3,2,1,1,  # A0-A7
                 2,3,2,3,2,2,2,2,  # A8-AF
                 3,2,2,1,4,2,1,2,  # B0-B7
@@ -724,23 +707,18 @@ class AKAONewStyle(AKAOBase):
                 2,2,2,0,2,3,3,3,  # D8-DF
                 1,2,1,0,3,3,3,0,  # E0-E7
             ]
+        )
 
-        # Read FE opcode length table from ROM if specified
-        if 'fe_opcode_table' in config:
-            table_cfg = config['fe_opcode_table']
-            self.fe_oplen = self._read_rom_table(
-                table_cfg.get('address'),
-                table_cfg.get('size', 32),
-                table_cfg.get('type', 'B')
-            )
-        else:
-            # Fallback to hardcoded table
-            self.fe_oplen = [
+        # Load FE opcode length table from config or use defaults
+        self.fe_oplen = self._load_config_table(
+            'fe_opcode_table',
+            [
                 3,4,3,4,1,1,3,4,  # 00-07
                 4,4,2,2,0,0,3,1,  # 08-0F
                 2,1,3,1,2,3,3,0,  # 10-17
                 0,4,1,1,2,1,1,0,  # 18-1F
             ]
+        )
 
         # Apply overrides
         self.oplen[0xA0-0xA0] = 1  # halt
@@ -775,6 +753,64 @@ class AKAONewStyle(AKAOBase):
 
         # Initialize patch map (populated from config if provided)
         self.patch_map = {}
+
+        # Build opcode dispatch table from config
+        self.opcode_dispatch = self._build_opcode_dispatch()
+
+    def _build_opcode_dispatch(self) -> Dict[int, Dict]:
+        """Build opcode dispatch table from YAML config.
+
+        Maps opcode values to their semantics and parameter information.
+        For two-byte opcodes with 0xFE prefix, the full opcode is (0xFE << 8) | subcode.
+
+        Returns:
+            Dictionary mapping opcode (int) to dict with keys:
+                - semantic: str (e.g., "tempo", "volume", "unknown")
+                - params: int (number of parameters, NOT including opcode byte)
+                - value_param: int (index of main value parameter, default 0)
+                - handler: str or None (special handling flag)
+        """
+        dispatch = {}
+        opcodes_config = self.config.get('opcodes', {})
+
+        for opcode_key, op_config in opcodes_config.items():
+            opcode = self._parse_int_key(opcode_key)
+            dispatch[opcode] = {
+                'semantic': op_config.get('semantic', 'unknown'),
+                'params': op_config.get('params', 0),
+                'value_param': op_config.get('value_param', 0),
+                'handler': op_config.get('handler', None)
+            }
+
+        return dispatch
+
+    def _resolve_patch_info(self, inst_id: int) -> Tuple[int, int, str]:
+        """Resolve instrument ID to GM patch, transpose, and annotation.
+
+        Args:
+            inst_id: Raw instrument ID from AKAO data
+
+        Returns:
+            Tuple of (gm_patch, transpose_octaves, annotation)
+            - gm_patch: GM patch number (negative for percussion)
+            - transpose_octaves: Octave transpose value
+            - annotation: Human-readable description for disassembly
+        """
+        if hasattr(self, 'patch_map') and inst_id in self.patch_map:
+            patch_info = self.patch_map[inst_id]
+            gm_patch = patch_info['gm_patch']
+            transpose_octaves = patch_info.get('transpose', 0)
+
+            # Generate annotation
+            if gm_patch < 0:
+                annotation = f"PERC key={abs(gm_patch)}"
+            else:
+                annotation = f"GM patch {gm_patch}"
+
+            return gm_patch, transpose_octaves, annotation
+        else:
+            # No patch mapping configured - default to Grand Piano
+            return 0, 0, "GM patch 0"
 
     def _read_rom_table(self, address: int, size: int, data_type: str) -> List[int]:
         """Read a table from the ROM image."""
@@ -998,166 +1034,257 @@ class AKAONewStyle(AKAOBase):
                 line += f"Dur {dur:02X}"
                 # Note: total_time tracking removed - Pass 2 will calculate timing
 
-            # FE-prefixed opcodes
-            elif cmd == 0xFE:
-                if p >= len(data):
-                    disasm.append(f"  Error: Unexpected end of data reading FE opcode")
-                    break
+            # Build full opcode (handle FE prefix for two-byte opcodes)
+            else:
+                p_start = p - 1  # Position of opcode byte
 
-                op1 = data[p]
-                line += f"{op1:02X} "
-                p += 1
-
-                oplen = self.fe_oplen[op1] if op1 < len(self.fe_oplen) else 0
-                operands = []
-
-                if oplen > 1:
-                    if p + oplen - 1 > len(data):
-                        disasm.append(f"  Error: Not enough data for FE {op1:02X} opcode")
+                if cmd == 0xFE:
+                    # Two-byte opcode: FE prefix
+                    if p >= len(data):
+                        disasm.append(f"  Error: Unexpected end of data reading FE opcode")
                         break
-                    operands = list(data[p:p+oplen-1])
-                    p += oplen - 1
+                    op1 = data[p]
+                    full_opcode = (cmd << 8) | op1
+                    line += f"{op1:02X} "
+                    p += 1
+                else:
+                    # Single-byte opcode
+                    full_opcode = cmd
 
-                line += ' '.join(f"{op:02X}" for op in operands)
-                line += '   ' * (3 - len(operands))
-                line += self.FE_OPCODE_NAMES.get(op1, f"FE_{op1:02X}")
-
-                # Handle specific opcodes
-                if op1 == 0x00 and len(operands) >= 2:
-                    # Tempo
-                    tempo = operands[0] | (operands[1] << 8)
-                    # Calculate BPM: BPM = (60,000,000 * tempo_value) / tempo_factor
-                    bpm = (60_000_000.0 * tempo) / self.tempo_factor
-                    line += f" {bpm:.1f} bpm"
-                    event = make_tempo(p - oplen, bpm, operands)
+                # Look up opcode info in dispatch table
+                op_info = self.opcode_dispatch.get(full_opcode)
+                if op_info is None:
+                    # Opcode not in table - parsing failure, warn
+                    print(f"WARNING: Opcode 0x{full_opcode:04X} not in dispatch table at offset {p_start:08X}", file=sys.stderr)
+                    operands = []
+                    event = make_unknown(p_start, full_opcode, operands)
                     ir_events.append(event)
-                elif op1 == 0x06 and len(operands) >= 2:
-                    # Goto relative (signed 16-bit little-endian offset)
-                    # Offset is relative to the third byte of FE command (first operand byte)
-                    rel_offset = struct.unpack('<h', bytes(operands[0:2]))[0]
-                    operand_start = p - oplen + 1  # Position of first operand byte (third byte of FE command)
-                    target_offset = operand_start + rel_offset
+                    line += "UNKNOWN"
+                else:
+                    # Read operands based on params count
+                    num_params = op_info['params']
+                    operands = []
 
-                    line += f" -> 0x{target_offset:04X}"
+                    if num_params > 0:
+                        if p + num_params > len(data):
+                            disasm.append(f"  Error: Not enough data for opcode 0x{full_opcode:04X}")
+                            break
+                        operands = list(data[p:p+num_params])
+                        p += num_params
 
-                    # Create IR GOTO event
-                    event = make_goto(p - oplen, target_offset, operands)
-                    ir_events.append(event)
+                    # Format operands for disassembly
+                    line += ' '.join(f"{op:02X}" for op in operands)
+                    if cmd == 0xFE:
+                        line += '   ' * (3 - len(operands))
+                        line += self.FE_OPCODE_NAMES.get(full_opcode & 0xFF, f"FE_{full_opcode & 0xFF:02X}")
+                    else:
+                        line += '   ' * (4 - len(operands))
+                        line += self.OPCODE_NAMES.get(cmd, f"OP_{cmd:02X}")
 
-                    # For backwards GOTO (loop), end disassembly here
-                    if target_offset < p:
+                    # Dispatch by semantic tag
+                    semantic = op_info['semantic']
+
+                    if semantic == "unknown":
+                        # Known unknown opcode (listed in table) - silent
+                        event = make_unknown(p_start, full_opcode, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "tempo":
+                        tempo = operands[0] | (operands[1] << 8)
+                        bpm = (60_000_000.0 * tempo) / self.tempo_factor
+                        line += f" {bpm:.1f} bpm"
+                        event = make_tempo(p_start, bpm, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "goto":
+                        # Signed 16-bit little-endian offset relative to first operand byte
+                        rel_offset = struct.unpack('<h', bytes(operands[0:2]))[0]
+                        if cmd == 0xFE:
+                            operand_start = p_start + 2  # FE + subcode + operands
+                        else:
+                            operand_start = p_start + 1  # cmd + operands
+                        target_offset = operand_start + rel_offset
+                        line += f" -> 0x{target_offset:04X}"
+
+                        event = make_goto(p_start, target_offset, operands)
+                        ir_events.append(event)
+
+                        # For backwards GOTO (loop), end disassembly here
+                        if target_offset < p:
+                            disasm.append(line)
+                            break
+
+                    elif semantic == "patch_change":
+                        inst_id = operands[0]
+                        gm_patch, transpose_octaves, annotation = self._resolve_patch_info(inst_id)
+
+                        # Add annotation to disasm line
+                        if annotation:
+                            line += f" -> {annotation}"
+
+                        current_patch = gm_patch
+                        event = make_patch_change(p_start, inst_id, gm_patch, transpose_octaves, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "utility_duration":
+                        util_dur = operands[0]
+                        event = make_utility_duration(p_start, util_dur, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "set_octave":
+                        octave = operands[0]
+                        event = make_octave_set(p_start, octave, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "inc_octave":
+                        octave += 1
+                        event = make_octave_inc(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "dec_octave":
+                        octave -= 1
+                        event = make_octave_dec(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "expression":
+                        velocity = operands[0]
+                        event = make_volume(p_start, velocity / 127.0, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "loop_start":
+                        loop_count = operands[0] if operands else 255
+                        event = make_loop_start(p_start, loop_count, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "loop_end":
+                        event = make_loop_end(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "halt":
+                        event = make_halt(p_start, operands)
+                        ir_events.append(event)
                         disasm.append(line)
                         break
-                elif op1 == 0x14 and len(operands) >= 1:
-                    # Program Change (FE 14) - treat as raw instrument ID (like 0xA1)
-                    inst_id = operands[0]
 
-                    # Look up GM patch from patch_map if available
-                    if hasattr(self, 'patch_map') and inst_id in self.patch_map:
-                        patch_info = self.patch_map[inst_id]
-                        gm_patch = patch_info['gm_patch']
-                        transpose_octaves = patch_info.get('transpose', 0)
+                    elif semantic == "time_signature":
+                        # Time signature (Chrono Cross specific)
+                        denom_val = 0xC0 / operands[0] if operands[0] != 0 else 0
+                        line += f" ({operands[1]}/{int(denom_val)})"
+                        # Note: No IR event generated (not yet implemented)
 
-                        # Add annotation to disasm line
-                        if gm_patch < 0:
-                            line += f" -> PERC key={abs(gm_patch)}"
-                        else:
-                            line += f" -> GM patch {gm_patch}"
-                    else:
-                        # No patch mapping configured - default to Grand Piano
-                        gm_patch = 0
-                        transpose_octaves = 0
+                    elif semantic == "expression_fade":
+                        # Expression fade over time
+                        target_value = operands[0]
+                        fade_time = operands[1]
+                        event = make_volume_fade(p_start, fade_time, target_value / 127.0, operands)
+                        ir_events.append(event)
 
-                    current_patch = gm_patch
-                    event = make_patch_change(p - oplen, inst_id, gm_patch, transpose_octaves, operands)
-                    ir_events.append(event)
-                elif op1 == 0x15 and len(operands) >= 2:
-                    # Time signature
-                    denom_val = 0xC0 / operands[0] if operands[0] != 0 else 0
-                    line += f" ({operands[1]}/{int(denom_val)})"
+                    elif semantic == "track_volume":
+                        # Per-track volume (0xA3)
+                        volume = operands[0]
+                        event = make_master_volume(p_start, volume / 127.0, operands)
+                        ir_events.append(event)
 
-            # Regular opcodes (0xA0-0xEF, 0xFF)
-            else:
-                idx = cmd - 0xA0
-                oplen = self.oplen[idx] if idx < len(self.oplen) else 0
-                operands = []
+                    elif semantic == "track_volume_fade":
+                        # Track volume fade (CC FE 12)
+                        target_volume = operands[0]
+                        fade_time = operands[1]
+                        # Create IR event for track volume fade
+                        event = make_volume_fade(p_start, fade_time, target_volume / 127.0, operands)
+                        event.metadata = {'is_track_volume': True}
+                        ir_events.append(event)
 
-                if oplen > 1:
-                    if p + oplen - 1 > len(data):
-                        disasm.append(f"  Error: Not enough data for {cmd:02X} opcode")
-                        break
-                    operands = list(data[p:p+oplen-1])
-                    p += oplen - 1
+                    elif semantic == "pan":
+                        # Stereo pan (0xAA)
+                        pan_value = operands[0]
+                        event = make_pan_fade(p_start, pan_value, 0, operands)  # 0 fade time = instant
+                        ir_events.append(event)
 
-                line += ' '.join(f"{op:02X}" for op in operands)
-                line += '   ' * (4 - len(operands))
-                line += self.OPCODE_NAMES.get(cmd, f"OP_{cmd:02X}")
+                    elif semantic == "pan_fade":
+                        # Pan fade over time (0xAB)
+                        target_pan = operands[0]
+                        fade_time = operands[1]
+                        event = make_pan_fade(p_start, target_pan, fade_time, operands)
+                        ir_events.append(event)
 
-                # Handle state-changing opcodes
-                if cmd == 0xA1 and operands:
-                    # Program Change (A1)
-                    inst_id = operands[0]
+                    elif semantic == "pitch_bend":
+                        # Absolute pitch bend (0xD8)
+                        bend_value = operands[0]
+                        # Create IR event (will be implemented in ir_events.py)
+                        event = make_unknown(p_start, full_opcode, operands)
+                        event.metadata = {'semantic': 'pitch_bend', 'value': bend_value, 'is_relative': False}
+                        ir_events.append(event)
 
-                    # Look up GM patch from patch_map if available
-                    if hasattr(self, 'patch_map') and inst_id in self.patch_map:
-                        patch_info = self.patch_map[inst_id]
-                        gm_patch = patch_info['gm_patch']
-                        transpose_octaves = patch_info.get('transpose', 0)
+                    elif semantic == "pitch_bend_add":
+                        # Relative pitch bend (0xD9)
+                        bend_delta = operands[0]
+                        event = make_unknown(p_start, full_opcode, operands)
+                        event.metadata = {'semantic': 'pitch_bend', 'value': bend_delta, 'is_relative': True}
+                        ir_events.append(event)
 
-                        # Add annotation to disasm line
-                        if gm_patch < 0:
-                            line += f" -> PERC key={abs(gm_patch)}"
-                        else:
-                            line += f" -> GM patch {gm_patch}"
-                    else:
-                        # No patch mapping configured - default to Grand Piano (GM patch 0)
-                        gm_patch = 0
-                        transpose_octaves = 0
+                    elif semantic == "vibrato_on":
+                        # Enable vibrato with parameters
+                        vibrato_param = operands[0]
+                        event = make_vibrato_on(p_start, operands)
+                        ir_events.append(event)
 
-                    current_patch = gm_patch
-                    event = make_patch_change(p - oplen, inst_id, gm_patch, transpose_octaves, operands)
-                    ir_events.append(event)
-                elif cmd == 0xA2 and operands:
-                    # Utility duration override (one-shot for next note)
-                    util_dur = operands[0]
-                    event = make_utility_duration(p - oplen, util_dur, operands)
-                    ir_events.append(event)
-                elif cmd == 0xA5 and operands:
-                    # Set octave
-                    octave = operands[0]
-                    event = make_octave_set(p - oplen, octave, operands)
-                    ir_events.append(event)
-                elif cmd == 0xA6:
-                    # Inc octave
-                    octave += 1
-                    event = make_octave_inc(p - oplen)
-                    ir_events.append(event)
-                elif cmd == 0xA7:
-                    # Dec octave
-                    octave -= 1
-                    event = make_octave_dec(p - oplen)
-                    ir_events.append(event)
-                elif cmd == 0xA8 and operands:
-                    # Volume
-                    velocity = operands[0]
-                    event = make_volume(p - oplen, velocity, operands)
-                    ir_events.append(event)
-                elif cmd == 0xC8:
-                    # Begin repeat - create IR event, DON'T execute
-                    # Note: AKAO C8 may have no operand (infinite loop) or count operand
-                    loop_count = operands[0] if operands else 255
-                    event = make_loop_start(p - oplen, loop_count, operands)
-                    ir_events.append(event)
-                elif cmd == 0xC9:
-                    # End repeat - create IR event, DON'T execute
-                    event = make_loop_end(p - oplen)
-                    ir_events.append(event)
-                elif cmd == 0xA0 or cmd == 0xFF:
-                    # Halt
-                    event = make_halt(p - oplen, operands if operands else [])
-                    ir_events.append(event)
-                    disasm.append(line)
-                    break
+                    elif semantic == "vibrato_off":
+                        # Disable vibrato
+                        event = make_vibrato_off(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "tremolo_on":
+                        # Enable tremolo with parameters
+                        tremolo_param = operands[0]
+                        event = make_tremolo_on(p_start, operands)
+                        ir_events.append(event)
+
+                    elif semantic == "tremolo_off":
+                        # Disable tremolo
+                        event = make_tremolo_off(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "reverb_on":
+                        # Enable reverb
+                        event = make_unknown(p_start, full_opcode, operands)
+                        event.metadata = {'semantic': 'reverb_on'}
+                        ir_events.append(event)
+
+                    elif semantic == "reverb_off":
+                        # Disable reverb
+                        event = make_unknown(p_start, full_opcode, operands)
+                        event.metadata = {'semantic': 'reverb_off'}
+                        ir_events.append(event)
+
+                    elif semantic == "reverb_depth" or semantic == "reverb_volume":
+                        # Set reverb depth/volume
+                        reverb_value = operands[0]
+                        event = make_unknown(p_start, full_opcode, operands)
+                        event.metadata = {'semantic': 'reverb_depth', 'value': reverb_value}
+                        ir_events.append(event)
+
+                    elif semantic == "slur_on":
+                        # Enable legato/slur mode
+                        event = make_slur_on(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "slur_off":
+                        # Disable legato/slur mode
+                        event = make_slur_off(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "percussion_mode_on":
+                        # Enable percussion mode
+                        event = make_percussion_mode_on(p_start)
+                        ir_events.append(event)
+
+                    elif semantic == "percussion_mode_off":
+                        # Disable percussion mode
+                        event = make_percussion_mode_off(p_start)
+                        ir_events.append(event)
+
+                    # For all other semantic tags, no special handling yet
+                    # (will be implemented as needed)
 
             # Add all lines to disasm (no loop filtering in Pass 1)
             disasm.append(line)
@@ -1382,7 +1509,7 @@ class AKAOFF7(AKAOBase):
                     util_dur = operands[0]
                     ir_events.append(make_utility_duration(p-oplen, util_dur))
                 elif cmd == 0xA3 and operands:  # Track vol (CC7)
-                    ir_events.append(make_volume(p-oplen, operands[0], operands))
+                    ir_events.append(make_volume(p-oplen, operands[0] / 127.0, operands))
                 elif cmd == 0xA5 and operands:  # Set octave
                     octave = operands[0]
                     ir_events.append(make_octave_set(p-oplen, octave, operands))
@@ -1394,9 +1521,9 @@ class AKAOFF7(AKAOBase):
                     ir_events.append(make_octave_dec(p-oplen))
                 elif cmd == 0xA8 and operands:  # Expression (CC11)
                     velocity = operands[0]
-                    ir_events.append(make_volume(p-oplen, operands[0], operands))
+                    ir_events.append(make_volume(p-oplen, operands[0] / 127.0, operands))
                 elif cmd == 0xA9 and len(operands) >= 2:  # Expression fade
-                    ir_events.append(make_volume_fade(p-oplen, operands[0], operands[1], operands))
+                    ir_events.append(make_volume_fade(p-oplen, operands[1], operands[0] / 127.0, operands))
                 elif cmd == 0xAB and len(operands) >= 2:  # Pan fade
                     ir_events.append(make_pan_fade(p-oplen, operands[0], operands[1], operands))
                 elif cmd == 0xC8:  # Begin repeat

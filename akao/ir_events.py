@@ -250,8 +250,14 @@ def make_octave_dec(offset: int) -> IREvent:
     return IREvent(type=IREventType.OCTAVE_DEC, offset=offset)
 
 
-def make_volume(offset: int, volume: int, operands: Optional[List[int]] = None) -> IREvent:
-    """Create a volume change event."""
+def make_volume(offset: int, volume: float, operands: Optional[List[int]] = None) -> IREvent:
+    """Create a volume change event.
+
+    Args:
+        offset: Byte offset in original data
+        volume: Volume level (normalized 0.0-1.0 range, where 1.0 = 100%)
+        operands: Raw operand bytes from the original format
+    """
     return IREvent(
         type=IREventType.VOLUME,
         offset=offset,
@@ -260,14 +266,14 @@ def make_volume(offset: int, volume: int, operands: Optional[List[int]] = None) 
     )
 
 
-def make_volume_fade(offset: int, duration: int, target_volume: int,
+def make_volume_fade(offset: int, duration: int, target_volume: float,
                      operands: Optional[List[int]] = None) -> IREvent:
     """Create a volume fade event.
 
     Args:
         offset: Byte offset in original data
         duration: Fade duration in native ticks
-        target_volume: Target volume value (0-255 IR normalized range)
+        target_volume: Target volume level (normalized 0.0-1.0 range, where 1.0 = 100%)
         operands: Raw operand bytes from the original format
     """
     return IREvent(
@@ -563,5 +569,24 @@ def make_adsr(offset: int, adsr_param: str, value: int, operands: Optional[List[
         offset=offset,
         value=value,
         metadata={'adsr_param': adsr_param},
+        operands=operands or []
+    )
+
+
+def make_unknown(offset: int, opcode: int, operands: Optional[List[int]] = None) -> IREvent:
+    """Create an unknown opcode event.
+
+    Represents an opcode that is not recognized or not yet implemented.
+    Tracked for debugging and completeness but not rendered in output.
+
+    Args:
+        offset: Byte offset in original data
+        opcode: The unknown opcode value
+        operands: Raw operand bytes from the original format
+    """
+    return IREvent(
+        type=IREventType.UNKNOWN,
+        offset=offset,
+        value=opcode,
         operands=operands or []
     )

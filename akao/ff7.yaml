@@ -19,6 +19,108 @@ note_divisor: 11  # notenum = cmd / 11, dur_idx = cmd % 11
 first_note_opcode: 0x00
 last_note_opcode: 0x9F
 
+# Opcode definitions - FF7 has NO FE-prefixed subcodes
+# FF7 uses direct main opcodes for tempo, reverb, percussion, goto, etc.
+opcodes:
+  # Single-byte opcodes 0xA0-0xFF
+  # Notes (0x00-0x9F) handled via note_divisor
+  0xA0: {semantic: "halt", params: 0}
+  0xA1: {semantic: "patch_change", params: 1}
+  0xA2: {semantic: "utility_duration", params: 1}
+  0xA3: {semantic: "track_volume", params: 1}
+  0xA4: {semantic: "unknown", params: 0}
+  0xA5: {semantic: "set_octave", params: 1}
+  0xA6: {semantic: "inc_octave", params: 0}
+  0xA7: {semantic: "dec_octave", params: 0}
+  0xA8: {semantic: "expression", params: 1}
+  0xA9: {semantic: "expression_fade", params: 2}
+  0xAA: {semantic: "pan", params: 1}
+  0xAB: {semantic: "pan_fade", params: 2}
+  0xAC: {semantic: "unknown", params: 0}
+  0xAD: {semantic: "set_attack", params: 1}
+  0xAE: {semantic: "set_decay", params: 1}
+  0xAF: {semantic: "set_sustain_level", params: 1}
+  0xB0: {semantic: "set_decay_and_sustain", params: 2}
+  0xB1: {semantic: "set_sustain_rate", params: 1}
+  0xB2: {semantic: "set_release", params: 1}
+  0xB3: {semantic: "reset_adsr", params: 0}
+  0xB4: {semantic: "vibrato_on", params: 1}
+  0xB5: {semantic: "vibrato_depth", params: 1}
+  0xB6: {semantic: "vibrato_off", params: 0}
+  0xB7: {semantic: "set_attack_mode", params: 1}
+  0xB8: {semantic: "tremolo_on", params: 1}
+  0xB9: {semantic: "tremolo_depth", params: 1}
+  0xBA: {semantic: "tremolo_off", params: 0}
+  0xBB: {semantic: "set_sustain_rate_mode", params: 1}
+  0xBC: {semantic: "pingpong_on", params: 1}
+  0xBD: {semantic: "pingpong_depth", params: 1}
+  0xBE: {semantic: "pingpong_off", params: 0}
+  0xBF: {semantic: "set_release_mode", params: 1}
+  0xC0: {semantic: "transpose", params: 1}
+  0xC1: {semantic: "transpose_relative", params: 1}
+  0xC2: {semantic: "reverb_on", params: 0}
+  0xC3: {semantic: "reverb_off", params: 0}
+  0xC4: {semantic: "noise_on", params: 0}
+  0xC5: {semantic: "noise_off", params: 0}
+  0xC6: {semantic: "fm_on", params: 0}
+  0xC7: {semantic: "fm_off", params: 0}
+  0xC8: {semantic: "loop_start", params: 1}
+  0xC9: {semantic: "loop_end", params: 1}
+  0xCA: {semantic: "loop_always", params: 0}
+  0xCB: {semantic: "unknown", params: 0}
+  0xCC: {semantic: "slur_on", params: 1}
+  0xCD: {semantic: "slur_off", params: 0}
+  0xCE: {semantic: "unknown", params: 0}
+  0xCF: {semantic: "unknown", params: 0}
+  0xD0: {semantic: "unknown", params: 0}
+  0xD1: {semantic: "unknown", params: 0}
+  0xD2: {semantic: "unknown", params: 0}
+  0xD3: {semantic: "unknown", params: 0}
+  0xD4: {semantic: "vibrato_active", params: 0}
+  0xD5: {semantic: "vibrato_inactive", params: 0}
+  0xD6: {semantic: "tremolo_active", params: 0}
+  0xD7: {semantic: "tremolo_inactive", params: 0}
+  0xD8: {semantic: "pitch_bend", params: 1}
+  0xD9: {semantic: "pitch_bend_add", params: 1}
+  0xDA: {semantic: "unknown", params: 0}
+  0xDB: {semantic: "unknown", params: 0}
+  0xDC: {semantic: "unknown", params: 0}
+  0xDD: {semantic: "vibrato_fade", params: 1}
+  0xDE: {semantic: "tremolo_fade", params: 1}
+  0xDF: {semantic: "pingpong_fade", params: 1}
+  0xE0: {semantic: "unknown", params: 0}
+  0xE1: {semantic: "unknown", params: 0}
+  0xE2: {semantic: "unknown", params: 0}
+  0xE3: {semantic: "unknown", params: 0}
+  0xE4: {semantic: "unknown", params: 0}
+  0xE5: {semantic: "unknown", params: 0}
+  0xE6: {semantic: "unknown", params: 0}
+  0xE7: {semantic: "unknown", params: 0}
+  0xE8: {semantic: "tempo", params: 2}              # FF7-specific: direct tempo (not FE 00)
+  0xE9: {semantic: "tempo_fade", params: 3}         # FF7-specific: direct tempo fade (not FE 01)
+  0xEA: {semantic: "reverb_depth", params: 1}       # FF7-specific
+  0xEB: {semantic: "reverb_depth_fade", params: 2}  # FF7-specific
+  0xEC: {semantic: "percussion_mode_on", params: 1} # FF7-specific: direct (not FE 04)
+  0xED: {semantic: "percussion_mode_off", params: 0} # FF7-specific: direct (not FE 05)
+  0xEE: {semantic: "goto", params: 2}               # FF7-specific: direct goto (not FE 06)
+  0xEF: {semantic: "unknown", params: 0}
+  0xF0: {semantic: "conditional_repeat", params: 3}
+  0xF1: {semantic: "unknown", params: 0}
+  0xF2: {semantic: "patch_change", params: 1}       # Alternate patch change
+  0xF3: {semantic: "unknown", params: 0}
+  0xF4: {semantic: "unknown", params: 0}
+  0xF5: {semantic: "unknown", params: 0}
+  0xF6: {semantic: "unknown", params: 0}
+  0xF7: {semantic: "unknown", params: 0}
+  0xF8: {semantic: "unknown", params: 0}
+  0xF9: {semantic: "unknown", params: 0}
+  0xFA: {semantic: "unknown", params: 0}
+  0xFB: {semantic: "unknown", params: 0}
+  0xFC: {semantic: "extended_patch_change", params: 0}
+  0xFD: {semantic: "time_signature", params: 1}     # FF7-specific: direct (not FE 15)
+  0xFE: {semantic: "measure_number", params: 1}     # FF7-specific: direct (not FE 16)
+  0xFF: {semantic: "halt", params: 0}
+
 # Default state values
 default_tempo: 255
 default_octave: 4

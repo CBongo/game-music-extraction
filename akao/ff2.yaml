@@ -129,7 +129,6 @@ opcode_table:
   address: 0x0496D0
   size: 46
   type: "byte"
-  # FF2's table stores operand count only (0-based), so includes_opcode defaults to false
 
 # Pitch table (SNES address 04/96EA)
 pitch_table:

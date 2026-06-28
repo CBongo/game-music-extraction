@@ -8,7 +8,7 @@ import sys
 from typing import List, Tuple, Dict, Optional
 
 # Import base classes
-from format_base import SequenceFormat, NOTE_NAMES
+from format_base import SequenceFormat, NOTE_NAMES, Pass2State, create_render_strategy, linear_to_midi
 
 # Import IR event classes
 from ir_events import *
@@ -44,38 +44,30 @@ class SNESUnified(SequenceFormat):
         self.note_divisor = config.get('note_divisor', 15)
         self.first_opcode = config.get('first_opcode', 0xD2)
         self.tie_note_value = config.get('tie_note_value', 12)
-        self.rest_note_value = config.get('rest_note_value', 13)  
+        self.rest_note_value = config.get('rest_note_value', 13)
+
+        # Read opcode encoding method from config (top-level property)
+        # "includes_opcode": Table value = opcode + operands (1-based)
+        # "operands_only": Table value = operands only (0-based) [default]
+        opcode_encoding = config.get('opcode_encoding', 'operands_only')
+        self.opcode_table_includes_opcode = (opcode_encoding == 'includes_opcode')
 
         # Auto-detect ROM mapping mode (LoROM vs HiROM)
         self.rom_mapping = self._detect_rom_mapping()
 
-        # Read duration table from ROM
-        if 'duration_table' in config:
-            table_cfg = config['duration_table']
-            self.duration_table = self._read_rom_table(
-                table_cfg.get('address'),
-                table_cfg.get('size', self.note_divisor),
-                table_cfg.get('type', 'B')
-            )
-        else:
-            # Default duration table
-            self.duration_table = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        # Load duration table from config or use defaults
+        self.duration_table = self._load_config_table(
+            'duration_table',
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            default_size=self.note_divisor
+        )
 
-        # Read opcode length table from ROM
-        if 'opcode_table' in config:
-            table_cfg = config['opcode_table']
-            self.opcode_table = self._read_rom_table(
-                table_cfg.get('address'),
-                table_cfg.get('size', 46),
-                table_cfg.get('type', 'B')
-            )
-            # Check if opcode_table values include the opcode byte itself (1-based)
-            # or just count operands (0-based). Default is 0-based (operands only).
-            self.opcode_table_includes_opcode = table_cfg.get('includes_opcode', False)
-        else:
-            # Default opcode lengths (46 opcodes starting from first_opcode)
-            self.opcode_table = [1] * 46
-            self.opcode_table_includes_opcode = False
+        # Load opcode length table from config or use defaults
+        self.opcode_table = self._load_config_table(
+            'opcode_table',
+            [1] * 46,
+            default_size=46
+        )
 
         # Get state defaults from config
         self.default_tempo = config.get('default_tempo', 255)
@@ -522,7 +514,7 @@ class SNESUnified(SequenceFormat):
         return float(target_value - start_value) / float(duration_ticks)
 
     def _scale_volume_to_midi(self, ir_volume, volume_multiplier, master_volume, velocity_scale):
-        """Scale IR volume value (0-255) to MIDI range (0-127) with multipliers applied.
+        """Scale IR volume (0-255) to MIDI (0-127) with sqrt curve for GM compatibility.
 
         This scaling is applied consistently to:
         - VOLUME opcode values
@@ -538,22 +530,18 @@ class SNESUnified(SequenceFormat):
         Returns:
             int: MIDI velocity/controller value (0-127 range)
         """
-        # Scale IR range (0-255) to MIDI range (0-127)
-        # Convert to int first since ir_volume can be float from fade advance logic
-        midi_vol = int(ir_volume) >> 1
+        # Normalize to 0.0-1.0 linear range
+        linear = ir_volume / 255.0
 
-        # Apply volume multipliers
-        adjusted = float(midi_vol)
+        # Apply multipliers (all in linear domain)
         if volume_multiplier != 1.0:
-            adjusted = adjusted * (0.5 + volume_multiplier)
+            linear *= volume_multiplier
         if master_volume != 1.0:
-            adjusted = adjusted * master_volume
+            linear *= master_volume
+        linear *= velocity_scale
 
-        # Apply velocity_scale
-        adjusted = adjusted * velocity_scale
-
-        # Clamp to MIDI range
-        return int(min(127, max(0, adjusted)))
+        # Convert to MIDI with sqrt curve for GM compatibility
+        return linear_to_midi(linear)
 
     def _calculate_bpm(self, tempo_value: int) -> float:
         """Convert raw tempo value to BPM using config formula.
@@ -625,163 +613,122 @@ class SNESUnified(SequenceFormat):
         Returns:
             List of MIDI event dictionaries
         """
+        # Read MIDI rendering configuration
+        midi_config = self.config.get('midi_render', {})
+
+        # Initialize Pass 2 state
+        # Create render strategy instance
+        midi_strategy = midi_config.get('strategy', 'velocity')
+        constant_velocity = midi_config.get('constant_velocity', 100)
+        render_strategy = create_render_strategy(midi_strategy, constant_velocity)
+
+        state = Pass2State(
+            # Configuration from MIDI config
+            midi_strategy=midi_strategy,
+            constant_velocity=constant_velocity,
+            render_strategy=render_strategy,
+            apply_multiplier=midi_config.get('apply_multiplier', True),
+            apply_master_volume_config=midi_config.get('apply_master_volume', True),
+            velocity_scale=midi_config.get('velocity_scale', 1.0),
+            tick_scale=2,  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
+
+            # Playback state from defaults
+            octave=self.default_octave,
+            velocity=self.default_velocity,
+            tempo=self.default_tempo,
+            current_channel=start_voice_num,
+
+            # References
+            current_voice_num=start_voice_num,
+            ir_events=all_track_data['tracks'][start_voice_num]['ir_events'],
+            loop_info=all_track_data['tracks'][start_voice_num].get('loop_info', {})
+        )
+
+        # Iteration limit (failsafe)
+        max_iterations = max(len(state.ir_events) * 1000, 50000)
+
+        # Emergency brakes
         import time
         start_time = time.time()
         max_time_seconds = 2.0  # Emergency brake: 2 second time limit
         max_midi_events = 50000  # Emergency brake: max MIDI events per track
 
-        # Gate timing (native ticks before full duration when note-off happens)
-        gate_time = 2  # Default: 2 native ticks from end
-                       # Can be modified by slur/legato opcodes
-
-        # Tick scaling factor (native ticks -> MIDI ticks)
-        tick_scale = 2  # 48 native ticks/quarter -> 96 MIDI ticks/quarter
-
-
         # Scale target_loop_time from native ticks to MIDI ticks
-        # (loop analyzer works in native ticks, Pass 2 works in MIDI ticks)
-        target_loop_time_midi = target_loop_time * tick_scale if target_loop_time > 0 else 0
+        target_loop_time_midi = target_loop_time * state.tick_scale if target_loop_time > 0 else 0
 
-        midi_events = []
-        total_time = 0
-
-        # Start with the specified voice
-        current_voice_num = start_voice_num
-        ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
-        loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
-
-        # Read MIDI rendering configuration
-        midi_config = self.config.get('midi_render', {})
-        midi_strategy = midi_config.get('strategy', 'velocity')
-        constant_velocity = midi_config.get('constant_velocity', 100)
-        apply_multiplier = midi_config.get('apply_multiplier', True)
-        apply_master_volume_config = midi_config.get('apply_master_volume', True)
-        velocity_scale = midi_config.get('velocity_scale', 1.0)  # Global velocity scaling
-
-        # Playback state
-        octave = self.default_octave
-        velocity = self.default_velocity
-        tempo = self.default_tempo
-        current_pan = 64  # MIDI center pan
-        perc_key = 0
-        transpose_octaves = 0
-        current_channel = start_voice_num
-        slur_enabled = False  # Track slur state
-        roll_enabled = False  # Track roll state
-        staccato_percentage = 100  # Track staccato multiplier (100 = normal)
-        utility_duration_override = None  # One-shot duration override for next note
-        master_volume = 1.0  # Master volume multiplier (SoM) - 1.0 = normal (100%), range 0.0-1.0
-        volume_multiplier = 1.0  # Volume multiplier (CT/FF3) - 1.0 = normal (100%), range 0.0-1.0
-
-        # Fade state (SPC-style) for velocity strategy
-        volume_fade_active = False
-        volume_fade_target = 0.0
-        volume_fade_delta = 0.0
-        volume_fade_ticks_remaining = 0
-
-        # Loop execution state
-        loop_stack = []  # Stack of {start_idx, count, iteration, octave}
-
-        # Use global target time directly (no per-track calculation needed)
-
-        # Event pointer for execution
-        i = 0
-        # Most game music loops infinitely. Allow enough iterations for ~2 full playthroughs
-        # Typical: 100-200 IR events, with loops expanding to 10,000-20,000 iterations
-        # However, deeply nested loops (e.g., FF3 song 3E with 4 nested count=6 loops) can
-        # expand to 40,000+ iterations even for non-looping (no backwards GOTO) tracks
-        # - Multiplier of 1000 per event handles deeply nested loops
-        # - Minimum of 50000 ensures adequate headroom
-        max_iterations = max(len(ir_events) * 1000, 50000)
-        iteration_count = 0
-
-        while i < len(ir_events) and iteration_count < max_iterations:
-            iteration_count += 1
+        while state.i < len(state.ir_events) and state.iteration_count < max_iterations:
+            state.iteration_count += 1
 
             # Check if we've reached target playthrough time
-            if target_loop_time_midi > 0 and total_time >= target_loop_time_midi:
+            if target_loop_time_midi > 0 and state.total_time >= target_loop_time_midi:
                 break
 
             # Emergency brakes (only warn, not error - looping is normal)
             if time.time() - start_time > max_time_seconds:
                 # Silently stop - time limit reached (normal for looping songs)
                 break
-            if len(midi_events) > max_midi_events:
+            if len(state.midi_events) > max_midi_events:
                 # Silently stop - MIDI event limit reached (normal for looping songs)
                 break
 
-            if i < 0 or i >= len(ir_events):
-                print(f"WARNING: Track {start_voice_num} invalid event index {i}, stopping")
+            if state.i < 0 or state.i >= len(state.ir_events):
+                print(f"WARNING: Track {start_voice_num} invalid event index {state.i}, stopping")
                 break
-            event = ir_events[i]
+            event = state.ir_events[state.i]
 
             if event.type == IREventType.NOTE:
                 # Extract state from metadata (stored in pass 1)
-                # NOTE: octave and velocity are tracked as state variables, not in metadata
+                # NOTE: state.octave and state.velocity are tracked as state variables, not in metadata
                 # This allows loops to modify them during playback
-                perc_key = event.metadata['perc_key']
-                transpose_octaves = event.metadata['transpose']
+                state.perc_key = event.metadata['perc_key']
+                state.transpose_octaves = event.metadata['transpose']
 
                 # Calculate MIDI note
                 assert event.note_num is not None, "NOTE event must have note_num"
                 assert event.duration is not None, "NOTE event must have duration"
-                midi_note = 12 * (octave + transpose_octaves) + event.note_num
+                midi_note = 12 * (state.octave + state.transpose_octaves) + event.note_num
 
                 # Check if we're in percussion mode
-                if perc_key:
+                if state.perc_key:
                     midi_channel = 9  # Percussion channel
-                    midi_note = perc_key
+                    midi_note = state.perc_key
                 else:
-                    midi_channel = current_channel
+                    midi_channel = state.current_channel
 
                 # Apply utility duration override (one-shot for this note only)
-                native_duration = utility_duration_override if utility_duration_override is not None else event.duration
-                utility_duration_override = None  # Clear after use
+                native_duration = state.utility_duration_override if state.utility_duration_override is not None else event.duration
+                state.utility_duration_override = None  # Clear after use
 
                 # Scale ORIGINAL native duration to MIDI ticks
                 # This is ALWAYS used for time advancement (next event timing)
-                midi_dur = native_duration * tick_scale
+                midi_dur = native_duration * state.tick_scale
 
                 # Calculate note-off duration (gate timing OR staccato - mutually exclusive)
                 # Order of priority: slur/roll > staccato > gate
-                if slur_enabled or roll_enabled:
+                if state.slur_enabled or state.roll_enabled:
                     # Slur/roll: play full duration (no gap before next note)
                     gate_adjusted_dur = midi_dur
-                elif staccato_percentage < 100:
+                elif state.staccato_percentage < 100:
                     # Staccato: apply percentage reduction (replaces gate timing)
                     # Apply to ORIGINAL duration, not already-reduced duration
-                    gate_adjusted_dur = int(native_duration * staccato_percentage / 100) * tick_scale
+                    gate_adjusted_dur = int(native_duration * state.staccato_percentage / 100) * state.tick_scale
                 else:
                     # Normal articulation: apply standard gate timing (2 native ticks before end)
-                    gate_adjusted_dur = (native_duration - gate_time) * tick_scale
+                    gate_adjusted_dur = (native_duration - state.gate_time) * state.tick_scale
 
                 # Calculate MIDI velocity using helper method
-                adjusted_velocity = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
+                adjusted_velocity = self._scale_volume_to_midi(state.velocity, state.volume_multiplier, state.master_volume, state.velocity_scale)
 
-                # Strategy: velocity, expression, or cc7
-                if midi_strategy in ['expression', 'cc7']:
-                    # Controller-based strategies: use constant velocity for notes
-                    # (Volume dynamics handled by CC11 or CC7)
-                    note_velocity = constant_velocity
-
-                    # For expression, also generate CC11 before note
-                    # (VOLUME event already generated CC11, but regenerate for safety)
-                    if midi_strategy == 'expression':
-                        midi_events.append({
-                            'type': 'controller',
-                            'time': total_time,
-                            'channel': midi_channel,
-                            'controller': 11,  # Expression
-                            'value': adjusted_velocity
-                        })
-                else:
-                    # Velocity strategy: use calculated velocity
-                    note_velocity = adjusted_velocity
+                # Use render strategy to determine note velocity and preamble events
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                note_velocity = state.render_strategy.get_note_velocity(state, adjusted_velocity)
+                preamble_events = state.render_strategy.get_note_preamble_events(state, adjusted_velocity, midi_channel)
+                state.midi_events.extend(preamble_events)
 
                 # Add MIDI note event
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'note',
-                    'time': total_time,
+                    'time': state.total_time,
                     'duration': gate_adjusted_dur,  # Adjusted for articulation
                     'note': midi_note,
                     'velocity': note_velocity,
@@ -789,351 +736,324 @@ class SNESUnified(SequenceFormat):
                 })
 
                 # ALWAYS advance time by FULL MIDI duration (unmodified by staccato/gate)
-                total_time += midi_dur
+                state.total_time += midi_dur
 
                 # Advance fade states by this event's duration (native ticks)
-                if volume_fade_active and volume_fade_ticks_remaining > 0:
-                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
-                    velocity += volume_fade_delta * ticks_to_advance
-                    volume_fade_ticks_remaining -= ticks_to_advance
-                    if volume_fade_ticks_remaining <= 0:
-                        velocity = volume_fade_target  # Snap to target
-                        volume_fade_active = False
+                if state.volume_fade_active and state.volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, state.volume_fade_ticks_remaining)
+                    state.velocity = int(state.velocity + state.volume_fade_delta * ticks_to_advance)
+                    state.volume_fade_ticks_remaining -= ticks_to_advance
+                    if state.volume_fade_ticks_remaining <= 0:
+                        state.velocity = int(state.volume_fade_target)  # Snap to target
+                        state.volume_fade_active = False
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.REST:
                 # Rest just advances time
                 # Scale native duration to MIDI ticks
                 assert event.duration is not None, "REST event must have duration"
                 native_duration = event.duration
-                midi_dur = native_duration * tick_scale
-                total_time += midi_dur
+                midi_dur = native_duration * state.tick_scale
+                state.total_time += midi_dur
 
                 # Advance fade states by this event's duration (native ticks)
-                if volume_fade_active and volume_fade_ticks_remaining > 0:
-                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
-                    velocity += volume_fade_delta * ticks_to_advance
-                    volume_fade_ticks_remaining -= ticks_to_advance
-                    if volume_fade_ticks_remaining <= 0:
-                        velocity = volume_fade_target  # Snap to target
-                        volume_fade_active = False
+                if state.volume_fade_active and state.volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, state.volume_fade_ticks_remaining)
+                    state.velocity = int(state.velocity + state.volume_fade_delta * ticks_to_advance)
+                    state.volume_fade_ticks_remaining -= ticks_to_advance
+                    if state.volume_fade_ticks_remaining <= 0:
+                        state.velocity = int(state.volume_fade_target)  # Snap to target
+                        state.volume_fade_active = False
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.TIE:
                 # Tie extends the last note
                 # Scale native duration to MIDI ticks
                 assert event.duration is not None, "TIE event must have duration"
                 native_duration = event.duration
-                tie_dur = native_duration * tick_scale
-                for j in range(len(midi_events) - 1, -1, -1):
-                    if midi_events[j]['type'] == 'note':
-                        midi_events[j]['duration'] += tie_dur
+                tie_dur = native_duration * state.tick_scale
+                for j in range(len(state.midi_events) - 1, -1, -1):
+                    if state.midi_events[j]['type'] == 'note':
+                        state.midi_events[j]['duration'] += tie_dur
                         break
-                total_time += tie_dur
+                state.total_time += tie_dur
 
                 # Advance fade states by this event's duration (native ticks)
-                if volume_fade_active and volume_fade_ticks_remaining > 0:
-                    ticks_to_advance = min(native_duration, volume_fade_ticks_remaining)
-                    velocity += volume_fade_delta * ticks_to_advance
-                    volume_fade_ticks_remaining -= ticks_to_advance
-                    if volume_fade_ticks_remaining <= 0:
-                        velocity = volume_fade_target  # Snap to target
-                        volume_fade_active = False
+                if state.volume_fade_active and state.volume_fade_ticks_remaining > 0:
+                    ticks_to_advance = min(native_duration, state.volume_fade_ticks_remaining)
+                    state.velocity = int(state.velocity + state.volume_fade_delta * ticks_to_advance)
+                    state.volume_fade_ticks_remaining -= ticks_to_advance
+                    if state.volume_fade_ticks_remaining <= 0:
+                        state.velocity = int(state.volume_fade_target)  # Snap to target
+                        state.volume_fade_active = False
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.TEMPO:
                 # Tempo change
                 assert event.value is not None, "TEMPO event must have value"
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'tempo',
-                    'time': total_time,
+                    'time': state.total_time,
                     'tempo': event.value
                 })
-                tempo = event.value
-                i += 1
+                state.tempo = event.value
+                state.i += 1
 
             elif event.type == IREventType.TEMPO_FADE:
-                # Tempo fade - generate tempo events at 2-tick intervals
+                # Tempo fade - generate state.tempo events at 2-tick intervals
                 assert event.duration is not None and event.value is not None, "TEMPO_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                fade_duration = event.duration * state.tick_scale  # Convert to MIDI ticks
                 target_tempo = event.value
-                start_tempo = tempo
+                start_tempo = state.tempo
 
-                # Generate interpolated tempo events
+                # Generate interpolated state.tempo events
                 fade_events = self._generate_fade_events(
-                    'tempo', start_tempo, target_tempo, fade_duration, total_time
+                    'tempo', start_tempo, target_tempo, fade_duration, state.total_time
                 )
-                midi_events.extend(fade_events)
+                state.midi_events.extend(fade_events)
 
-                # Update current tempo to target
-                tempo = target_tempo
-                i += 1
+                # Update current state.tempo to target
+                state.tempo = target_tempo
+                state.i += 1
 
             elif event.type == IREventType.PATCH_CHANGE:
                 # Patch change
                 assert event.gm_patch is not None, "PATCH_CHANGE event must have gm_patch"
                 if event.gm_patch < 0:
                     # Percussion mode
-                    perc_key = abs(event.gm_patch)
-                    transpose_octaves = event.transpose
+                    state.perc_key = abs(event.gm_patch)
+                    state.transpose_octaves = event.transpose
                 else:
                     # Regular instrument
-                    perc_key = 0
-                    transpose_octaves = event.transpose
-                    midi_events.append({
+                    state.perc_key = 0
+                    state.transpose_octaves = event.transpose
+                    state.midi_events.append({
                         'type': 'program_change',
-                        'time': total_time,
+                        'time': state.total_time,
                         'patch': event.gm_patch
                     })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_SET:
                 assert event.value is not None, "OCTAVE_SET event must have value"
-                octave = event.value
-                i += 1
+                state.octave = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_INC:
-                octave += 1
-                i += 1
+                state.octave += 1
+                state.i += 1
 
             elif event.type == IREventType.OCTAVE_DEC:
-                octave -= 1
-                i += 1
+                state.octave -= 1
+                state.i += 1
 
             elif event.type == IREventType.VOLUME:
-                # IR stores normalized value (0-255)
-                velocity = int(event.value)
+                # IR stores normalized value (0.0-1.0 float)
+                assert event.value is not None, "VOLUME event must have value"
+                state.velocity = int(event.value * 255)
 
                 # Cancel any active volume fade (immediate volume change overrides fade)
-                volume_fade_active = False
+                state.volume_fade_active = False
 
-                # For controller-based strategies, generate controller event immediately
-                if midi_strategy == 'expression':
-                    # Expression strategy: Use CC11
-                    expr_value = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 11,  # Expression
-                        'value': expr_value
-                    })
-                elif midi_strategy == 'cc7':
-                    # CC7 strategy: Use CC7 (Main Volume)
-                    cc7_value = self._scale_volume_to_midi(velocity, volume_multiplier, master_volume, velocity_scale)
-                    midi_events.append({
-                        'type': 'controller',
-                        'time': total_time,
-                        'channel': current_channel,
-                        'controller': 7,  # Main Volume
-                        'value': cc7_value
-                    })
-                # else: velocity strategy stores in state variable for notes
+                # Use render strategy to handle volume event
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                scaled_value = self._scale_volume_to_midi(state.velocity, state.volume_multiplier, state.master_volume, state.velocity_scale)
+                volume_events = state.render_strategy.handle_volume_event(state, state.velocity, scaled_value, state.current_channel)
+                state.midi_events.extend(volume_events)
 
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.PAN:
                 # Update current pan value
-                current_pan = int(event.value)
+                assert event.value is not None, "PAN event must have value"
+                state.current_pan = int(event.value)
                 # Generate immediate MIDI CC 10 pan event
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
-                    'channel': current_channel,
+                    'time': state.total_time,
+                    'channel': state.current_channel,
                     'controller': 10,  # Pan CC
-                    'value': current_pan
+                    'value': state.current_pan
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.VOLUME_FADE:
                 # Volume fade - behavior depends on strategy
                 assert event.duration is not None and event.value is not None, "VOLUME_FADE must have duration and value"
 
-                target_volume_ir = event.value  # IR value (0-255)
+                target_volume_ir = int(event.value * 255)  # IR value (0.0-1.0) → 0-255
                 fade_duration_native = event.duration  # Native ticks
+                fade_duration_midi = fade_duration_native * state.tick_scale  # Convert to MIDI ticks
+                start_volume_ir = state.velocity  # Current velocity state (IR value 0-255)
 
-                if midi_strategy == 'velocity':
-                    # Velocity strategy: Activate fade state (SPC-style)
-                    # Fade updates velocity state variable gradually over time
-                    volume_fade_active = True
-                    volume_fade_target = target_volume_ir
-                    volume_fade_delta = self._calculate_fade_delta(velocity, target_volume_ir, fade_duration_native)
-                    volume_fade_ticks_remaining = fade_duration_native
+                # Scale BOTH start and target to MIDI range with multipliers
+                start_volume_midi = self._scale_volume_to_midi(start_volume_ir, state.volume_multiplier, state.master_volume, state.velocity_scale)
+                target_volume_midi = self._scale_volume_to_midi(target_volume_ir, state.volume_multiplier, state.master_volume, state.velocity_scale)
 
-                    # No controller events generated - notes will use fading velocity
+                # Use render strategy to handle volume fade
+                assert state.render_strategy is not None, "render_strategy must be initialized"
+                fade_events = state.render_strategy.handle_volume_fade(
+                    state, start_volume_ir, target_volume_ir,
+                    start_volume_midi, target_volume_midi,
+                    fade_duration_midi, fade_duration_native,
+                    state.current_channel,
+                    self._generate_fade_events, self._calculate_fade_delta
+                )
+                state.midi_events.extend(fade_events)
 
-                else:
-                    # Controller strategies (expression/cc7): Generate controller events
-                    fade_duration_midi = fade_duration_native * tick_scale  # Convert to MIDI ticks
-                    start_volume_ir = velocity  # Current velocity state (IR value 0-255)
+                # Update velocity state to target (IR value) for all strategies
+                state.velocity = int(target_volume_ir)
 
-                    # Scale BOTH start and target to MIDI range with multipliers
-                    start_volume_midi = self._scale_volume_to_midi(start_volume_ir, volume_multiplier, master_volume, velocity_scale)
-                    target_volume_midi = self._scale_volume_to_midi(target_volume_ir, volume_multiplier, master_volume, velocity_scale)
-
-                    # Determine which controller to use
-                    controller_num = 11 if midi_strategy == 'expression' else 7
-
-                    # Generate interpolated controller events using SCALED values
-                    fade_events = self._generate_fade_events(
-                        'controller', start_volume_midi, target_volume_midi,
-                        fade_duration_midi, total_time, current_channel, controller_num
-                    )
-                    midi_events.extend(fade_events)
-
-                    # Update velocity state immediately to target (IR value)
-                    velocity = target_volume_ir
-
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.PAN_FADE:
                 # Pan fade - generate CC 10 events at 2-tick intervals
                 assert event.duration is not None and event.value is not None, "PAN_FADE must have duration and value"
-                fade_duration = event.duration * tick_scale  # Convert to MIDI ticks
+                fade_duration = event.duration * state.tick_scale  # Convert to MIDI ticks
                 target_pan = event.value
-                start_pan = current_pan
+                start_pan = state.current_pan
 
                 # Generate interpolated pan events
                 fade_events = self._generate_fade_events(
                     'controller', start_pan, target_pan, fade_duration,
-                    total_time, current_channel, 10  # CC 10 = pan
+                    state.total_time, state.current_channel, 10  # CC 10 = pan
                 )
-                midi_events.extend(fade_events)
+                state.midi_events.extend(fade_events)
 
                 # Update current pan to target
-                current_pan = target_pan
-                i += 1
+                state.current_pan = int(target_pan)
+                state.i += 1
 
             elif event.type == IREventType.SLUR_ON:
-                slur_enabled = True
+                state.slur_enabled = True
                 # Emit MIDI CC 68 (legato pedal) = 127
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
+                    'time': state.total_time,
                     'controller': 68,  # Legato pedal CC
                     'value': 127
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.SLUR_OFF:
-                slur_enabled = False
+                state.slur_enabled = False
                 # Emit MIDI CC 68 (legato pedal) = 0
-                midi_events.append({
+                state.midi_events.append({
                     'type': 'controller',
-                    'time': total_time,
+                    'time': state.total_time,
                     'controller': 68,  # Legato pedal CC
                     'value': 0
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.ROLL_ON:
-                roll_enabled = True
-                i += 1
+                state.roll_enabled = True
+                state.i += 1
 
             elif event.type == IREventType.ROLL_OFF:
-                roll_enabled = False
-                i += 1
+                state.roll_enabled = False
+                state.i += 1
 
             elif event.type == IREventType.STACCATO:
                 # Set staccato percentage for all subsequent notes
                 assert event.value is not None, "STACCATO event must have value"
-                staccato_percentage = int(event.value)
-                i += 1
+                state.staccato_percentage = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.UTILITY_DURATION:
                 # Override duration for next note only
                 assert event.value is not None, "UTILITY_DURATION event must have value"
-                utility_duration_override = int(event.value)
-                i += 1
+                state.utility_duration_override = int(event.value)
+                state.i += 1
 
             elif event.type == IREventType.MASTER_VOLUME:
                 # Set master volume (SoM 0xF8) - global volume multiplier
                 # Value is normalized float 0.0-1.0 from Pass 1
                 assert event.value is not None, "MASTER_VOLUME event must have value"
-                if apply_master_volume_config:
-                    master_volume = float(event.value)
-                # If disabled, keep master_volume at 1.0 (no effect)
-                i += 1
+                if state.apply_master_volume_config:
+                    state.master_volume = float(event.value)
+                # If disabled, keep state.master_volume at 1.0 (no effect)
+                state.i += 1
 
             elif event.type == IREventType.VOLUME_MULTIPLIER:
                 # Set volume multiplier (CT/FF3 0xF4/0xFD) - per-track multiplier
                 # Value is normalized float 0.0-1.0 from Pass 1
                 assert event.value is not None, "VOLUME_MULTIPLIER event must have value"
-                if apply_multiplier:
-                    volume_multiplier = float(event.value)
-                # If disabled, keep volume_multiplier at 1.0 (no effect)
-                i += 1
+                if state.apply_multiplier:
+                    state.volume_multiplier = float(event.value)
+                # If disabled, keep state.volume_multiplier at 1.0 (no effect)
+                state.i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_ON:
                 # Percussion mode handling is done in Pass 1
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.PERCUSSION_MODE_OFF:
                 # Percussion mode handling is done in Pass 1
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.LOOP_START:
                 # Push loop onto stack
-                loop_stack.append({
-                    'start_idx': i + 1,  # Start after LOOP_START
+                state.loop_stack.append({
+                    'start_idx': state.i + 1,  # Start after LOOP_START
                     'count': event.loop_count,
                     'iteration': 0,
-                    'octave': octave,
+                    'octave': state.octave,
                     'end_idx': None  # Will be set when we find LOOP_END
                 })
-                i += 1
+                state.i += 1
 
             elif event.type == IREventType.LOOP_END:
                 # End of loop body - decide if we repeat
-                if loop_stack:
-                    loop = loop_stack[-1]
+                if state.loop_stack:
+                    loop = state.loop_stack[-1]
                     loop['count'] -= 1
 
                     if loop['count'] >= 0:
                         # Repeat: jump back to loop start
-                        i = loop['start_idx']
-                        # Restore octave if needed
+                        state.i = loop['start_idx']
+                        # Restore state.octave if needed
                         if event.restore_octave:
-                            octave = loop['octave']
+                            state.octave = loop['octave']
                     else:
                         # Done looping: pop and continue
-                        loop_stack.pop()
-                        i += 1
+                        state.loop_stack.pop()
+                        state.i += 1
                 else:
                     # No matching loop start? Just continue
-                    i += 1
+                    state.i += 1
 
             elif event.type == IREventType.LOOP_BREAK:
                 # Selective repeat (F5): conditional jump on specific iteration
                 # This increments the current loop iteration and jumps if it matches the condition
-                if loop_stack:
-                    loop = loop_stack[-1]
+                if state.loop_stack:
+                    loop = state.loop_stack[-1]
                     loop['iteration'] += 1
 
                     if loop['iteration'] == event.condition:
                         # Condition met: jump to target and exit loop
                         # Find event at target offset
                         target_idx = None
-                        for j, e in enumerate(ir_events):
+                        for j, e in enumerate(state.ir_events):
                             if e.offset == event.target_offset:
                                 target_idx = j
                                 break
 
                         if target_idx is not None:
-                            i = target_idx
-                            loop_stack.pop()  # Exit this loop level
+                            state.i = target_idx
+                            state.loop_stack.pop()  # Exit this loop level
                         else:
                             # Target not found, just continue
-                            i += 1
+                            state.i += 1
                     else:
                         # Condition not met: continue to next event
-                        i += 1
+                        state.i += 1
                 else:
                     # No loop context, just skip
-                    i += 1
+                    state.i += 1
 
             elif event.type == IREventType.GOTO:
                 # Determine GOTO type and handle accordingly
@@ -1151,24 +1071,24 @@ class SNESUnified(SequenceFormat):
 
                 # Classify GOTO type
                 is_backwards = event.target_offset < event.offset
-                is_cross_track = target_track != current_voice_num
+                is_cross_track = target_track != state.current_voice_num
 
                 if is_backwards and not is_cross_track:
                     # Backwards loop within same track
-                    if loop_info and loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
+                    if state.loop_info and state.loop_info.get('has_backwards_goto', False) and target_loop_time > 0:
                         # Follow loop until target time reached
-                        i = target_idx
+                        state.i = target_idx
                     else:
                         # No loop playback requested - halt at loop point
                         break
                 else:
                     # Forward GOTO or cross-track GOTO - follow as normal continuation
-                    current_voice_num = target_track
-                    ir_events = all_track_data['tracks'][current_voice_num]['ir_events']
-                    i = target_idx
+                    state.current_voice_num = target_track
+                    state.ir_events = all_track_data['tracks'][state.current_voice_num]['ir_events']
+                    state.i = target_idx
 
                     # Switch to target track's loop_info
-                    loop_info = all_track_data['tracks'][current_voice_num].get('loop_info', {})
+                    state.loop_info = all_track_data['tracks'][state.current_voice_num].get('loop_info', {})
 
                     # target_loop_time is global - no need to recalculate
 
@@ -1179,13 +1099,13 @@ class SNESUnified(SequenceFormat):
             else:
                 # Other event types (vibrato, tremolo, etc.) are not yet expanded
                 # Just skip for now
-                i += 1
+                state.i += 1
 
         # Check if we hit the iteration limit
-        if iteration_count >= max_iterations:
+        if state.iteration_count >= max_iterations:
             print(f"WARNING: Track {start_voice_num} hit max iteration limit ({max_iterations}), possible infinite loop")
 
-        return midi_events
+        return state.midi_events
 
     def _read_song_pointer_table(self) -> Dict[int, Tuple[int, int]]:
         """Read song pointer table - supports both FF2 and FF3 styles via config."""
@@ -1704,19 +1624,15 @@ class SNESUnified(SequenceFormat):
                     # Use value_param if specified, otherwise use last operand
                     value_idx = op_info.get('value_param', len(operands) - 1) if op_info else len(operands) - 1
                     if len(operands) > value_idx:
-                        # Normalize volume to 0-255 range for IR
+                        # Normalize volume to 0.0-1.0 range for IR
                         # Games use different ranges: FF2=255, CT=127, etc.
                         raw_volume = operands[value_idx]
                         volume_range = self.config.get('volume_range', 255)
-                        if volume_range < 255:
-                            # Scale up to 255 (e.g., CT 0-127 → 0-255)
-                            normalized_volume = int((raw_volume / volume_range) * 255)
-                        else:
-                            # Already at 255 range (e.g., FF2)
-                            normalized_volume = raw_volume
+                        normalized_volume = raw_volume / volume_range
 
                         # Update state variable for Pass 1 note processing
-                        velocity = normalized_volume
+                        # (Keep as 0-255 int for backward compat with note velocity calculation)
+                        velocity = int(normalized_volume * 255)
 
                         # Store normalized value in IR
                         event = make_volume(p, normalized_volume, operands)
@@ -1725,18 +1641,48 @@ class SNESUnified(SequenceFormat):
                 elif semantic == "volume_fade" and len(operands) >= 2:
                     # Volume Fade - duration and target volume
                     # Operands: [duration, target_volume]
-                    # Normalize target volume to 0-255 range for IR (same as VOLUME opcode)
+                    # Normalize target volume to 0.0-1.0 range for IR (same as VOLUME opcode)
                     duration = operands[0]
                     raw_target_volume = operands[1]
                     volume_range = self.config.get('volume_range', 255)
-                    if volume_range < 255:
-                        # Scale up to 255 (e.g., CT 0-127 → 0-255)
-                        normalized_target_volume = int((raw_target_volume / volume_range) * 255)
-                    else:
-                        # Already at 255 range (e.g., FF2)
-                        normalized_target_volume = raw_target_volume
+                    normalized_target_volume = raw_target_volume / volume_range
                     event = make_volume_fade(p, duration, normalized_target_volume, operands)
                     ir_events.append(event)
+
+                elif semantic == "expression":
+                    # Alias for volume (PSX naming convention)
+                    if len(operands) >= 1:
+                        raw_volume = operands[0]
+                        volume_range = 127  # PSX uses 0-127 for expression
+                        normalized_volume = raw_volume / volume_range
+                        velocity = int(normalized_volume * 255)
+                        event = make_volume(p, normalized_volume, operands)
+                        ir_events.append(event)
+
+                elif semantic == "expression_fade":
+                    # Alias for volume_fade (PSX naming convention)
+                    if len(operands) >= 2:
+                        target_value = operands[0]
+                        fade_time = operands[1]
+                        normalized_target = target_value / 127.0  # PSX uses 0-127
+                        event = make_volume_fade(p, fade_time, normalized_target, operands)
+                        ir_events.append(event)
+
+                elif semantic == "track_volume":
+                    # Per-track volume (0xA3 in PSX games)
+                    if len(operands) >= 1:
+                        volume = operands[0]
+                        event = make_master_volume(p, volume / 127.0, operands)
+                        ir_events.append(event)
+
+                elif semantic == "track_volume_fade":
+                    # Track volume fade (CC FE 12)
+                    if len(operands) >= 2:
+                        target_volume = operands[0]
+                        fade_time = operands[1]
+                        event = make_volume_fade(p, fade_time, target_volume / 127.0, operands)
+                        event.metadata = {'is_track_volume': True}
+                        ir_events.append(event)
 
                 elif semantic == "pan" and len(operands) >= 1:
                     # Voice Pan/Balance
@@ -1820,6 +1766,43 @@ class SNESUnified(SequenceFormat):
                     # Tremolo off
                     event = make_tremolo_off(p)
                     ir_events.append(event)
+
+                elif semantic == "pitch_bend":
+                    # Pitch bend - absolute (PSX 0xD8)
+                    if len(operands) >= 1:
+                        bend_value = operands[0]
+                        # Store as signed value - may need adjustment based on game
+                        event = IREvent(type=IREventType.UNKNOWN, offset=p, value=bend_value, operands=operands)
+                        event.metadata = {'semantic': 'pitch_bend'}
+                        ir_events.append(event)
+
+                elif semantic == "pitch_bend_add":
+                    # Pitch bend - relative (PSX 0xD9)
+                    if len(operands) >= 1:
+                        bend_delta = operands[0]
+                        event = IREvent(type=IREventType.UNKNOWN, offset=p, value=bend_delta, operands=operands)
+                        event.metadata = {'semantic': 'pitch_bend_add', 'is_relative': True}
+                        ir_events.append(event)
+
+                elif semantic == "reverb_on":
+                    # Enable reverb (PSX 0xC2)
+                    event = IREvent(type=IREventType.UNKNOWN, offset=p, operands=operands)
+                    event.metadata = {'semantic': 'reverb_on'}
+                    ir_events.append(event)
+
+                elif semantic == "reverb_off":
+                    # Disable reverb (PSX 0xC3)
+                    event = IREvent(type=IREventType.UNKNOWN, offset=p, operands=operands)
+                    event.metadata = {'semantic': 'reverb_off'}
+                    ir_events.append(event)
+
+                elif semantic == "reverb_depth" or semantic == "reverb_volume":
+                    # Set reverb depth/volume (PSX 0xEA, FF8 FE02)
+                    if len(operands) >= 1:
+                        depth = operands[0]
+                        event = IREvent(type=IREventType.UNKNOWN, offset=p, value=depth, operands=operands)
+                        event.metadata = {'semantic': 'reverb_depth'}
+                        ir_events.append(event)
 
                 elif semantic == "portamento_on" and len(operands) >= 3:
                     # Portamento settings

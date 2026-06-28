@@ -2,6 +2,11 @@ game: "Seiken Densetsu 3 (SNES)"
 format: "snes_unified"
 console_type: "snes"
 
+# Opcode encoding method: how opcode lengths are stored in the opcode_table
+# "includes_opcode": Table value = opcode byte + operands (1-based, e.g., 4 means opcode + 3 params)
+# "operands_only": Table value = operands only (0-based, e.g., 3 means 3 params) [default]
+opcode_encoding: "includes_opcode"
+
 # SNES ROM file
 rom_file: "seiken3e.smc"
 
@@ -169,7 +174,6 @@ opcode_table:
   address: 0xC51E24  # spcbase + 0x1765 where spcbase = C5/06BF
   size: 60
   type: "byte"
-  includes_opcode: true  # SD3's table includes the opcode byte itself (1-based)
 
 # Pitch table
 pitch_table:

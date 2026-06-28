@@ -21,6 +21,143 @@ fe_opcode_table:
   size: 32
   type: "byte"
 
+# Opcode definitions - comprehensive mapping from all PSX AKAO games
+# Verified against: FF7, FF8, FF9, and Chrono Cross Perl scripts
+opcodes:
+  # Two-byte opcodes (0xFE prefix) - max known FE subcode is 0x16
+  0xFE00: {semantic: "tempo", params: 2}
+  0xFE01: {semantic: "tempo_fade", params: 3}
+  0xFE02: {semantic: "reverb_volume", params: 2}
+  0xFE03: {semantic: "reverb_volume_fade", params: 3}
+  0xFE04: {semantic: "perc_mode_on", params: 0}
+  0xFE05: {semantic: "perc_mode_off", params: 0}         # CC only
+  0xFE06: {semantic: "goto", params: 2}
+  0xFE07: {semantic: "conditional_jump", params: 3}
+  0xFE08: {semantic: "loop_break", params: 1}
+  0xFE09: {semantic: "loop_break_pop", params: 1}
+  0xFE0E: {semantic: "call_subroutine", params: 2}
+  0xFE0F: {semantic: "return_subroutine", params: 0}
+  0xFE10: {semantic: "set_next_avail_pv", params: 1}
+  0xFE11: {semantic: "clear_next_avail_pv", params: 0}
+  0xFE12: {semantic: "track_volume_fade", params: 2}      # CC only
+  0xFE14: {semantic: "patch_change", params: 1}
+  0xFE15: {semantic: "time_signature", params: 2}         # CC only
+  0xFE16: {semantic: "measure_number", params: 1}         # CC only
+  # Fill out rest of FE range with unknowns
+  0xFE0A: {semantic: "unknown", params: 0}
+  0xFE0B: {semantic: "unknown", params: 0}
+  0xFE0C: {semantic: "unknown", params: 0}
+  0xFE0D: {semantic: "unknown", params: 0}
+  0xFE13: {semantic: "unknown", params: 0}
+  0xFE17: {semantic: "unknown", params: 0}
+  0xFE18: {semantic: "unknown", params: 0}
+  0xFE19: {semantic: "unknown", params: 0}
+  0xFE1A: {semantic: "unknown", params: 0}
+  0xFE1B: {semantic: "unknown", params: 0}
+  0xFE1C: {semantic: "unknown", params: 0}
+  0xFE1D: {semantic: "unknown", params: 0}
+  0xFE1E: {semantic: "unknown", params: 0}
+  0xFE1F: {semantic: "unknown", params: 0}
+
+  # Single-byte opcodes - comprehensive union from all PSX games
+  # Notes are 0x00-0x9F (handled separately via note_divisor)
+  0xA0: {semantic: "halt", params: 0}
+  0xA1: {semantic: "patch_change", params: 1}
+  0xA2: {semantic: "utility_duration", params: 1}         # FF7/CC
+  0xA3: {semantic: "track_volume", params: 1}
+  0xA4: {semantic: "unknown", params: 0}
+  0xA5: {semantic: "set_octave", params: 1}
+  0xA6: {semantic: "inc_octave", params: 0}
+  0xA7: {semantic: "dec_octave", params: 0}
+  0xA8: {semantic: "expression", params: 1}
+  0xA9: {semantic: "expression_fade", params: 2}
+  0xAA: {semantic: "pan", params: 1}
+  0xAB: {semantic: "pan_fade", params: 2}
+  0xAC: {semantic: "unknown", params: 0}
+  0xAD: {semantic: "set_attack", params: 1}
+  0xAE: {semantic: "set_decay", params: 1}
+  0xAF: {semantic: "set_sustain_level", params: 1}
+  0xB0: {semantic: "set_decay_sustain", params: 2}
+  0xB1: {semantic: "set_sustain_rate", params: 1}
+  0xB2: {semantic: "set_release", params: 1}
+  0xB3: {semantic: "reset_adsr", params: 0}
+  0xB4: {semantic: "vibrato_on", params: 2}               # FF7/CC
+  0xB5: {semantic: "vibrato_depth", params: 1}            # FF7/CC
+  0xB6: {semantic: "vibrato_off", params: 0}
+  0xB7: {semantic: "set_attack_mode", params: 1}
+  0xB8: {semantic: "tremolo_on", params: 2}               # FF7/CC
+  0xB9: {semantic: "tremolo_depth", params: 1}            # FF7/CC
+  0xBA: {semantic: "tremolo_off", params: 0}
+  0xBB: {semantic: "set_sustain_rate_mode", params: 1}
+  0xBC: {semantic: "pingpong_on", params: 2}              # FF7/CC
+  0xBD: {semantic: "pingpong_depth", params: 1}           # FF7/CC
+  0xBE: {semantic: "pingpong_off", params: 0}
+  0xBF: {semantic: "set_release_mode", params: 1}
+  0xC0: {semantic: "trance_absolute", params: 1}          # FF7/CC
+  0xC1: {semantic: "trance_relative", params: 1}          # FF7/CC
+  0xC2: {semantic: "reverb_on", params: 0}
+  0xC3: {semantic: "reverb_off", params: 0}
+  0xC4: {semantic: "noise_on", params: 0}
+  0xC5: {semantic: "noise_off", params: 0}
+  0xC6: {semantic: "fm_on", params: 0}
+  0xC7: {semantic: "fm_off", params: 0}
+  0xC8: {semantic: "loop_start", params: 0}
+  0xC9: {semantic: "loop_end", params: 1}
+  0xCA: {semantic: "loop_always", params: 0}
+  0xCB: {semantic: "unknown", params: 0}
+  0xCC: {semantic: "slur_on", params: 0}                  # FF7/CC
+  0xCD: {semantic: "slur_off", params: 0}                 # FF7/CC call it "slur off", FF8/FF9 call it "nop"
+  0xCE: {semantic: "unknown", params: 0}
+  0xCF: {semantic: "unknown", params: 0}
+  0xD0: {semantic: "unknown", params: 0}
+  0xD1: {semantic: "unknown", params: 0}
+  0xD2: {semantic: "unknown", params: 0}
+  0xD3: {semantic: "unknown", params: 0}
+  0xD4: {semantic: "vibrato_active", params: 2}
+  0xD5: {semantic: "vibrato_inactive", params: 0}
+  0xD6: {semantic: "tremolo_active", params: 2}
+  0xD7: {semantic: "tremolo_inactive", params: 0}
+  0xD8: {semantic: "pitch_bend_set", params: 1}           # FF7/CC
+  0xD9: {semantic: "pitch_bend_add", params: 1}           # FF7/CC
+  0xDA: {semantic: "unknown", params: 0}
+  0xDB: {semantic: "unknown", params: 0}
+  0xDC: {semantic: "unknown", params: 0}
+  0xDD: {semantic: "vibrato_fade", params: 2}             # FF7/CC
+  0xDE: {semantic: "tremolo_fade", params: 2}             # FF7/CC
+  0xDF: {semantic: "pingpong_fade", params: 2}            # FF7/CC
+  0xE0: {semantic: "unknown", params: 0}
+  0xE1: {semantic: "unknown", params: 0}
+  0xE2: {semantic: "unknown", params: 0}
+  0xE3: {semantic: "unknown", params: 0}
+  0xE4: {semantic: "unknown", params: 0}
+  0xE5: {semantic: "unknown", params: 0}
+  0xE6: {semantic: "unknown", params: 0}
+  0xE7: {semantic: "unknown", params: 0}
+  0xE8: {semantic: "unknown", params: 0}
+  0xE9: {semantic: "unknown", params: 0}
+  0xEA: {semantic: "unknown", params: 0}
+  0xEB: {semantic: "unknown", params: 0}
+  0xEC: {semantic: "unknown", params: 0}
+  0xED: {semantic: "unknown", params: 0}
+  0xEE: {semantic: "unknown", params: 0}
+  0xEF: {semantic: "unknown", params: 0}
+  0xF0: {semantic: "unknown", params: 0}
+  0xF1: {semantic: "unknown", params: 0}
+  0xF2: {semantic: "unknown", params: 0}
+  0xF3: {semantic: "unknown", params: 0}
+  0xF4: {semantic: "unknown", params: 0}
+  0xF5: {semantic: "unknown", params: 0}
+  0xF6: {semantic: "unknown", params: 0}
+  0xF7: {semantic: "unknown", params: 0}
+  0xF8: {semantic: "unknown", params: 0}
+  0xF9: {semantic: "unknown", params: 0}
+  0xFA: {semantic: "unknown", params: 0}
+  0xFB: {semantic: "unknown", params: 0}
+  0xFC: {semantic: "unknown", params: 0}
+  0xFD: {semantic: "unknown", params: 0}
+  # 0xFE is the prefix for two-byte opcodes
+  0xFF: {semantic: "halt", params: 0}
+
 # Tempo calculation parameters
 # BPM is calculated as: BPM = (60,000,000 * tempo_value) / tempo_factor
 # where tempo_factor = timer_period_us * timer_count * tempo_resolution
