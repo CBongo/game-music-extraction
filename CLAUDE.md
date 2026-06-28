@@ -2,6 +2,47 @@
 
 This file provides instructions and context for AI coding agents working on this project.
 
+## Project Vision & Relationship to vgmtrans
+
+GME (game-music-extraction) extracts and converts video game music from many platforms
+(NES, SNES, PSX, C64, arcade) into MIDI, MusicXML, and human-readable disassembly. The
+ultimate goal is to automate production of **sheet music scores** so humans can play the
+songs together. The main active effort is the AKAO sound format (Square/Enix driver:
+FF7/8/9, Chrono Cross, plus SNES titles).
+
+[vgmtrans](https://github.com/vgmtrans/vgmtrans) is a mature C++/Qt tool that parses game
+music formats (including AKAO) and exports MIDI/SF2/DLS. GME's relationship with it is
+**complementary, not competing**:
+
+- **GME is the oracle/spec, not code to be migrated.** GME's Perl/Python extractors are
+  *not* destined to be ported into vgmtrans. Their lasting value is as a *reference
+  implementation and documentation of how the game code actually works* — used to improve
+  conversion correctness/musicality and to cross-check vgmtrans's parsers for parity gaps.
+  An oracle that can say "vgmtrans got this opcode wrong" is worth more than a second engine.
+
+- **Three integration paths** (sequenced, not exclusive; not yet committed to any):
+  - **Path A — Upstream the generically-useful pieces** (raw ROM/CD-image input loaders,
+    optional-sample-collection loosening, AKAO parser parity fixes, data-driven scanner
+    constants). Delivered as upstream PRs; this is how the `8lo` epic is scoped.
+  - **Path B — Consume vgmtrans as a library/backend.** GME's sheet-music goal is
+    mission-adjacent for vgmtrans (it targets playback/preservation, not notation), so the
+    score layer naturally lives as a separate consumer on top of vgmtrans — no need to win
+    that argument with the maintainers.
+  - **Path C — Hard fork.** Only if we decide to add functionality the maintainers do not
+    want. High solo-maintenance cost; a fallback, not a default. Trigger = maintainers
+    rejecting the *broadly useful* pieces (Path A), not rejecting score generation.
+
+- **Default: pursue A + B; hold C as a documented fallback.** The cheap experiment that
+  decides A-vs-C is engaging the maintainers (bead `8lo.10`) before sinking large effort.
+
+- **Operating rules:** vgmtrans dev happens in the fork clone (`origin` = CBongo/vgmtrans,
+  `upstream` = vgmtrans/vgmtrans). Issue tracking (beads) **stays in the GME repo** even for
+  vgmtrans work — keeping the fork beads-free keeps PR branches clean for upstream (which
+  uses GitHub Issues). The *only* trigger to migrate beads into the fork is a committed Path
+  C hard fork. Deliver vgmtrans changes as upstream PRs; record the PR link on the relevant
+  bead (e.g. PR #914 ↔ bead `4tn`). Machine-specific paths and agent autonomy settings live
+  in local config (`.claude/`), not here.
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:7510c1e2 -->
 ## Beads Issue Tracker
 
