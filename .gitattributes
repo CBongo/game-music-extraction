@@ -1,0 +1,21 @@
+# Normalize all text files to LF in the repository.
+# This stops the CRLF/LF churn that shows up when editing on Windows
+# (core.autocrlf still converts to CRLF in the working tree on checkout).
+* text=auto
+
+# Game ROM images, sound rips, and other binary assets: never normalize
+# line endings (would corrupt them) and treat as binary in diffs.
+*.bin   binary
+*.prg   binary
+*.nes   binary
+*.nsf   binary
+*.smc   binary
+*.sfc   binary
+*.spc   binary
+*.sid   binary
+*.d64   binary
+*.iso   binary
+*.zip   binary
+*.mid   binary
+*.mscz  binary
+*.png   binary

@@ -13,3 +13,31 @@
 .dolt/
 *.db
 .beads-credential-key
+
+# AKAO extractor scratch / test artifacts
+akao/*.log
+akao/extr_akao_only.txt
+akao/test*.yaml
+
+# Generated music outputs (regenerable from source + game data)
+*.mid
+*.musicxml
+*.events
+*.ir
+
+# Game ROM images and sound rips (copyrighted, large, never committed)
+*.nes
+*.nsf
+*.smc
+*.sfc
+*.bin
+*.prg
+*.spc
+*.sid
+*.d64
+*.iso
+*.zip
+
+# Editor / tool cruft
+**/.vscode/
+**/.mscbackup/
