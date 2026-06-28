@@ -15,16 +15,17 @@ music formats (including AKAO) and exports MIDI/SF2/DLS. GME's relationship with
 **complementary, not competing**:
 
 - **GME is a fallible second implementation, not gospel and not code to be migrated.**
-  GME's Perl/Python extractors are *not* destined to be ported into vgmtrans — but neither
-  are they ground truth. Decades of accreted RE notes carry their own bugs and
-  incompleteness, so treating them as a spec vgmtrans must match is the wrong stance. Their
-  value is as an *independent second reading of how the game code actually works*: when GME
-  and vgmtrans disagree on an opcode (or one covers a case the other doesn't), that
-  **discrepancy is the signal** — it means at least one side is wrong or incomplete. The job
-  is to surface those mismatches and reconcile *both* against the real authority — the game's
-  own code and runtime behaviour. Sometimes reconciliation fixes vgmtrans; sometimes it fixes
-  GME's notes. The deliverable is reconciled parity and better documentation of the format,
-  not declaring a winner.
+  The Perl and Python extractors here are *not* destined to be ported into vgmtrans — but
+  neither are they ground truth. These are decades of accreted reverse-engineering notes,
+  and they carry their own bugs and gaps, so treating them as a spec vgmtrans must match is
+  the wrong stance. Their value is as an *independent second reading of how the game code
+  actually works*, which we use to (a) improve the correctness and musicality of conversion
+  output, and (b) cross-check vgmtrans's parsers. When GME and vgmtrans disagree on an
+  opcode — or one handles a case the other misses — that **discrepancy is the signal**: at
+  least one side is wrong or incomplete. The work is to surface those mismatches and
+  reconcile *both* against the real authority (the game's own code and runtime behaviour).
+  Sometimes that fixes vgmtrans; sometimes it fixes GME's notes. The deliverable is
+  reconciled parity and better format documentation, not a winner.
 
 - **Three integration paths** (sequenced, not exclusive; not yet committed to any):
   - **Path A — Upstream the generically-useful pieces** (raw ROM/CD-image input loaders,
