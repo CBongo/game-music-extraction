@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "game_music_extraction",
+  "project_id": "44f56d14-8d6e-4150-883b-7a97a64f0db8"
+}
