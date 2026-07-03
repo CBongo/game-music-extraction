@@ -77,6 +77,41 @@ state space:
 Initial state comes from `banking.initial_state`, overridable per-format (e.g. a future
 `.crt` format entry derives EXROM/GAME from header bytes 0x18/0x19).
 
+## Read/write asymmetry (`on_write`)
+
+Bank mapping differentiates **read and write targets**. On the C64, when BASIC/KERNAL
+ROM is mapped, only *reads* hit ROM — the 6510's write line always reaches the RAM
+underneath. In the `$D000` window the split varies with bank state: IO mapped → reads
+*and* writes hit the chips; CHARGEN mapped → reads hit ROM, writes fall through to RAM.
+
+This is modeled as a property of the **occupant**, not the state — "writes under this
+occupant go to X" is hardware truth independent of which state selected it, so the
+per-state variance falls out automatically:
+
+```yaml
+occupants:
+  - { name: RAM_D000, kind: ram }                                  # on_write: self
+  - { name: CHARGEN,  kind: rom, image: chargen, on_write: RAM_D000 }
+  - { name: IO,       kind: io }                                   # on_write: self
+```
+
+`on_write` takes one of:
+- *(omitted)* — writes hit this occupant (default for `ram`/`io`)
+- **occupant name** — write-through (C64 RAM-under-ROM)
+- **`mechanism`** — writes are bank-mechanism events, not memory writes (NES: stores
+  into PRG-ROM ranges *are* mapper register writes; this doubles as the analyzer's
+  watch-list for mechanism activity)
+- **`none`** — open bus, writes vanish (C64 Ultimax-mode ROMH, later)
+
+**Ghidra realization**: ROM overlay blocks get R+X (not W); the RAM-under block stays
+writable. But Ghidra resolves a reference to *one* address space — it cannot send a
+`LDA $A000` and a `STA $A000` in the same bank state to different blocks. Loader-policy
+mitigation: an analyzer annotates stores into ROM-mapped ranges with a reference to the
+`on_write` target. **This is additional `gib.2` evidence**: the proposed context-aware
+address resolution hook must be *access-type-aware* — `(context, address, access) →
+block` — because even perfect per-context overlay selection cannot represent
+write-under-ROM.
+
 ## Symbols: sets and provenance
 
 Symbol sources are named sets the user can toggle at import (music-driver RE usually
@@ -93,7 +128,8 @@ instead of dangling into the void.
 
 - **NES**: mechanism-computed states (above); CHR/PPU address space is a *second* bus —
   schema will need multi-space support (`memory.spaces`?). Mapper registry = many
-  mechanism parameterizations sharing strategies.
+  mechanism parameterizations sharing strategies. PRG-ROM occupants get
+  `on_write: mechanism` — mapper writes are detected as stores into those ranges.
 - **SNES**: mirroring at scale (LoROM mirrors across dozens of banks) — `repeat_to` may
   need a stride/pattern form. 65816 already has banked addressing in the language.
 - **PS1**: no banking, but KSEG mirrors and a BIOS slot; mostly exercises `rom_images` +

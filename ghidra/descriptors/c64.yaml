@@ -52,21 +52,24 @@ memory:
       kind: ram
 
   windows:                        # banked ranges; occupant chosen by bank state
+    # Read/write asymmetry: on_write declares where WRITES land while this occupant
+    # is mapped for reads. ROMs write through to the RAM beneath (hardware truth:
+    # the 6510 write line always reaches RAM under ROM). Default (ram/io): self.
     - name: LOROM                 # $A000-$BFFF
       start: 0xA000
       end: 0xBFFF
       occupants:
         - { name: RAM_A000, kind: ram }
-        - { name: BASIC,    kind: rom, image: basic }
+        - { name: BASIC,    kind: rom, image: basic, on_write: RAM_A000 }
 
     - name: CHARIO                # $D000-$DFFF: RAM / CHARGEN / IO three-way
       start: 0xD000
       end: 0xDFFF
       occupants:
         - { name: RAM_D000, kind: ram }
-        - { name: CHARGEN,  kind: rom, image: chargen }
+        - { name: CHARGEN,  kind: rom, image: chargen, on_write: RAM_D000 }
         - name: IO
-          kind: io
+          kind: io            # reads AND writes both hit the chips (on_write: self)
           subregions:
             - name: VIC
               start: 0xD000
@@ -109,7 +112,7 @@ memory:
       end: 0xFFFF
       occupants:
         - { name: RAM_E000, kind: ram }
-        - { name: KERNAL,   kind: rom, image: kernal }
+        - { name: KERNAL,   kind: rom, image: kernal, on_write: RAM_E000 }
 
 banking:
   mechanism:
