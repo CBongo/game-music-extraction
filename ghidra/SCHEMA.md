@@ -135,19 +135,23 @@ instead of dangling into the void.
 - **PS1**: no banking, but KSEG mirrors and a BIOS slot; mostly exercises `rom_images` +
   `symbols`.
 
-## Open questions (for review)
+## Resolved decisions (2026-07-03 review)
 
-1. **Struct source of truth**: inline YAML structs (current draft) vs generating from
-   c64ref vs shipping Ghidra `.gdt` archives. Draft leans: YAML canonical (diffable,
-   migrates with repo), loader builds `DataType`s at load time; KickAssembler's built-in
-   structs used as offset cross-check.
-2. **Symbol interchange**: draft uses YAML with provenance as canonical, with a VICE
-   `.sym` importer as a convenience (de-facto community format). Alternative: `.sym`
-   files as canonical. YAML preferred for provenance + `kind`/`comment` fields `.sym`
-   can't carry.
-3. **Where the bank context register is declared**: the bundled 6510 language must define
-   it (Sleigh context field), and the descriptor references it by name
-   (`banking.context_register`). Language and descriptor must agree — build-time check?
+1. **Structs: YAML canonical, `.gdt` generated at build time — from the start.** A build
+   task (Gradle, Ghidra jars on classpath, `FileDataTypeManager.createFileArchive()`)
+   emits the archive from YAML; the loader *only ever consumes `.gdt`* via the standard
+   archive API — no YAML parsing in the runtime extension. Rules: the `.gdt` is a build
+   artifact (never committed, never hand-edited; CI always regenerates — a release with a
+   stale archive is a silent bug). Bonus deliverable: the archive is usable in stock
+   Ghidra without the extension — the first published C64 hardware-struct `.gdt`.
+   KickAssembler built-ins remain the offset cross-check.
+2. **Symbols: YAML canonical + VICE `.sym` importer.** YAML carries what `.sym` can't
+   (provenance/license, `kind: entry|vector`, comments — needed for empty-ROM-slot entry
+   stubs). The importer accepts community label files and users' own assembler output
+   (cc65 `-Ln`, KickAssembler `--vicesymbols`).
+3. **Descriptor ↔ language agreement: load-time check.** At import, the loader verifies
+   the selected language actually declares `banking.context_register`; fails with a clear
+   error naming both sides. Catches field version-skew, needs no build infrastructure.
 
 ## Validation (emulator oracle)
 
