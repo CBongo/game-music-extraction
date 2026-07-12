@@ -73,7 +73,7 @@ reference `docs/psx-akao-disc-formats.md`.)
 
 | Game | Container | What the loader must do | Sources |
 |---|---|---|---|
-| **Chrono Cross** | Raw 2352-byte sectors; AKAO blocks span sector boundaries | Cook sectors (strip 24-byte header+subheader, keep 0x800) → byte-scan just works | `psx/cc/extractakao.pl`, `readsectors.pl` |
+| **Chrono Cross** | AKAO blocks directly in the image, spanning sector boundaries | Cook raw sectors if the dump is raw (strip 24-byte header+subheader, keep 0x800) → byte-scan just works | `psx/cc/extractakao.pl`, `readsectors.pl` |
 | **FF9** | `FF9.IMG` custom archive, typed directory (type 7 = song, 9 = instrument), cooked sectors | Parse FF9.IMG directory, emit song/instrument entries; plain AKAO byte-scan confirmed working on cooked image | `psx/ff9/extract_akao.pl`, `findakao` |
 | **FF8** | `FF8DISCn.IMG` monolith (n=1-4). Root dir at 0h (NTSC) / 2800h (PAL); entries = ISO sector number + byte size, positions relative to ISO start. **Root files 0x1E–0x7F are PADBUG archives, each holding two AKAO files** (0x4B: one AKAO + one TXT). LZ5-variant compression in the archive; fields dir hidden in LZS `FIELD.BIN` (root file 2) — not needed for music | Locate IMG (name match), parse root dir, take entries 0x1E–0x7F, unpack PADBUG containers (+LZ5 where applied), emit AKAO pairs | [nocash FF8 IMG docs](https://problemkaputt.de/psxspx-cdrom-file-archive-ff8-img-final-fantasy-viii.htm), [FFRTT PlaystationMedia](https://wiki.ffrtt.ru/index.php/FF8/PlaystationMedia) |
 | **FF7** | AKAO embedded inside LZS-compressed field-script DAT files (ISO9660 FS) + world-map TXZ, located via per-file extraOffset tables; instrument tables non-AKAO-tagged | ISO9660 walk → LZS decompress (`psx/ff7/unlzs.pl`) → offset-table walk → emit blocks; per-game pointers for instrAll/instrDat | `psx/ff7/extract_akao.pl` |
@@ -108,8 +108,12 @@ upstream shape.
 
 ## 6. Implications for the epic
 
-- **8lo.3 (disc loader): two tiers.** Tier 1 mounts .cue/.bin/.iso and cooks sectors
-  into a logical image (CC and FF9-via-byte-scan work immediately; mirrors CHDLoader).
+- **8lo.3 (disc loader): two tiers.** Tier 1 mounts .cue/.bin/.iso and produces a
+  logical (cooked) image (CC and FF9-via-byte-scan work immediately; mirrors
+  CHDLoader). **Sector format (2352 raw vs 2048 cooked) is a property of the dump,
+  not the game — autodetect it per image** (size divisibility, confirmed by
+  sync-pattern/PVD probe; see `docs/psx-akao-disc-formats.md`) and keep it out of
+  per-game config (8lo.5).
   Tier 2 walks ISO9660 / game archives with per-game decode (FF9.IMG dir; FF8 root dir
   + PADBUG/LZ5; FF7 LZS + extraOffset), emitting per-file VirtFiles. Tier 2 is where
   8lo.9 and 8lo.5 plug in.

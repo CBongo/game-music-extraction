@@ -10,7 +10,23 @@ covers the *formats*).
 All multi-byte integers are little-endian unless noted. "Cooked sector" = 2048 (0x800)
 data bytes; "raw sector" = 2352 (0x930) bytes as stored in .bin images.
 
-## Raw-sector cooking (Mode 2 Form 1)
+## Sector format: an image property, not a game property
+
+Whether an image has raw (2352-byte) or cooked (2048-byte) sectors depends on how the
+disc was dumped (.bin/.img vs .iso), **not on the game** — the same title can arrive
+either way. Loaders must autodetect per image and never bake a sector size into a
+game description:
+
+- **Size divisibility**: `size % 2352 == 0` vs `size % 2048 == 0`. Sufficient alone
+  only when exactly one divides; collisions occur (gcd is 16), so confirm with:
+- **Sync pattern**: raw sectors start with the 12-byte sync
+  `00 FF FF FF FF FF FF FF FF FF FF 00` at offset 0 (and every 2352 bytes).
+- **ISO9660 PVD probe**: `"CD001"` at sector 16 — offset 0x8001 in a cooked image,
+  0x9330+0x19 in a raw one.
+- Rarer variants exist (2336-byte Mode 2 sans sync/header dumps; audio-track-bearing
+  cue sheets) — detect-and-reject with a clear message rather than misparse.
+
+### Raw-sector cooking (Mode 2 Form 1)
 
 Raw 2352-byte sector layout: 12 sync + 4 header + 8 subheader = **24 bytes to skip**,
 then 0x800 data bytes (rest is EDC/ECC). Multi-sector payloads are the concatenation
@@ -36,7 +52,8 @@ to the block start, so a block extracted as contiguous bytes parses standalone.
 ## Chrono Cross
 
 - No archive, no compression: AKAO blocks live directly in the disc image, but they
-  **span raw-sector boundaries**, so they only become contiguous after cooking.
+  **span sector boundaries**, so raw dumps only yield contiguous blocks after cooking
+  (cooked dumps are scan-ready as-is).
 - Extraction = cook sectors → byte-scan for `"AKAO"`. The simplest target.
 - Tool: `psx/cc/extractakao.pl` (sector lists), `psx/cc/findakao.pl` (scan).
 
