@@ -4,7 +4,7 @@
 
 use MIDI;
 
-$tempo_factor = 12_000_000;  # 60M is std MIDI divisor
+$tempo_factor = 8_000_000;  # 60M is std MIDI divisor
 
 @songtitles = ("Powerup", "(1)Desert", "(2)Bubbles", "(3)Deja Vu",
 			   "(4)The Moai", "(7)High Speed", "(5)Inferno", "(6)Garden",
@@ -107,7 +107,7 @@ for ($song = 0, $numdone = 0; $song < @dosong; $song++) {
   printf STDERR "%02x ", $song;
   print STDERR "\n" if ++$numdone % 16 == 0;
 
-  $opus = new MIDI::Opus ({'format' => 1, 'ticks' => 24});
+  $opus = new MIDI::Opus ({'format' => 1, 'ticks' => 16});
   my $ctrack = new MIDI::Track;
   push @{$opus->tracks_r}, $ctrack;
   my $cevents = [];

@@ -4,6 +4,31 @@
 # cab 2017-05-18 or so
 #
 
+# more info from chronocompendium:
+#
+# The Table of Contents (hereafter TOC) is literally the most important
+# file to work with for purposes of Chrono Cross modification. It is
+# essentially a giant pointer table that the game engine uses to determine
+# where every file begins and ends, and occupies 12 sectors beginning at
+# sector 24 (offset 0xc000 in an ISO, offset 0xdcc8 in a BIN).
+#
+# The TOC entries have a four byte stride and can be presented thus:
+#
+# SS SS FS BB
+# 
+# Where...
+# 
+#    S = "Logical Sector"; 2.5-byte little-endian pointer indicating the sector boundary on which the file begins.
+#    F = "Flag"; the first bit of this nybble will be set if and only if this TOC entry is a duplicate of the next real record.
+#    BB = Number of zeroed buffer bytes between the end of the file and the next sector boundary, divided by 8.
+#
+# For instance, the entry for file 0001 is 4E 01 00 F7. To find the
+# starting location of this file in a CD image, we first reverse the
+# first 2.5 bytes (yielding 0x0014e) then multiply the result by 2048
+# for an ISO image (= 0xa7000) or by 2354 for a BIN (= 0xbff3c, then add
+# an additional 24 to account for the sector header, giving a final
+#  total of 0xbff54). 
+
 $fn = shift or die "usage: $0 <filename>\n";
 
 open IN, "< $fn" or die "open failed: $!\n";

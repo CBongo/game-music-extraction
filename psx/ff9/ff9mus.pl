@@ -181,11 +181,13 @@ foreach $fname (sort @fnames) {
   print OUT "\n";
 
   $songbase = 0x80100000;
+  $id = &getpsx("v", $songbase + 0x4, 2);
 
   $vmask = &getpsx("V", $songbase + 0x20, 4);
   @vmask = split //, &getpsx("b32", $songbase + 0x20, 4);
   $vcount = &getpsx("%b32", $songbase + 0x20, 4);
 
+  printf OUT "AKAO Id: %02x\n", $id;
   printf OUT "Voice mask:  %08x\n", $vmask;
   print  OUT "Voice mask bits: ", join(",",@vmask), "\n";
   printf OUT "Voice count: %d\n", $vcount;
