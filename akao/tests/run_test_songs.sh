@@ -1,4 +1,6 @@
 #!/bin/sh -fx
+# run from akao/ so yaml configs and ../{snes,psx} ROM paths resolve
+cd "$(dirname "$0")/.." || exit 1
 python extract_akao.py ct.yaml ../snes/ct/chrono.smc --song 0x15
 python extract_akao.py ff2.yaml ../snes/ff2/ff2.smc --song 0x0d
 python extract_akao.py ff3.yaml ../snes/ff3/f_fan3.fig --song 0x6
