@@ -1,0 +1,223 @@
+{
+  "schema_version": "instrument-analysis/v1",
+  "generator": { "name": "hand-authored acceptance fixtures", "version": "1" },
+  "records": [
+    {
+      "record_id": "akao-psx-example-7",
+      "source": {
+        "platform": "Sony PlayStation",
+        "game_or_module": "Illustrative AKAO game",
+        "driver": "AKAO PSX",
+        "source_files": [{ "path": "INSTR.DAT", "offset": 4096, "length": 16 }]
+      },
+      "identity": {
+        "source_instrument_id": 7,
+        "source_patch_command": 7,
+        "song_local_slot": 3,
+        "sample_ids": [42, 43]
+      },
+      "observation": {
+        "synthesis": {
+          "engine": "sample",
+          "sample": {
+            "encoding": { "value": "SPU ADPCM", "basis": "hardware_fact", "provenance": { "method": "PSX SPU format" } },
+            "raw_sample_path": { "value": "samples/002a.vag", "basis": "source_fact", "provenance": { "method": "AKAO sample-set extraction" } }
+          },
+          "hardware_context": [
+            { "value": "PSX SPU pitch register", "basis": "hardware_fact", "provenance": { "method": "documented hardware model" } }
+          ]
+        },
+        "pitch": {
+          "source_unity_key": { "value": 60, "unit": "midi_note", "basis": "source_fact", "provenance": { "method": "decoded AKAO tone field" } },
+          "source_fine_tune_cents": { "value": -12.5, "unit": "cent", "basis": "source_fact", "provenance": { "method": "decoded AKAO tone field" } },
+          "observed_pitch_offset": {
+            "semitones": 0,
+            "residual_cents": -12.5,
+            "basis": "source_fact",
+            "confidence": 1,
+            "provenance": { "method": "unity-key and fine-tune calculation" }
+          }
+        },
+        "envelopes": [
+          {
+            "kind": "amplitude",
+            "raw": { "adsr1": 40879, "adsr2": 24575 },
+            "basis": "source_fact",
+            "confidence": 1,
+            "provenance": { "method": "decoded AKAO tone fields" }
+          }
+        ],
+        "zones": [
+          { "zone_id": 0, "sample_id": 42, "key_range": { "minimum": 0, "maximum": 71 }, "pitch": { "source_unity_key": { "value": 60, "unit": "midi_note", "basis": "source_fact", "provenance": { "method": "decoded AKAO tone field" } } }, "provenance": { "method": "decoded AKAO tone 0" } },
+          { "zone_id": 1, "sample_id": 43, "key_range": { "minimum": 72, "maximum": 127 }, "pitch": { "source_unity_key": { "value": 72, "unit": "midi_note", "basis": "source_fact", "provenance": { "method": "decoded AKAO tone field" } } }, "gain_db": { "value": -3, "unit": "dB", "basis": "source_fact", "provenance": { "method": "decoded AKAO tone volume" } }, "provenance": { "method": "decoded AKAO tone 1" } }
+        ],
+        "usage": {
+          "provenance": { "method": "sequence decoder instrument-usage scan" },
+          "sequence_count": 1,
+          "sequences": [{ "sequence_id": "song-12", "track_ids": [4], "raw_sequence_notes": [60, 62, 65], "sounding_midi_notes": [60, 62, 65], "source_patch_commands": [7] }],
+          "overall_raw_note_range": { "minimum": 60, "maximum": 65 },
+          "overall_sounding_note_range": { "minimum": 60, "maximum": 65 }
+        }
+      },
+      "analysis": {
+        "routing": [
+          {
+            "rank": 1,
+            "route": { "kind": "gm_program", "program_0based": 73, "program_1based": 74, "melodic_percussion": false },
+            "score": 0.78,
+            "basis": "inferred",
+            "provenance": { "method": "illustrative metadata/audio ranker" },
+            "observed_pitch_offset": { "semitones": 0, "residual_cents": -12.5, "basis": "source_fact", "confidence": 1, "provenance": { "method": "unity-key and fine-tune calculation" } },
+            "candidate_audition_octave_adjustment": 1,
+            "evidence": ["sustained monophonic use", "vibrato", "breathy spectrum"]
+          }
+        ]
+      }
+    },
+    {
+      "record_id": "snes-example-12",
+      "source": { "platform": "Super Nintendo", "game_or_module": "Illustrative SNES game", "driver": "SPC700 custom driver" },
+      "identity": { "source_instrument_id": 12, "source_patch_command": 64, "song_local_slot": 2, "sample_ids": [12] },
+      "observation": {
+        "synthesis": {
+          "engine": "sample",
+          "sample": {
+            "encoding": { "value": "BRR", "basis": "hardware_fact", "provenance": { "method": "SNES DSP format" } },
+            "sample_rate_hz": { "value": 32000, "basis": "hardware_fact", "provenance": { "method": "SNES DSP output rate" } },
+            "raw_sample_path": { "value": "samples/0c.brr", "basis": "source_fact", "provenance": { "method": "SPC directory extraction" } }
+          },
+          "hardware_context": [
+            { "value": { "pitch_scale_reference": "0x1000", "interpolation": "Gaussian" }, "basis": "hardware_fact", "provenance": { "method": "SNES DSP playback model" } }
+          ]
+        },
+        "pitch": {
+          "pitch_register_reference": {
+            "register_value": "0x10c3",
+            "note": { "number": 60, "name": "C4", "octave_convention": "MIDI 60 = C4" },
+            "register_scale_reference": "0x1000",
+            "basis": "source_fact",
+            "confidence": 1,
+            "provenance": { "method": "reverse-engineered driver pitch table" }
+          },
+          "observed_pitch_offset": { "semitones": 0, "residual_cents": 0, "basis": "measured", "confidence": 0.96, "provenance": { "method": "autocorrelation at driver C4" } }
+        },
+        "loops": [{ "start_frame": 512, "end_frame_exclusive": 2048, "mode": "forward", "basis": "source_fact", "confidence": 1, "provenance": { "method": "BRR end/loop flags and sample directory" } }],
+        "usage": {
+          "provenance": { "method": "sequence decoder instrument-usage scan" },
+          "sequence_count": 1,
+          "sequences": [{ "sequence_id": "03", "track_ids": [1, 6], "raw_sequence_notes": [48, 52, 55, 60], "sounding_midi_notes": [48, 52, 55, 60], "source_patch_commands": [64] }],
+          "overall_raw_note_range": { "minimum": 48, "maximum": 72 },
+          "overall_sounding_note_range": { "minimum": 48, "maximum": 72 },
+          "percussion_bindings": [
+            { "sequence_id": "03", "source_trigger_note": 36, "underlying_instrument_id": 12, "source_sample_note": 60, "volume_raw": 112, "pan_raw": 64, "provenance": { "method": "decoded song-local percussion table" } }
+          ]
+        },
+        "effects": [
+          {
+            "sequence_id": "03",
+            "track_id": 1,
+            "time": { "value": 384, "unit": "source_tick", "timebase": 48 },
+            "raw_opcode": "0xca",
+            "raw_operands": [18, 6],
+            "semantic": "vibrato",
+            "normalized": { "delay_ticks": 18, "depth_raw": 6 },
+            "provenance": { "method": "snes/example/examplemus.pl", "location": { "path": "song.bin", "offset": 821 } }
+          }
+        ],
+        "existing_mapping": {
+          "route": { "kind": "gm_program", "program_0based": 109, "program_1based": 110, "melodic_percussion": false },
+          "legacy_transpose": { "value": 0, "unit": "octave", "intent": "audition_octave", "provenance": { "method": "legacy Perl @transpose" } },
+          "basis": "curated",
+          "confidence": 0.7,
+          "provenance": { "method": "legacy @patchmap" }
+        }
+      }
+    },
+    {
+      "record_id": "gradius3-arcade-fm-5",
+      "source": { "platform": "Arcade", "game_or_module": "Gradius III", "driver": "custom 68000/Z80 music driver" },
+      "identity": { "source_instrument_id": 5, "source_patch_command": 5 },
+      "observation": {
+        "synthesis": {
+          "engine": "fm",
+          "fm": {
+            "chip": { "value": "YM2151", "basis": "hardware_fact", "provenance": { "method": "board hardware" } },
+            "algorithm": { "value": 4, "basis": "source_fact", "provenance": { "method": "instrument register decode" } },
+            "operators": [
+              { "value": { "multiple": 1, "total_level": 32, "attack_rate": 31 }, "basis": "source_fact", "provenance": { "method": "instrument register decode" } },
+              { "value": { "multiple": 2, "total_level": 48, "attack_rate": 25 }, "basis": "source_fact", "provenance": { "method": "instrument register decode" } }
+            ],
+            "register_dump": { "value": "fm/patch05.bin", "basis": "source_fact", "provenance": { "method": "ROM table extraction" } }
+          }
+        },
+        "pitch": {
+          "observed_pitch_offset": { "semitones": 0, "residual_cents": 1.7, "basis": "measured", "confidence": 0.91, "provenance": { "method": "rendered steady-state fundamental estimate" } }
+        },
+        "usage": {
+          "provenance": { "method": "arcade/gradius3/g3arcmus.pl usage scan" },
+          "sequence_count": 1,
+          "sequences": [{ "sequence_id": "stage-1", "track_ids": [2], "raw_sequence_notes": [45, 52, 57, 64], "sounding_midi_notes": [45, 52, 57, 64], "source_patch_commands": [5], "note_occurrences": [{ "event_index": 12, "track_id": 2, "raw_sequence_note": 45, "octave_state": 3, "global_transpose_semitones": 0, "track_transpose_semitones": 0, "ramp_transpose_semitones": 0, "sample_tuning_semitones": 0, "sounding_midi_note": 45, "provenance": { "method": "g3arcmus.pl state trace" } }] }],
+          "overall_raw_note_range": { "minimum": 40, "maximum": 76 },
+          "overall_sounding_note_range": { "minimum": 40, "maximum": 76 }
+        },
+        "effects": [
+          { "sequence_id": "stage-1", "track_id": 2, "event_index": 0, "raw_opcode": "0xe8", "raw_operands": [0], "semantic": "transpose", "normalized": { "scope": "global", "semitones": 0 }, "provenance": { "method": "arcade/gradius3/g3arctxt.pl", "location": { "path": "audio.rom", "offset": 2322 } } },
+          { "sequence_id": "stage-1", "track_id": 2, "time": { "value": 96, "unit": "source_tick" }, "raw_opcode": "0xed", "raw_operands": [4, 12], "semantic": "vibrato", "normalized": { "rate_raw": 4, "depth_raw": 12 }, "provenance": { "method": "arcade/gradius3/g3arcmus.pl" } }
+        ]
+      },
+      "analysis": {
+        "routing": [
+          { "rank": 1, "route": { "kind": "gm_program", "program_0based": 81, "program_1based": 82, "melodic_percussion": false }, "score": 0.42, "basis": "inferred", "provenance": { "method": "illustrative spectral similarity" }, "candidate_audition_octave_adjustment": 0 },
+          { "rank": 2, "route": { "kind": "abstain", "reason": "No GM candidate exceeds the configured confidence threshold" }, "score": 0.58, "basis": "inferred", "provenance": { "method": "illustrative routing threshold" } }
+        ]
+      }
+    },
+    {
+      "record_id": "protracker-major-chord-3",
+      "source": { "platform": "Amiga", "game_or_module": "Illustrative ProTracker module", "driver": "ProTracker MOD", "container": "example.mod" },
+      "identity": { "source_instrument_id": 3, "source_patch_command": 3, "sample_ids": [3], "display_name": "MAJOR" },
+      "observation": {
+        "synthesis": {
+          "engine": "sample",
+          "sample": {
+            "encoding": { "value": "8-bit signed PCM", "basis": "source_fact", "provenance": { "method": "MOD header decode" } },
+            "sample_rate_hz": { "value": 8287.14, "basis": "hardware_fact", "provenance": { "method": "PAL Amiga C-3 reference period" } },
+            "raw_sample_path": { "value": "samples/03.raw", "basis": "source_fact", "provenance": { "method": "MOD sample extraction" } }
+          }
+        },
+        "pitch": {
+          "observed_pitch_offset": { "semitones": -5, "residual_cents": 0, "basis": "measured", "confidence": 0.98, "provenance": { "method": "multi-pitch spectral analysis relative to trigger" } }
+        },
+        "usage": {
+          "sequence_count": 1,
+          "provenance": { "method": "MOD pattern instrument-usage scan" },
+          "sequences": [{ "sequence_id": "example.mod", "track_ids": [0, 2], "raw_sequence_notes": [60, 65, 67], "sounding_midi_notes": [55, 60, 62], "source_patch_commands": [3] }],
+          "overall_raw_note_range": { "minimum": 60, "maximum": 67 },
+          "overall_sounding_note_range": { "minimum": 55, "maximum": 74 }
+        },
+        "effects": [
+          { "sequence_id": "example.mod", "track_id": 0, "time": { "value": 16, "unit": "row" }, "raw_opcode": "0x0", "raw_operands": [55], "semantic": "arpeggio", "normalized": { "semitone_offsets": [0, 3, 7] }, "provenance": { "method": "MOD pattern decode" } }
+        ]
+      },
+      "analysis": {
+        "routing": [
+          { "rank": 1, "route": { "kind": "composite", "description": "Baked major triad sample" }, "score": 0.99, "basis": "measured", "provenance": { "method": "multi-pitch spectral analysis" } }
+        ],
+        "composite": {
+          "is_harmonic_composite": true,
+          "score": 0.99,
+          "basis": "measured",
+          "provenance": { "method": "multi-pitch spectral analysis at three trigger notes" },
+          "trigger_reference": { "number": 60, "name": "C4", "octave_convention": "MIDI 60 = C4" },
+          "components": [
+            { "semitone_offset": -5, "residual_cents": 0, "relative_level_db": -2.1, "confidence": 0.99 },
+            { "semitone_offset": 0, "residual_cents": 1.2, "relative_level_db": 0, "confidence": 0.99 },
+            { "semitone_offset": 4, "residual_cents": -0.8, "relative_level_db": -1.4, "confidence": 0.98 }
+          ],
+          "quality": "major",
+          "inversion_or_voicing": "second inversion below trigger: G3-C4-E4 when triggered by C4"
+        }
+      }
+    }
+  ]
+}

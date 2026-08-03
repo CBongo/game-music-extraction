@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-analysis-v1.schema.json",
+  "title": "Game music instrument observation and analysis bundle",
+  "description": "Version 1 contract between source-specific extractors and GM-mapping/composite-sound analyzers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "records"],
+  "properties": {
+    "schema_version": { "const": "instrument-analysis/v1" },
+    "generator": { "$ref": "#/$defs/tool" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "command": { "type": "string" }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "source", "identity", "observation"],
+      "properties": {
+        "record_id": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "observation": { "$ref": "#/$defs/observation" },
+        "analysis": { "$ref": "#/$defs/analysis" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "game_or_module", "driver"],
+      "properties": {
+        "platform": { "type": "string", "minLength": 1 },
+        "game_or_module": { "type": "string", "minLength": 1 },
+        "region_or_version": { "type": "string" },
+        "driver": { "type": "string", "minLength": 1 },
+        "container": { "type": "string" },
+        "source_files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceLocation" }
+        }
+      }
+    },
+    "sourceLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "offset": { "type": "integer", "minimum": 0 },
+        "length": { "type": "integer", "minimum": 0 },
+        "address_space": { "type": "string" },
+        "address": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "note": { "type": "string" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_instrument_id"],
+      "properties": {
+        "source_instrument_id": { "type": ["integer", "string"] },
+        "source_patch_command": { "type": ["integer", "string", "null"] },
+        "song_local_slot": { "type": ["integer", "string", "null"] },
+        "sample_ids": {
+          "type": "array",
+          "items": { "type": ["integer", "string"] },
+          "uniqueItems": true
+        },
+        "display_name": { "type": "string" }
+      }
+    },
+    "datum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "basis", "provenance"],
+      "properties": {
+        "value": {},
+        "unit": { "type": "string" },
+        "basis": {
+          "enum": ["source_fact", "hardware_fact", "measured", "inferred", "curated"]
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string", "minLength": 1 },
+        "tool": { "$ref": "#/$defs/tool" },
+        "location": { "$ref": "#/$defs/sourceLocation" },
+        "parameters": { "type": "object" },
+        "note": { "type": "string" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "synthesis": { "$ref": "#/$defs/synthesis" },
+        "pitch": { "$ref": "#/$defs/pitchObservation" },
+        "envelopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/envelope" }
+        },
+        "loops": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sampleLoop" }
+        },
+        "zones": { "type": "array", "items": { "$ref": "#/$defs/zone" } },
+        "usage": { "$ref": "#/$defs/usage" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effect" }
+        },
+        "existing_mapping": { "$ref": "#/$defs/existingMapping" }
+      }
+    },
+    "synthesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine"],
+      "properties": {
+        "engine": {
+          "enum": ["sample", "wavetable", "fm", "psg", "noise", "hybrid", "unknown"]
+        },
+        "sample": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "encoding": { "$ref": "#/$defs/datum" },
+            "channels": { "$ref": "#/$defs/datum" },
+            "sample_rate_hz": { "$ref": "#/$defs/datum" },
+            "frame_count": { "$ref": "#/$defs/datum" },
+            "waveform_path": { "$ref": "#/$defs/datum" },
+            "raw_sample_path": { "$ref": "#/$defs/datum" },
+            "sha256": { "$ref": "#/$defs/datum" }
+          }
+        },
+        "fm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chip": { "$ref": "#/$defs/datum" },
+            "algorithm": { "$ref": "#/$defs/datum" },
+            "operators": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/datum" }
+            },
+            "register_dump": { "$ref": "#/$defs/datum" }
+          }
+        },
+        "hardware_context": {
+          "type": "array",
+          "description": "Known playback facts such as clock, pitch-register scale, interpolation, or codec behavior.",
+          "items": { "$ref": "#/$defs/datum" }
+        }
+      }
+    },
+    "pitchObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_unity_key": { "$ref": "#/$defs/datum" },
+        "source_fine_tune_cents": { "$ref": "#/$defs/datum" },
+        "base_frequency_hz": { "$ref": "#/$defs/datum" },
+        "pitch_register_reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["register_value", "note", "basis", "provenance"],
+          "properties": {
+            "register_value": { "type": ["integer", "number", "string"] },
+            "note": { "$ref": "#/$defs/midiNote" },
+            "register_scale_reference": { "type": ["integer", "number", "string"] },
+            "basis": { "enum": ["source_fact", "hardware_fact", "measured", "inferred", "curated"] },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "provenance": { "$ref": "#/$defs/provenance" }
+          }
+        },
+        "observed_pitch_offset": {
+          "$ref": "#/$defs/pitchOffset"
+        }
+      }
+    },
+    "pitchOffset": {
+      "type": "object",
+      "description": "Sounding pitch minus the pitch named by the raw sequenced note. Positive means the sound is sharper/higher. This describes observed source behavior, never notation transposition or a GM audition octave.",
+      "additionalProperties": false,
+      "required": ["semitones", "residual_cents", "basis", "provenance"],
+      "properties": {
+        "semitones": { "type": "integer" },
+        "residual_cents": { "type": "number", "minimum": -50, "maximum": 50 },
+        "basis": { "enum": ["source_fact", "hardware_fact", "measured", "inferred", "curated"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "midiNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "name": { "type": "string" },
+        "octave_convention": { "const": "MIDI 60 = C4" }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "raw", "basis", "provenance"],
+      "properties": {
+        "kind": { "enum": ["amplitude", "pitch", "filter", "operator", "unknown"] },
+        "raw": {},
+        "normalized": {
+          "type": "object",
+          "properties": {
+            "attack_seconds": { "type": "number", "minimum": 0 },
+            "decay_seconds": { "type": "number", "minimum": 0 },
+            "sustain_level": { "type": "number", "minimum": 0, "maximum": 1 },
+            "release_seconds": { "type": "number", "minimum": 0 }
+          },
+          "additionalProperties": true
+        },
+        "basis": { "enum": ["source_fact", "hardware_fact", "measured", "inferred", "curated"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "sampleLoop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_frame", "end_frame_exclusive", "mode", "basis", "provenance"],
+      "properties": {
+        "start_frame": { "type": "integer", "minimum": 0 },
+        "end_frame_exclusive": { "type": "integer", "minimum": 1 },
+        "mode": { "enum": ["forward", "ping_pong", "reverse", "unknown"] },
+        "basis": { "enum": ["source_fact", "hardware_fact", "measured", "inferred", "curated"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "description": "A tone, articulation, split, or layer within one source instrument. Zone-local values override record-level defaults.",
+      "additionalProperties": false,
+      "required": ["zone_id", "sample_id", "provenance"],
+      "properties": {
+        "zone_id": { "type": ["integer", "string"] },
+        "sample_id": { "type": ["integer", "string"] },
+        "key_range": { "$ref": "#/$defs/noteRange" },
+        "velocity_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": { "type": "integer", "minimum": 0, "maximum": 127 },
+            "maximum": { "type": "integer", "minimum": 0, "maximum": 127 }
+          }
+        },
+        "pitch": { "$ref": "#/$defs/pitchObservation" },
+        "envelopes": { "type": "array", "items": { "$ref": "#/$defs/envelope" } },
+        "loops": { "type": "array", "items": { "$ref": "#/$defs/sampleLoop" } },
+        "gain_db": { "$ref": "#/$defs/datum" },
+        "pan": { "$ref": "#/$defs/datum" },
+        "reverb_send": { "$ref": "#/$defs/datum" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provenance"],
+      "properties": {
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "sequence_count": { "type": "integer", "minimum": 0 },
+        "sequences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sequence_id"],
+            "properties": {
+              "sequence_id": { "type": ["integer", "string"] },
+              "track_ids": { "type": "array", "items": { "type": ["integer", "string"] } },
+              "raw_sequence_notes": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 127 } },
+              "sounding_midi_notes": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 127 } },
+              "note_histogram": {
+                "type": "object",
+                "additionalProperties": { "type": "integer", "minimum": 0 }
+              },
+              "source_patch_commands": { "type": "array", "items": { "type": ["integer", "string"] } },
+              "note_occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["raw_sequence_note", "sounding_midi_note"],
+                  "properties": {
+                    "event_index": { "type": "integer", "minimum": 0 },
+                    "track_id": { "type": ["integer", "string"] },
+                    "raw_sequence_note": { "type": "integer", "minimum": 0, "maximum": 127 },
+                    "octave_state": { "type": "integer" },
+                    "global_transpose_semitones": { "type": "integer" },
+                    "track_transpose_semitones": { "type": "integer" },
+                    "ramp_transpose_semitones": { "type": "integer" },
+                    "sample_tuning_semitones": { "type": "number" },
+                    "sounding_midi_note": { "type": "number", "minimum": 0, "maximum": 127 },
+                    "provenance": { "$ref": "#/$defs/provenance" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "overall_raw_note_range": { "$ref": "#/$defs/noteRange" },
+        "overall_sounding_note_range": { "$ref": "#/$defs/noteRange" },
+        "percussion_bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_trigger_note", "underlying_instrument_id", "provenance"],
+            "properties": {
+              "sequence_id": { "type": ["integer", "string"] },
+              "source_trigger_note": { "type": "integer", "minimum": 0, "maximum": 127 },
+              "underlying_instrument_id": { "type": ["integer", "string"] },
+              "zone_id": { "type": ["integer", "string"] },
+              "source_sample_note": { "type": "integer", "minimum": 0, "maximum": 127 },
+              "volume_raw": { "type": ["integer", "number"] },
+              "pan_raw": { "type": ["integer", "number"] },
+              "provenance": { "$ref": "#/$defs/provenance" }
+            }
+          }
+        }
+      }
+    },
+    "noteRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "maximum": { "type": "integer", "minimum": 0, "maximum": 127 }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence_id", "track_id", "raw_opcode", "raw_operands", "semantic", "provenance"],
+      "anyOf": [
+        { "required": ["time"] },
+        { "required": ["event_index"] }
+      ],
+      "properties": {
+        "sequence_id": { "type": ["integer", "string"] },
+        "track_id": { "type": ["integer", "string"] },
+        "time": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "unit"],
+          "properties": {
+            "value": { "type": "number", "minimum": 0 },
+            "unit": { "enum": ["source_tick", "midi_tick", "second", "row"] },
+            "timebase": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "event_index": { "type": "integer", "minimum": 0 },
+        "occurrence_count": { "type": "integer", "minimum": 1 },
+        "raw_opcode": { "type": ["integer", "string"] },
+        "raw_operands": { "type": "array", "items": { "type": ["integer", "number", "string"] } },
+        "semantic": {
+          "enum": ["vibrato", "tremolo", "pitch_bend", "portamento", "arpeggio", "transpose", "detune", "envelope_change", "other", "unknown"]
+        },
+        "normalized": { "type": "object" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "existingMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A historical/manual mapping is an input feature or label, not automatically ground truth.",
+      "required": ["route", "basis", "provenance"],
+      "properties": {
+        "route": { "$ref": "#/$defs/route" },
+        "observed_pitch_offset": { "$ref": "#/$defs/pitchOffset" },
+        "candidate_audition_octave_adjustment": { "type": "integer" },
+        "basis": { "const": "curated" },
+        "legacy_transpose": {
+          "type": "object",
+          "description": "Raw historical transpose value with explicit units and intent; never assume legacy Perl values are semitones.",
+          "additionalProperties": false,
+          "required": ["value", "unit", "intent", "provenance"],
+          "properties": {
+            "value": { "type": "number" },
+            "unit": { "enum": ["octave", "semitone", "cent", "unknown"] },
+            "intent": { "enum": ["audition_octave", "pitch_correction", "driver_transpose", "unknown"] },
+            "provenance": { "$ref": "#/$defs/provenance" }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "routing": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/routingCandidate" }
+        },
+        "composite": { "$ref": "#/$defs/compositeAnalysis" },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "routingCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "route", "score", "basis", "provenance"],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 1 },
+        "route": { "$ref": "#/$defs/route" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "basis": { "enum": ["measured", "inferred", "curated"] },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "observed_pitch_offset": { "$ref": "#/$defs/pitchOffset" },
+        "candidate_audition_octave_adjustment": {
+          "type": "integer",
+          "description": "Whole octaves applied only while auditioning this GM candidate. This does not alter the observed source pitch offset."
+        },
+        "evidence": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "route": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "program_0based", "program_1based"],
+          "properties": {
+            "kind": { "const": "gm_program" },
+            "program_0based": { "type": "integer", "minimum": 0, "maximum": 127 },
+            "program_1based": { "type": "integer", "minimum": 1, "maximum": 128 },
+            "melodic_percussion": { "type": "boolean", "default": false }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "note"],
+          "properties": {
+            "kind": { "const": "gm_percussion" },
+            "note": { "type": "integer", "minimum": 0, "maximum": 127 },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "sfx" },
+            "description": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "composite" },
+            "description": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reason"],
+          "properties": {
+            "kind": { "const": "abstain" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "compositeAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_harmonic_composite", "score", "basis", "provenance", "components"],
+      "properties": {
+        "is_harmonic_composite": { "type": "boolean" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "basis": { "enum": ["measured", "inferred", "curated"] },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "trigger_reference": {
+          "description": "Raw sequenced note to which every component offset is relative.",
+          "$ref": "#/$defs/midiNote"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["semitone_offset", "residual_cents"],
+            "properties": {
+              "semitone_offset": { "type": "integer" },
+              "residual_cents": { "type": "number", "minimum": -50, "maximum": 50 },
+              "relative_level_db": { "type": "number" },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "quality": { "enum": ["major", "minor", "sus2", "sus4", "power", "other", "unknown"] },
+        "inversion_or_voicing": { "type": "string" }
+      }
+    }
+  }
+}
