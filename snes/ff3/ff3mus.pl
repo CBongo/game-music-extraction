@@ -4,9 +4,41 @@
 
 use MIDI;
 use Data::Dumper;
+use FindBin;
+use lib "$FindBin::Bin/../../lib";
+use InstrumentUsage;
 
-open ROM, "< /export/tylenol/emulators/snes/f_fan3.fig"
+my $rom_path = "/export/tylenol/emulators/snes/f_fan3.fig";
+my $instrument_usage_path;
+my @remaining_args;
+while (@ARGV) {
+  my $arg = shift @ARGV;
+  if ($arg eq '--instrument-usage') {
+    die "--instrument-usage requires a path\n" unless @ARGV;
+    $instrument_usage_path = shift @ARGV;
+  } elsif ($arg eq '--rom') {
+    die "--rom requires a path\n" unless @ARGV;
+    $rom_path = shift @ARGV;
+  } else {
+    push @remaining_args, $arg;
+  }
+}
+@ARGV = @remaining_args;
+
+open ROM, "<", $rom_path
   or die "open failed: $!\n";
+
+my $usage_collector;
+if (defined $instrument_usage_path) {
+  $usage_collector = InstrumentUsage->new(
+    source => {
+      platform => 'snes',
+      game_or_module => 'Final Fantasy III',
+      driver => 'FF3',
+      source_files => [{ path => $rom_path }],
+    },
+  );
+}
 
 $base = s2o('C5/0000');
 $spcbase = $base + 0x70e + 2 - 0x200;
@@ -147,8 +179,8 @@ for ($i = $firstsong; $i <= $lastsong; $i++) {
   # read all song data
   read ROM, $song, $len;
   # grab instrument table
-  my (@inst) = map { $_ == 0 ? () : ($_) }
-                 &read2ptrs($base + 0x3f95 + $i * 0x20, 0x10);
+  my @raw_inst = &read2ptrs($base + 0x3f95 + $i * 0x20, 0x10);
+  my (@inst) = map { $_ == 0 ? () : ($_) } @raw_inst;
   my ($vaddroffset, $emptyvoice)  =  unpack "v2", $song;
 #printf STDERR "voff=%04x, ev=%04x\n", $vaddroffset, $emptyvoice;
   $vaddroffset = (0x11c24 - $vaddroffset) & 0xffff;
@@ -170,6 +202,9 @@ for ($i = $firstsong; $i <= $lastsong; $i++) {
 VOICE:
   for ($v = 0; $v < 8; $v++) {
     next if $vstart[$v] < 0x100;
+
+    $usage_collector->begin_track(sequence_id => $i, track_id => $v)
+      if $usage_collector;
 
     my $track = new MIDI::Track;
  
@@ -194,6 +229,7 @@ VOICE:
     my $pwheelrange = 0;
     my $rptidx = 0;
     my (@rptcnt, @rptpos, @rptcur);
+    my $event_index = 0;
     my $e = []; # track events
     push @$e, ['track_name', 0, "Voice " . ($v + 1)];
     push @$e, ['control_change', 0, $channel, 0, 0]; # bank 0
@@ -202,6 +238,8 @@ VOICE:
       #last if grep {$_ == $p + 0x1c00 && $_ ne $vstart[$v]} @vstart;
 
       my $cmd = ord(substr($song, $p, 1));
+      my $current_event_index = $event_index++;
+      my $source_offset = $songptrs[$i] + 2 + $p;
       if ($cmd < 0xc4) {
         # note
         my ($note, $dur) = (int($cmd/14), $cmd % 14);
@@ -225,6 +263,17 @@ VOICE:
           }
         }
         if ($note < 12) {
+          # Raw sequence pitch excludes curated patch octave offsets and driver transpose.
+          $usage_collector->note(
+            sequence_id => $i,
+            track_id => $v,
+            raw_sequence_note => 12 * $octave + $note,
+            octave_state => $octave,
+            time => $totaltime,
+            duration => $dur,
+            event_index => $current_event_index,
+            offset => $source_offset,
+          ) if $usage_collector;
           my $notedur = (($slurring || $rolling) || $dur < 4) ?
                  $dur : $dur - 4;
           if ($oldpwheel && $portdtime != $totaltime) {
@@ -240,6 +289,11 @@ VOICE:
           }
         } elsif ($note == 12) {
           # tie
+          $usage_collector->tie(
+            sequence_id => $i,
+            track_id => $v,
+            duration => $dur,
+          ) if $usage_collector;
           my ($last_ev) = grep {$_->[0] eq 'note'}
 				 reverse @$e;
 	  $last_ev->[2] += $dur;
@@ -258,6 +312,41 @@ VOICE:
         my $oplen = $musoplen[$cmd - 0xc4];
 
 	my ($op1, $op2, $op3) = map {ord} split //, substr($song, $p+1, 3);
+
+        if ($usage_collector) {
+          my %effect_semantic = (
+            0xc8 => 'portamento',
+            0xc9 => 'vibrato', 0xca => 'vibrato',
+            0xcb => 'tremolo', 0xcc => 'tremolo',
+            0xcd => 'other', 0xce => 'other', 0xcf => 'other',
+            0xd0 => 'other', 0xd1 => 'other',
+            0xd2 => 'other', 0xd3 => 'other',
+            0xd4 => 'other', 0xd5 => 'other',
+            0xd9 => 'transpose', 0xda => 'transpose',
+            0xdb => 'detune',
+            0xdd => 'envelope_change', 0xde => 'envelope_change',
+            0xdf => 'envelope_change', 0xe0 => 'envelope_change',
+            0xe1 => 'envelope_change',
+            0xe9 => 'other', 0xea => 'other',
+            0xf2 => 'other', 0xf3 => 'other', 0xf4 => 'other',
+            0xf7 => 'other', 0xf8 => 'other',
+          );
+          if (exists $effect_semantic{$cmd}) {
+            my @raw_operands = unpack "C*", substr($song, $p + 1, $oplen);
+            # Transpose bytes are preserved verbatim; their signed interpretation is unverified.
+            $usage_collector->effect(
+              sequence_id => $i,
+              track_id => $v,
+              raw_opcode => $cmd,
+              raw_operands => \@raw_operands,
+              semantic => $effect_semantic{$cmd},
+              normalized => {},
+              time => $totaltime,
+              event_index => $current_event_index,
+              offset => $source_offset,
+            );
+          }
+        }
 
         if ($cmd == 0xf0) {
 	  # tempo
@@ -324,6 +413,20 @@ VOICE:
           $balance = $op2;
         } elsif ($cmd == 0xdc) {
 	  # patch change
+	  if ($usage_collector) {
+            my $song_slot = $op1 >= 0x20 ? $op1 - 0x20 : undef;
+            my $source_instrument_id = defined $song_slot
+              ? $raw_inst[$song_slot]
+              : "direct-command-$op1";
+            $usage_collector->select_patch(
+              sequence_id => $i,
+              track_id => $v,
+              source_instrument_id => $source_instrument_id,
+              source_patch_command => $op1,
+              (defined $song_slot ? (song_local_slot => $song_slot) : ()),
+              offset => $source_offset,
+            );
+          }
 	  my $inst = $op1 >= 0x20 ? $patchmap[$inst[$op1 - 0x20]]
                                   : $patchlo[$op1];
           my $oldchan = $channel;
@@ -477,6 +580,7 @@ VOICE:
 }
 
 close ROM;
+$usage_collector->write_json($instrument_usage_path) if $usage_collector;
 print STDERR "\n";
 ## the end
 

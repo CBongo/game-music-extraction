@@ -7,6 +7,8 @@
 use Compress::Zlib;
 use MIDI;
 use Data::Dumper;
+use FindBin;
+use lib "$FindBin::Bin/../../lib";
 
 @notes = ("C ", "C#", "D ", "D#", "E ", "F ", "F#",
           "G ", "G#", "A ", "A#", "B ");
@@ -103,15 +105,25 @@ print OUT "\n";
 $tempo_factor = 13_107_200_000;  # timer2 period .2362us * 96 ticks * 65536
 
 $textmode = 0;
+$instrument_usage_path = undef;
 
-while ($ARGV[0] =~ /^-(.*)/) {
-  if ($1 eq 't') {
+while (@ARGV && $ARGV[0] =~ /^-/) {
+  if ($ARGV[0] eq '-t') {
     # text mode
     $textmode = 1;
+    shift @ARGV;
+  } elsif ($ARGV[0] eq '--instrument-usage') {
+    shift @ARGV;
+    die "--instrument-usage requires a path\n" unless @ARGV;
+    $instrument_usage_path = shift @ARGV;
   } else {
-    die "Unknown argument $1\n";
+    (my $arg = $ARGV[0]) =~ s/^-//;
+    die "Unknown argument $arg\n";
   }
-  shift;
+}
+
+if (defined $instrument_usage_path) {
+  require InstrumentUsage;
 }
 
 require 'titles.pl';
@@ -120,6 +132,8 @@ require 'titles.pl';
 if (@ARGV) {
   @fnames = grep { my $x = $_; grep { $x =~ /$_-[0-9a-f]+.bin/ } @ARGV } @fnames;
 }
+
+my @usage_records;
 
 foreach $fname (sort @fnames) {
   print STDERR "$fname\n";
@@ -137,6 +151,21 @@ foreach $fname (sort @fnames) {
     open OUT, "> $oname" or warn, next;
   }
   read IN, $buf, 0x20;
+
+  my $usage_capture;
+  if (defined $instrument_usage_path) {
+    # The collector drops notes/effects before the first decoded patch command;
+    # ccmus does not resolve the percussion table, so no drum binding is asserted.
+    $usage_capture = InstrumentUsage->new(
+      source => {
+        platform => 'Sony PlayStation',
+        game_or_module => 'Chrono Cross',
+        driver => 'AKAO',
+        source_files => [{path => $fname}],
+      },
+      timebase => 48,
+    );
+  }
 
   undef %unhandled;
   undef %unhandledFE;
@@ -209,6 +238,9 @@ VOICE:
     my $octave = 4;
     my $durmult = 0;
     my $perckey = 0;   # key to use for percussion
+    my $event_index = 0;
+    $usage_capture->begin_track(sequence_id => $id, track_id => $v)
+      if $usage_capture;
 
     my $rpt = 0;
     my (@rptcnt, @rptpos, @rptcur);
@@ -225,7 +257,9 @@ VOICE:
 	$next_vptr ||= $len;  # end of last voice = end of file
 
     for ($p = $vptrs[$v]; $p && $p < $next_vptr; ) {
+		my $event_offset = $p;
 		$cmd = &getpsx("C", $p++, 1);
+		my $this_event_index = $event_index++;
 		printf OUT "  %08x:  %02X ", $p-1, $cmd;
 		if ($cmd < 0xA0 || ($cmd >= 0xF0 && $cmd <= 0xFD)) {
 		# note/tie/rest
@@ -252,12 +286,22 @@ VOICE:
 				push @$e, ['note', $totaltime,
 							 $dur - 2,
 							 $channel, $mnote, $velocity];
+				$usage_capture->note(
+					sequence_id => $id, track_id => $v,
+					raw_sequence_note => 12 * $octave + $notenum,
+					octave_state => $octave, time => $totaltime, duration => $dur,
+					event_index => $this_event_index,
+					offset => $event_offset + 0x20,
+				) if $usage_capture;
 
 			} elsif ($notenum == 12) {
 				print OUT "Tie          ";
 				my ($last_ev) = grep {$_->[0] eq 'note'}
 						 reverse @$e;
 				$last_ev->[2] += $dur;
+				$usage_capture->tie(
+					sequence_id => $id, track_id => $v, duration => $dur,
+				) if $usage_capture;
 			} else {
 				print OUT "Rest         ";
 			}
@@ -306,6 +350,37 @@ VOICE:
 				# measure number
 				printf OUT "%d", ($op[1] << 8) + $op[0];
 			}
+			if ($usage_capture && $op1 == 0x14 && @op) {
+				# CC exposes the patch-table slot but this decoder does not resolve the
+				# patchdata table, so keep the ID sequence-scoped and raw.
+				my $source_instrument_id = "sequence-$id:patch-slot-$op[0]";
+				$usage_capture->select_patch(
+					sequence_id => $id, track_id => $v,
+					source_instrument_id => $source_instrument_id,
+					source_patch_command => $op[0], song_local_slot => $op[0],
+					offset => $event_offset + 0x20,
+				);
+				$usage_capture->effect(
+					sequence_id => $id, track_id => $v,
+					raw_opcode => sprintf("0xFE%02X", $op1),
+					raw_operands => \@op, semantic => 'other',
+					normalized => {source_patch_command => $op[0]},
+					time => $totaltime, event_index => $this_event_index,
+					offset => $event_offset + 0x20,
+				);
+			} elsif ($usage_capture) {
+				my $semantic = _usage_effect_semantic(0xFE00 | $op1);
+				if (defined $semantic) {
+					$usage_capture->effect(
+						sequence_id => $id, track_id => $v,
+						raw_opcode => sprintf("0xFE%02X", $op1),
+						raw_operands => \@op, semantic => $semantic,
+						normalized => {}, time => $totaltime,
+						event_index => $this_event_index,
+						offset => $event_offset + 0x20,
+					);
+				}
+			}
 			print OUT "\n"; 
 		} else {
 			my @op;
@@ -337,6 +412,24 @@ VOICE:
 			} elsif ($cmd == 0xAA) {
 			  # set pan
 			  $balance = $op[0];
+			} elsif ($usage_capture && $cmd == 0xA1 && @op) {
+			  # A1 selects an individual articulation, unlike FE14's key-split slot.
+			  # Keep it sequence-scoped until the associated sample set is joined.
+			  my $source_instrument_id = "sequence-$id:articulation-$op[0]";
+			  $usage_capture->select_patch(
+				sequence_id => $id, track_id => $v,
+				source_instrument_id => $source_instrument_id,
+				source_patch_command => $op[0],
+				offset => $event_offset + 0x20,
+			  );
+			  $usage_capture->effect(
+				sequence_id => $id, track_id => $v,
+				raw_opcode => sprintf("0x%02X", $cmd),
+				raw_operands => \@op, semantic => 'other',
+				normalized => {source_patch_command => $op[0]},
+				time => $totaltime, event_index => $this_event_index,
+				offset => $event_offset + 0x20,
+			  );
 			} elsif ($cmd == 0xC8) {
 			  # begin repeat
 			  $rptcur[++$rpt] = 0;
@@ -354,6 +447,22 @@ VOICE:
 			} elsif ($cmd == 0xCA) {
 			  # repeat always
 			}
+			if ($usage_capture) {
+				my $semantic = _usage_effect_semantic($cmd);
+				if (defined $semantic) {
+					my %normalized;
+					$normalized{raw_value} = $op[0]
+						if ($cmd == 0xC0 || $cmd == 0xC1) && @op;
+					$usage_capture->effect(
+						sequence_id => $id, track_id => $v,
+						raw_opcode => sprintf("0x%02X", $cmd),
+						raw_operands => \@op, semantic => $semantic,
+						normalized => \%normalized, time => $totaltime,
+						event_index => $this_event_index,
+						offset => $event_offset + 0x20,
+					);
+				}
+			}
 		}
 	}
 	$track->events_r(MIDI::Score::score_r_to_events_r($e));
@@ -370,13 +479,31 @@ VOICE:
   $ctrack->events_r(MIDI::Score::score_r_to_events_r($cevents));
   #$opus->dump({dump_tracks => 1});
   $opus->write_to_file($mname) unless $textmode;
+  push @usage_records, @{$usage_capture->records()}
+    if $usage_capture;
 }
+
+InstrumentUsage->write_records($instrument_usage_path, \@usage_records)
+  if defined $instrument_usage_path;
 
 sub getpsx {
   my ($format, $start, $len) = @_;
 
   return unpack $format,
          substr($buf, $start, $len);
+}
+
+sub _usage_effect_semantic {
+	my ($opcode) = @_;
+	return 'envelope_change' if ($opcode >= 0xAD && $opcode <= 0xB3) || $opcode == 0xB7 || $opcode == 0xBB || $opcode == 0xBF;
+	return 'vibrato' if $opcode == 0xB4 || $opcode == 0xB5 || $opcode == 0xB6 ||
+		$opcode == 0xD4 || $opcode == 0xD5 || $opcode == 0xDD;
+	return 'tremolo' if $opcode == 0xB8 || $opcode == 0xB9 || $opcode == 0xBA ||
+		$opcode == 0xD6 || $opcode == 0xD7 || $opcode == 0xDE;
+	return 'pitch_bend' if $opcode == 0xD8 || $opcode == 0xD9;
+	return 'transpose' if $opcode == 0xC0 || $opcode == 0xC1;
+	return 'other' if $opcode >= 0xC2 && $opcode <= 0xC7;
+	return undef;
 }
 
 sub set_controller {

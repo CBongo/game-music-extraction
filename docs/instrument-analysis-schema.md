@@ -115,3 +115,68 @@ Run the deterministic adapter tests with:
 ```powershell
 python -m unittest discover -s instrument_analysis/tests -p 'test_*.py' -v
 ```
+
+## Raw decoder usage sidecars
+
+The Chrono Cross and Final Fantasy III (SNES) legacy decoders can optionally write
+an `instrument-analysis/v1` JSON sidecar while executing their existing parser:
+
+```powershell
+# From psx/cc with the existing akao/*.bin inputs and titles.pl.
+perl -I. ccmus.pl --instrument-usage usage.json -t
+
+# From snes/ff3; create the normal mid/ output directory first.
+perl ff3mus.pl --rom f_fan3.fig --instrument-usage usage.json 01
+```
+
+`lib/InstrumentUsage.pm` collects observations inline, before curated GM program,
+drum-key, or patch-octave substitutions. It uses core Perl modules. Records retain
+source patch operands, song-local slots, source instrument identity, voice,
+executed event index, raw note, octave, onset, decoded step duration, ties, effect
+opcodes/operands, and original file offsets. Each note also retains the location
+of its patch selection in provenance parameters. Duration means decoded note-step
+length including ties, rather than the shortened MIDI gate. Times use `midi_tick`
+with the actual ticks-per-quarter timebase: 48 for Chrono Cross and 96 for FF3.
+Histograms count note triggers including traversed loop iterations; ties extend
+durations without increasing counts. Reparsed voices replace earlier captures.
+
+These records describe the existing decoder traversal, including its loop limits;
+they are not emulator traces. Chrono Cross text mode traverses repeats differently
+from MIDI mode, so use MIDI mode for expanded usage. Notes and effects before the
+first explicit patch selection are omitted because the initial instrument is
+unestablished. Effect occurrences belong to the patch selected when the command
+executes; inherited state across later patch changes is not yet materialized.
+Unknown sounding pitch is omitted. Source notes and historical `@transpose` values
+do not establish acoustic pitch. Raw transpose commands remain available without
+asserting an unverified signed interpretation.
+
+FF3 uses its unfiltered song slot table for source IDs; its existing MIDI mapping
+still uses the legacy table behavior. Low direct patch commands retain unresolved
+`direct-command-N` identities. Chrono Cross distinguishes A1 individual articulations from FE14 key-split slots,
+including when their operand bytes match. Both are scoped to the sequence until
+the associated sample set is joined. Resolving its instrument/percussion tables
+to sample identities is follow-up work.
+Calibration joins, normalized driver-transpose state, and contextual percussion
+bindings remain part of the broader usage-capture feature (`gme-0r4.5`).
+
+The schema permits raw note occurrences without `sounding_midi_note`, and retains
+optional `time`, `duration`, and `duration_unit`. Producers should populate sounding
+pitch only after establishing sample tuning and driver state. Existing bundles
+containing sounding notes remain valid.
+
+Query raw instruments, songs, or voices without consulting curated GM mappings:
+
+```python
+import json
+from instrument_analysis import query_usage
+
+with open('usage.json', encoding='utf-8') as source:
+    bundle = json.load(source)
+rows = query_usage(bundle, source_instrument_id=7, sequence_id=1, track_id=0)
+```
+
+Each row contains source, identity, sequence, selected tracks, and raw occurrences.
+ID types matter: integer `7` differs from string `"7"`. Tests construct synthetic
+data and compare MIDI/text output with capture disabled and enabled. No game ROM
+or extracted music is checked in. Installing `jsonschema` enables optional full
+schema checks in the tests; runtime collection and queries need no such dependency.

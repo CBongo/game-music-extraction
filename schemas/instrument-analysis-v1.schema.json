@@ -311,8 +311,12 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["raw_sequence_note", "sounding_midi_note"],
+                  "required": ["raw_sequence_note"],
+                  "dependentRequired": { "duration": ["duration_unit"], "duration_unit": ["duration"] },
                   "properties": {
+                    "time": { "$ref": "#/$defs/effect/properties/time" },
+                    "duration": { "type": "number", "minimum": 0 },
+                    "duration_unit": { "enum": ["source_tick", "midi_tick", "second", "row"] },
                     "event_index": { "type": "integer", "minimum": 0 },
                     "track_id": { "type": ["integer", "string"] },
                     "raw_sequence_note": { "type": "integer", "minimum": 0, "maximum": 127 },
