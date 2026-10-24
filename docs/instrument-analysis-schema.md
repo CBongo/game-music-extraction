@@ -80,3 +80,38 @@ allowing a curated `@patchmap` entry to overwrite raw identity or measured data.
 Unknown information is omitted rather than represented by a magic number. An
 analyzer unable to make a useful classification should emit an `abstain` route with
 a reason, which is different from omitting analysis because it has not run.
+
+## Metadata adapters
+
+The standard-library-only `instrument_analysis` package provides the first source
+adapters for this contract:
+
+- `adapt_akao_v31_sample_set` joins the 0x40-byte sample header and 16-byte
+  articulations used by later PlayStation AKAO sample sets to the matching
+  instrument pointer table and 8-byte regions. It emits one record per true
+  instrument with its key-split zones, preserving raw ADSR fields, adjusted unity
+  key, residual fine tune, and exact source offsets. The caller must explicitly
+  confirm format version 3.1 or 3.2; earlier versions use different layouts. A
+  unity key alone is never reported as an observed pitch offset. Raw key bounds
+  above MIDI 127 remain in the envelope metadata while canonical zone ranges are
+  normalized in the same spirit as the existing vgmtrans parser.
+- `adapt_snes_brr_instrument` applies the SNES DSP pitch-register equation to one
+  or more driver note references. A sounding-note reference is required before it
+  derives a sample unity pitch or raw-to-sounding offset. Multiple references are
+  cross-checked; disagreement is retained in provenance and reduces confidence.
+  `decode_snes_pitch_table` supplies those references directly from a decoded ROM
+  table; the FF2 regression fixture covers the verified 13-word table at 04/96FE.
+  Renderers and measurement tools feed their results through `sounding_note` and
+  should set the reference basis and confidence accordingly; rendering itself is
+  deliberately outside this metadata adapter.
+
+Both adapters return ordinary dictionaries, so extractors can call them without a
+new dependency. Wrap records with `make_bundle`; `validate_semantics` also checks
+cross-field rules that JSON Schema cannot express, including agreement between
+zero-based and one-based GM program numbers.
+
+Run the deterministic adapter tests with:
+
+```powershell
+python -m unittest discover -s instrument_analysis/tests -p 'test_*.py' -v
+```

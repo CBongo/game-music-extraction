@@ -130,9 +130,9 @@ opcode_table:
   size: 46
   type: "byte"
 
-# Pitch table (SNES address 04/96EA)
+# Pitch table (SNES address 04/96FE, immediately after the 46-byte opcode table)
 pitch_table:
-  address: 0x0496EA
+  address: 0x0496FE
   size: 13
   type: "ushort"
 
