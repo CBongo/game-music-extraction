@@ -106,7 +106,14 @@ class BenchmarkTests(unittest.TestCase):
                    record("b", [candidate(1, {"kind": "gm_percussion", "note": 38,
                                              "name": "Snare"})])))
         self.assertEqual(1, report["metrics"]["route_accuracy"]["value"])
-        self.assertEqual(.5, report["metrics"]["top_1_candidate_accuracy"]["value"])
+        self.assertEqual(1, report["metrics"]["top_1_candidate_accuracy"]["value"])
+        swapped = evaluate_benchmark(
+            manifest(case('a', {'routes':[gm(38)]}),
+                     case('b', {'routes':[{'kind':'gm_percussion','note':38}]})),
+            bundle(record('a',[candidate(1,{'kind':'gm_percussion','note':38})]),
+                   record('b',[candidate(1,gm(38))])))
+        self.assertEqual(0,swapped['metrics']['route_accuracy']['value'])
+        self.assertEqual(0,swapped['metrics']['top_1_candidate_accuracy']['value'])
 
     def test_abstention_and_ood_denominators(self):
         abstain = {"kind": "abstain", "reason": "unknown source"}
