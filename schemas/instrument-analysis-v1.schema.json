@@ -321,6 +321,7 @@
                     "track_id": { "type": ["integer", "string"] },
                     "raw_sequence_note": { "type": "integer", "minimum": 0, "maximum": 127 },
                     "octave_state": { "type": "integer" },
+                    "pitch_context_complete": { "type": "boolean", "description": "True only when the decoder has established static driver pitch state for this note; does not establish sample tuning." },
                     "global_transpose_semitones": { "type": "integer" },
                     "track_transpose_semitones": { "type": "integer" },
                     "ramp_transpose_semitones": { "type": "integer" },

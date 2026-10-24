@@ -144,20 +144,23 @@ These records describe the existing decoder traversal, including its loop limits
 they are not emulator traces. Chrono Cross text mode traverses repeats differently
 from MIDI mode, so use MIDI mode for expanded usage. Notes and effects before the
 first explicit patch selection are omitted because the initial instrument is
-unestablished. Effect occurrences belong to the patch selected when the command
-executes; inherited state across later patch changes is not yet materialized.
-Unknown sounding pitch is omitted. Source notes and historical `@transpose` values
-do not establish acoustic pitch. Raw transpose commands remain available without
-asserting an unverified signed interpretation.
+unestablished. Effects before selection are retained at their original time and
+attributed once to the first selected patch, with an explicit provenance marker.
+Each note's provenance parameters retain a copied `effect_context` snapshot of the
+latest command for each captured control, including controls inherited across
+patch changes. These are source commands rather than a rendered envelope/LFO
+curve. Unknown sounding pitch is omitted: source notes and historical `@transpose`
+values do not establish acoustic pitch.
 
 FF3 uses its unfiltered song slot table for source IDs; its existing MIDI mapping
 still uses the legacy table behavior. Low direct patch commands retain unresolved
-`direct-command-N` identities. Chrono Cross distinguishes A1 individual articulations from FE14 key-split slots,
-including when their operand bytes match. Both are scoped to the sequence until
-the associated sample set is joined. Resolving its instrument/percussion tables
-to sample identities is follow-up work.
-Calibration joins, normalized driver-transpose state, and contextual percussion
-bindings remain part of the broader usage-capture feature (`gme-0r4.5`).
+`direct-command-N` identities. Chrono Cross distinguishes A1 individual articulations
+from FE14 key-split slots, including when their operand bytes match. FE04/FE05 drum
+mode has a separate sequence-scoped drum identity. An ambiguous patch change while
+drum mode is active receives an unresolved identity and is ineligible for pitch
+calibration. Returning from drum mode without a known melodic selection does not
+invent one. Both decoders open binary sources in raw mode, preserving byte offsets
+on Windows.
 
 The schema permits raw note occurrences without `sounding_midi_note`, and retains
 optional `time`, `duration`, and `duration_unit`. Producers should populate sounding
@@ -180,3 +183,71 @@ ID types matter: integer `7` differs from string `"7"`. Tests construct syntheti
 data and compare MIDI/text output with capture disabled and enabled. No game ROM
 or extracted music is checked in. Installing `jsonschema` enables optional full
 schema checks in the tests; runtime collection and queries need no such dependency.
+
+
+## Context and calibrated pitch joins
+
+Both sidecars retain `track_transpose_semitones` independently of legacy MIDI
+arithmetic. FF3 D9 sets a signed byte and DA adds with 8-bit wrapping, verified
+against SPC routines 1271/1275, pitch use at 0418, and per-voice initialization at
+0B12 in `snes/ff3/ff3spc.dis`. In particular, raw FE represents -2, rather than the
+legacy converter's unsigned interpretation. Chrono Cross C0/C1 use signed
+absolute/relative transpose, matching the v3.2 handlers in local vgmtrans
+`AkaoSeq.cpp` (`EVENT_TRANSPOSE_ABS` / `EVENT_TRANSPOSE_REL`). This state is source
+pitch behavior and does not include curated patch octave adjustments.
+
+`pitch_context_complete` marks notes eligible for a static pitch join. Active
+vibrato, noise, pitch modulation, unresolved detune/bends, and unknown pitch
+commands prevent a complete context. FF3 portamento and SFX invalidate later
+static-pitch eligibility conservatively until the track resets. A tied note
+crossing a captured pitch-control change is also ineligible. The flag does not
+establish sample tuning or guarantee that the decoder models every hardware
+behavior. Legacy MIDI arithmetic remains unchanged; Windows input now preserves
+literal CR/LF and DOS EOF bytes instead of treating them as text controls.
+
+`bind_akao_sequence_usage` joins a v3.1/3.2 sequence to an explicitly supplied
+sample set. It checks the associated sample-set ID at header offset 0x14,
+resolves instrument/drum pointers relative to their own fields at 0x30/0x34,
+and reads instrument regions and percussion bindings with exact file provenance.
+The field-relative pointer origin matches vgmtrans and was checked against the
+local FF8 pair whose instrument table starts at 0xE10. The caller must provide
+source paths exactly as recorded in the sidecar and confirm the format version.
+Records for other paths are left unchanged. Sample mismatches, conflicting prior
+metadata, unsupported identities, and missing referenced articulations raise
+errors. Raw usage identities remain unchanged; sample IDs, zones, envelopes, and
+header association provenance are added separately. Drum bindings preserve raw
+trigger, underlying articulation, sample note, gain, pan, and raw region bytes.
+
+```python
+from pathlib import Path
+from instrument_analysis import bind_akao_sequence_usage, calibrate_usage
+
+bound, metadata, links = bind_akao_sequence_usage(
+    bundle,
+    Path(sequence_path).read_bytes(),
+    Path(sample_set_path).read_bytes(),
+    sequence_path=sequence_path,
+    sample_set_path=sample_set_path,
+    game_or_module='Chrono Cross',
+    format_version='3.2',
+)
+# Merge grounded observed_pitch_offset evidence into metadata before calibration.
+calibrated = calibrate_usage(bound, metadata, record_links=links)
+```
+
+`calibrate_usage` returns a deep copy and uses only explicit usage-record to
+metadata-record links. Links may cover a subset of the bundle and several usage
+records may share one metadata record. Platform/game/driver and overlapping patch
+identities must agree. SNES metadata adapters accept `driver='FF3'` when the
+caller has established that specific driver; the default remains the generic
+SPC700 label. This avoids treating all SNES driver names as interchangeable.
+
+For eligible notes, the join adds known driver transposes and a grounded
+`observed_pitch_offset` (semitones plus residual cents/100) to the raw note. It
+records the offset evidence in provenance and the sample component in
+`sample_tuning_semitones`. Unity key alone, curated mappings, zero-confidence or
+conflicting calibration, incomplete context, ambiguous zones, and unresolved
+velocity splits do not produce a sounding pitch. Values outside MIDI's range are
+diagnosed without clamping. Fractional notes remain in occurrences; only integral
+notes enter the schema's integer sounding-note sets and range. Existing
+contradictory pitches or provenance are rejected rather than overwritten.

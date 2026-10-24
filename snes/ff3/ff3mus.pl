@@ -25,7 +25,7 @@ while (@ARGV) {
 }
 @ARGV = @remaining_args;
 
-open ROM, "<", $rom_path
+open ROM, "<:raw", $rom_path
   or die "open failed: $!\n";
 
 my $usage_collector;
@@ -220,6 +220,16 @@ VOICE:
     my $perckey = 0;   # key to use for percussion
     my $t = 0;  # transpose octaves (via patch)
     my $transpose = 0;  # actual transpose command
+    # SPC 0B12 clears F721+X; D9/DA update it as signed 8-bit semitones.
+    # Keep this verified sidecar state separate from legacy MIDI arithmetic.
+    my $driver_transpose_semitones = 0;
+    my $vibrato_active = 0;
+    my $noise_active = 0;
+    my $pitchmod_active = 0;
+    my $detune_raw = 0;
+    my $unresolved_pitch_automation = 0;
+    my $unknown_pitch_context = 0;
+    my $pitch_context_complete = 1;
     my $util_dur = 0;
     my $slurring = 0;
     my $rolling = 0;
@@ -269,6 +279,8 @@ VOICE:
             track_id => $v,
             raw_sequence_note => 12 * $octave + $note,
             octave_state => $octave,
+            track_transpose_semitones => $driver_transpose_semitones,
+            pitch_context_complete => $pitch_context_complete ? 1 : 0,
             time => $totaltime,
             duration => $dur,
             event_index => $current_event_index,
@@ -331,16 +343,76 @@ VOICE:
             0xf2 => 'other', 0xf3 => 'other', 0xf4 => 'other',
             0xf7 => 'other', 0xf8 => 'other',
           );
+          my %effect_context_key = (
+            0xc8 => 'portamento',
+            0xc9 => 'vibrato', 0xca => 'vibrato',
+            0xcb => 'tremolo', 0xcc => 'tremolo',
+            0xd0 => 'noise', 0xd1 => 'noise',
+            0xd2 => 'pitchmod', 0xd3 => 'pitchmod',
+            0xd9 => 'transpose', 0xda => 'transpose',
+            0xdb => 'detune',
+            0xe9 => 'sound_effect', 0xea => 'sound_effect',
+          );
+          my %known_non_pitch_commands = map { $_ => 1 } (
+            0xc4, 0xc5, 0xc6, 0xc7, 0xcf,
+            0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xdc,
+            0xdd, 0xde, 0xdf, 0xe0, 0xe1, 0xe2, 0xe3,
+            0xe4, 0xe5, 0xe6, 0xe7, 0xe8,
+            0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6,
+            0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd,
+            0xfe, 0xff,
+          );
+          my $normalized_effect = {};
+          my $signed_operand = defined $op1 ? ($op1 < 0x80 ? $op1 : $op1 - 0x100) : 0;
+
+          # Driver state is signed 8-bit; the legacy MIDI path below is intentionally untouched.
+          if ($cmd == 0xd9) {
+            $driver_transpose_semitones = $signed_operand;
+            $normalized_effect = {
+              scope => 'track', operation => 'set',
+              value => $driver_transpose_semitones, unit => 'semitone',
+            };
+          } elsif ($cmd == 0xda) {
+            my $wrapped = ($driver_transpose_semitones + $signed_operand) & 0xff;
+            $driver_transpose_semitones = $wrapped < 0x80 ? $wrapped : $wrapped - 0x100;
+            $normalized_effect = {
+              scope => 'track', operation => 'add',
+              delta => $signed_operand,
+              value => $driver_transpose_semitones, unit => 'semitone',
+            };
+          }
+
+          if ($cmd == 0xc9) { $vibrato_active = 1; }
+          elsif ($cmd == 0xca) { $vibrato_active = 0; }
+          elsif ($cmd == 0xd0) { $noise_active = 1; }
+          elsif ($cmd == 0xd1) { $noise_active = 0; }
+          elsif ($cmd == 0xd2) { $pitchmod_active = 1; }
+          elsif ($cmd == 0xd3) { $pitchmod_active = 0; }
+          elsif ($cmd == 0xdb) { $detune_raw = $op1; }
+          elsif ($cmd == 0xc8 || $cmd == 0xe9 || $cmd == 0xea) {
+            # Portamento targets and SFX pitch are not decoded as static note pitch.
+            $unresolved_pitch_automation = 1;
+          } elsif ($cmd >= 0xc4
+                   && !exists $effect_semantic{$cmd}
+                   && !exists $known_non_pitch_commands{$cmd}) {
+            $unknown_pitch_context = 1;
+          }
+          $pitch_context_complete = !(
+            $vibrato_active || $noise_active || $pitchmod_active
+            || ($detune_raw // 0) != 0
+            || $unresolved_pitch_automation || $unknown_pitch_context
+          );
+
           if (exists $effect_semantic{$cmd}) {
             my @raw_operands = unpack "C*", substr($song, $p + 1, $oplen);
-            # Transpose bytes are preserved verbatim; their signed interpretation is unverified.
             $usage_collector->effect(
               sequence_id => $i,
               track_id => $v,
               raw_opcode => $cmd,
               raw_operands => \@raw_operands,
               semantic => $effect_semantic{$cmd},
-              normalized => {},
+              normalized => $normalized_effect,
+              context_key => $effect_context_key{$cmd} // "opcode-$cmd",
               time => $totaltime,
               event_index => $current_event_index,
               offset => $source_offset,

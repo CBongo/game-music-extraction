@@ -146,7 +146,7 @@ foreach $fname (sort @fnames) {
   $mname =~ s/txt$/mid/g;
   printf STDERR "%s\n", $textmode ? $oname : $mname;
 
-  open IN, "< $fname" or warn, next;
+  open IN, "<:raw", $fname or warn, next;
   if ($textmode) {
     open OUT, "> $oname" or warn, next;
   }
@@ -154,8 +154,8 @@ foreach $fname (sort @fnames) {
 
   my $usage_capture;
   if (defined $instrument_usage_path) {
-    # The collector drops notes/effects before the first decoded patch command;
-    # ccmus does not resolve the percussion table, so no drum binding is asserted.
+    # Raw identity is retained here; the Python binding adapter joins sequence
+    # instrument/percussion tables to the explicitly associated sample set.
     $usage_capture = InstrumentUsage->new(
       source => {
         platform => 'Sony PlayStation',
@@ -239,6 +239,10 @@ VOICE:
     my $durmult = 0;
     my $perckey = 0;   # key to use for percussion
     my $event_index = 0;
+    my $usage_transpose = 0;
+    my ($usage_vibrato, $usage_noise, $usage_pitchmod, $usage_bend, $usage_unresolved) = (0) x 5;
+    my $usage_melodic_patch;
+    my $usage_drum = 0;
     $usage_capture->begin_track(sequence_id => $id, track_id => $v)
       if $usage_capture;
 
@@ -290,6 +294,8 @@ VOICE:
 					sequence_id => $id, track_id => $v,
 					raw_sequence_note => 12 * $octave + $notenum,
 					octave_state => $octave, time => $totaltime, duration => $dur,
+                    track_transpose_semitones => $usage_transpose,
+                    pitch_context_complete => !($usage_vibrato || $usage_noise || $usage_pitchmod || $usage_bend || $usage_unresolved || $usage_drum),
 					event_index => $this_event_index,
 					offset => $event_offset + 0x20,
 				) if $usage_capture;
@@ -350,13 +356,45 @@ VOICE:
 				# measure number
 				printf OUT "%d", ($op[1] << 8) + $op[0];
 			}
+            if ($usage_capture && $op1 == 0x04) {
+                $usage_drum = 1;
+                $usage_capture->select_patch(
+                    sequence_id => $id, track_id => $v,
+                    source_instrument_id => "sequence-$id:drumkit",
+                    offset => $event_offset + 0x20,
+                );
+                $usage_capture->effect(
+                    sequence_id => $id, track_id => $v, raw_opcode => '0xFE04',
+                    raw_operands => \@op, semantic => 'other', normalized => {percussion_mode => 1},
+                    context_key => 'percussion_mode', time => $totaltime,
+                    event_index => $this_event_index, offset => $event_offset + 0x20,
+                );
+            } elsif ($usage_capture && $op1 == 0x05) {
+                $usage_drum = 0;
+                if ($usage_melodic_patch) {
+                    $usage_capture->select_patch(%$usage_melodic_patch, offset => $event_offset + 0x20);
+                } else {
+                    $usage_unresolved = 1;
+                    $usage_capture->clear_patch(sequence_id => $id, track_id => $v);
+                }
+                $usage_capture->effect(
+                    sequence_id => $id, track_id => $v, raw_opcode => '0xFE05',
+                    raw_operands => \@op, semantic => 'other', normalized => {percussion_mode => 0},
+                    context_key => 'percussion_mode', time => $totaltime,
+                    event_index => $this_event_index, offset => $event_offset + 0x20,
+                );
+            }
 			if ($usage_capture && $op1 == 0x14 && @op) {
 				# CC exposes the patch-table slot but this decoder does not resolve the
 				# patchdata table, so keep the ID sequence-scoped and raw.
 				my $source_instrument_id = "sequence-$id:patch-slot-$op[0]";
+                $usage_melodic_patch = {sequence_id => $id, track_id => $v,
+                    source_instrument_id => $source_instrument_id,
+                    source_patch_command => $op[0], song_local_slot => $op[0]};
+                $usage_unresolved = 1 if $usage_drum;
 				$usage_capture->select_patch(
 					sequence_id => $id, track_id => $v,
-					source_instrument_id => $source_instrument_id,
+					source_instrument_id => $usage_drum ? "sequence-$id:unresolved-drum-patch-$op[0]" : $source_instrument_id,
 					source_patch_command => $op[0], song_local_slot => $op[0],
 					offset => $event_offset + 0x20,
 				);
@@ -416,9 +454,12 @@ VOICE:
 			  # A1 selects an individual articulation, unlike FE14's key-split slot.
 			  # Keep it sequence-scoped until the associated sample set is joined.
 			  my $source_instrument_id = "sequence-$id:articulation-$op[0]";
+              $usage_melodic_patch = {sequence_id => $id, track_id => $v,
+                  source_instrument_id => $source_instrument_id, source_patch_command => $op[0]};
+              $usage_unresolved = 1 if $usage_drum;
 			  $usage_capture->select_patch(
 				sequence_id => $id, track_id => $v,
-				source_instrument_id => $source_instrument_id,
+				source_instrument_id => $usage_drum ? "sequence-$id:unresolved-drum-articulation-$op[0]" : $source_instrument_id,
 				source_patch_command => $op[0],
 				offset => $event_offset + 0x20,
 			  );
@@ -448,15 +489,33 @@ VOICE:
 			  # repeat always
 			}
 			if ($usage_capture) {
+                if (($cmd == 0xC0 || $cmd == 0xC1) && @op) {
+                    my $signed = unpack('c', pack('C', $op[0]));
+                    $usage_transpose = $cmd == 0xC0 ? $signed : $usage_transpose + $signed;
+                    $usage_unresolved = 1 if $usage_transpose < -128 || $usage_transpose > 127;
+                }
+                $usage_vibrato = 1 if $cmd == 0xB4 || $cmd == 0xD4 || $cmd == 0xDD;
+                $usage_vibrato = 0 if $cmd == 0xB6 || $cmd == 0xD5;
+                $usage_noise = 1 if $cmd == 0xC4;
+                $usage_noise = 0 if $cmd == 0xC5;
+                $usage_pitchmod = 1 if $cmd == 0xC6;
+                $usage_pitchmod = 0 if $cmd == 0xC7;
+                $usage_bend = @op && $op[0] != 0 if $cmd == 0xD8;
+                $usage_bend = 1 if $cmd == 0xD9;
+                $usage_unresolved = 1 unless $oplen > 0 && exists $optext{$cmd};
 				my $semantic = _usage_effect_semantic($cmd);
 				if (defined $semantic) {
 					my %normalized;
-					$normalized{raw_value} = $op[0]
-						if ($cmd == 0xC0 || $cmd == 0xC1) && @op;
+                    if (($cmd == 0xC0 || $cmd == 0xC1) && @op) {
+                        %normalized = (scope => 'track', unit => 'semitone',
+                            operation => $cmd == 0xC0 ? 'set' : 'add', value => $usage_transpose);
+                        $normalized{delta} = unpack('c', pack('C', $op[0])) if $cmd == 0xC1;
+                    }
 					$usage_capture->effect(
 						sequence_id => $id, track_id => $v,
 						raw_opcode => sprintf("0x%02X", $cmd),
 						raw_operands => \@op, semantic => $semantic,
+                        context_key => _usage_context_key($cmd),
 						normalized => \%normalized, time => $totaltime,
 						event_index => $this_event_index,
 						offset => $event_offset + 0x20,
@@ -491,6 +550,17 @@ sub getpsx {
 
   return unpack $format,
          substr($buf, $start, $len);
+}
+
+sub _usage_context_key {
+    my ($opcode) = @_;
+    return 'vibrato' if $opcode == 0xB4 || $opcode == 0xB6 || $opcode == 0xD4 || $opcode == 0xD5;
+    return 'tremolo' if $opcode == 0xB8 || $opcode == 0xBA || $opcode == 0xD6 || $opcode == 0xD7;
+    return 'noise' if $opcode == 0xC4 || $opcode == 0xC5;
+    return 'pitchmod' if $opcode == 0xC6 || $opcode == 0xC7;
+    return 'transpose' if $opcode == 0xC0 || $opcode == 0xC1;
+    return 'pitch_bend' if $opcode == 0xD8 || $opcode == 0xD9;
+    return $opcode;
 }
 
 sub _usage_effect_semantic {

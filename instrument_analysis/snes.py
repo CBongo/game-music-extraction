@@ -74,6 +74,7 @@ def adapt_snes_brr_instrument(
     sample_id: int | str,
     references: Sequence[SnesPitchReference],
     source_path: str,
+    driver: str = "SPC700 custom driver",
     pitch_scale_reference: int = 0x1000,
     dsp_sample_rate_hz: int = 32000,
     record_id: str | None = None,
@@ -89,8 +90,8 @@ def adapt_snes_brr_instrument(
     """
     if not references:
         raise ValueError("at least one SNES pitch reference is required")
-    if not game_or_module or not source_path:
-        raise ValueError("game and source_path must be non-empty")
+    if not game_or_module or not source_path or not driver:
+        raise ValueError("game, source_path, and driver must be non-empty")
     if record_id == "":
         raise ValueError("record_id must be non-empty when provided")
     if pitch_scale_reference <= 0 or dsp_sample_rate_hz <= 0:
@@ -200,7 +201,7 @@ def adapt_snes_brr_instrument(
         "source": {
             "platform": "Super Nintendo",
             "game_or_module": game_or_module,
-            "driver": "SPC700 custom driver",
+            "driver": driver,
             "source_files": [{"path": source_path}],
         },
         "identity": {

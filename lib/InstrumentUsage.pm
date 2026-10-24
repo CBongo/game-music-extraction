@@ -18,6 +18,7 @@ sub begin_track {
     my ($self, %a) = @_;
     $self->{tracks}{_key($a{sequence_id}, $a{track_id})} = {
         sequence_id => $a{sequence_id}, track_id => $a{track_id}, notes => [], effects => [],
+        pending_effects => [], effect_context => {}, effect_context_order => [],
     };
 }
 sub _track {
@@ -29,10 +30,26 @@ sub select_patch {
     my ($self, %a) = @_;
     die 'source_instrument_id is required' unless defined $a{source_instrument_id};
     my %id = map { exists $a{$_} ? ($_ => $a{$_}) : () }
-        qw(source_instrument_id source_patch_command song_local_slot);
+        qw(source_instrument_id source_patch_command song_local_slot sample_ids);
     my $track = $self->_track(\%a);
     $track->{identity} = \%id;
     $track->{patch_provenance} = $self->_provenance($a{offset});
+    # Preserve pre-patch effect occurrences and attribute them once to the first patch.
+    if (@{$track->{pending_effects}}) {
+        for my $fx (@{$track->{pending_effects}}) {
+            my $copy = _json_copy($fx);
+            $copy->{provenance}{parameters}{observed_before_patch_selection} = JSON::PP::true;
+            push @{$track->{effects}}, { identity => $track->{identity}, effect => $copy };
+        }
+        $track->{pending_effects} = [];
+    }
+}
+sub clear_patch {
+    my ($self, %a) = @_;
+    my $track = $self->_track(\%a);
+    delete $track->{identity};
+    delete $track->{patch_provenance};
+    delete $track->{last_note};
 }
 sub _provenance {
     my ($self, $offset) = @_;
@@ -51,31 +68,60 @@ sub note {
     my %n = map { exists $a{$_} ? ($_ => $a{$_}) : () }
         qw(raw_sequence_note sounding_midi_note octave_state global_transpose_semitones
            track_transpose_semitones ramp_transpose_semitones sample_tuning_semitones
-           event_index duration);
+           pitch_context_complete event_index duration);
+    $n{pitch_context_complete} = $n{pitch_context_complete}
+        ? JSON::PP::true : JSON::PP::false if exists $n{pitch_context_complete};
     die 'raw_sequence_note is required' unless defined $n{raw_sequence_note};
     $n{track_id} = $a{track_id};
     $n{time} = { value => $a{time}, unit => 'midi_tick', timebase => $self->{timebase} } if defined $a{time};
     $n{duration_unit} = 'midi_tick' if exists $n{duration};
     $n{provenance} = $self->_provenance($a{offset});
     $n{provenance}{parameters} = { patch_selection => $track->{patch_provenance} };
+    if (@{$track->{effect_context_order}}) {
+        $n{provenance}{parameters}{effect_context} = _json_copy([
+            map { $track->{effect_context}{$_} } @{$track->{effect_context_order}}
+        ]);
+    }
     my $entry = { identity => $track->{identity}, occurrence => \%n };
     push @{$track->{notes}}, $entry;
     $track->{last_note} = $entry;
+    $track->{pitch_context_changed} = 0;
 }
 sub tie {
     my ($self, %a) = @_;
     my $track = $self->_track(\%a);
-    $track->{last_note}{occurrence}{duration} += $a{duration} if $track->{last_note};
+    if ($track->{last_note}) {
+        $track->{last_note}{occurrence}{duration} += $a{duration};
+        # A tie can extend an earlier onset across intervening pitch controls.
+        $track->{last_note}{occurrence}{pitch_context_complete} = JSON::PP::false
+            if $track->{pitch_context_changed};
+    }
 }
 sub effect {
     my ($self, %a) = @_;
     my $track = $self->_track(\%a);
-    return unless $track->{identity};
     my %fx = map { exists $a{$_} ? ($_ => $a{$_}) : () }
         qw(sequence_id track_id raw_opcode raw_operands semantic normalized event_index);
     $fx{time} = { value => $a{time}, unit => 'midi_tick', timebase => $self->{timebase} } if defined $a{time};
     $fx{provenance} = $self->_provenance($a{offset});
-    push @{$track->{effects}}, { identity => $track->{identity}, effect => \%fx };
+    if (($a{semantic} // '') =~ /^(vibrato|pitch_bend|portamento|transpose|detune)$/
+        || ($a{context_key} // '') =~ /^(noise|pitchmod|sound_effect)$/) {
+        $track->{pitch_context_changed} = 1;
+    }
+    my $key = exists $a{context_key} ? _key($a{context_key}) : _key($a{raw_opcode});
+    if (!exists $track->{effect_context}{$key}) {
+        push @{$track->{effect_context_order}}, $key;
+    }
+    $track->{effect_context}{$key} = _json_copy(\%fx);
+    if ($track->{identity}) {
+        push @{$track->{effects}}, { identity => $track->{identity}, effect => \%fx };
+    } else {
+        push @{$track->{pending_effects}}, \%fx;
+    }
+}
+sub _json_copy {
+    my ($value) = @_;
+    return JSON::PP->new->decode(JSON::PP->new->canonical->encode($value));
 }
 sub records {
     my ($self) = @_;

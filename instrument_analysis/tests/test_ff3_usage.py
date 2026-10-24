@@ -48,22 +48,29 @@ def _make_ff3_rom(path: Path) -> tuple[int, int]:
     # The decoder uses the opcode table's byte counts to advance command streams.
     op_lengths = bytearray(60)
     op_lengths[0xC9 - 0xC4] = 3  # vibrato operands
-    op_lengths[0xD9 - 0xC4] = 1  # transpose operand
+    op_lengths[0xD9 - 0xC4] = 1  # transpose-set operand
+    op_lengths[0xDA - 0xC4] = 1  # transpose-change operand
     op_lengths[0xDC - 0xC4] = 1  # patch command operand
     data[spcbase + 0x18F9:spcbase + 0x18F9 + 60] = op_lengths
     data[spcbase + 0x17D1:spcbase + 0x17D1 + 14] = bytes(range(4, 18))
 
     voice0 = bytes([
+        0xC9, 0x03, 0x04, 0x05, # vibrato before patch selection
+        0xCA,                   # vibrato off before first note
         0xDC, 0x21,             # select song-local slot 1
-        0xD9, 0xFE,             # preserve raw transpose byte (not normalized)
+        0xD9, 0xFE,             # signed set: -2 semitones
         0x00,                   # C at octave 4, duration index 0
         0xA9,                   # tie, duration index 1
         0xB8,                   # rest, duration index 2
-        0xC9, 0x03, 0x04, 0x05, # vibrato and raw operands
+        0xDA, 0xFF,             # signed relative change: -1, state becomes -3
         0x3B,                   # E at octave 4, duration index 3
+        0xD9, 0x7F,             # set state to +127
+        0xDA, 0x01,             # wrap signed state to -128
+        0x1C,                   # D at octave 4, duration index 0
         0xEB,                   # halt
     ])
-    voice1 = bytes([0xDC, 0x21]) + bytes(range(0, 6 * 14, 14)) + bytes([0xEB])
+    # Seven notes make this voice longer than voice 0, forcing the decoder's redo.
+    voice1 = bytes([0xDC, 0x21]) + bytes(range(0, 7 * 14, 14)) + bytes([0xEB])
 
     # FF3 song header: relocation offset zero, empty voice sentinel, then two
     # voice pointers and six empty pointers (with an unused alternate table).
@@ -114,7 +121,7 @@ class FF3UsageIntegrationTests(unittest.TestCase):
 
             bundle = json.loads(sidecar.read_text(encoding="utf-8"))
             if jsonschema:
-                schema = json.loads((ROOT / 'schemas/instrument-analysis-v1.schema.json').read_text())
+                schema = json.loads((ROOT / "schemas/instrument-analysis-v1.schema.json").read_text())
                 jsonschema.Draft202012Validator(schema).validate(bundle)
             self.assertEqual("instrument-analysis/v1", bundle["schema_version"])
             records = bundle["records"]
@@ -134,27 +141,64 @@ class FF3UsageIntegrationTests(unittest.TestCase):
 
             # Voice 1 is longer, so the legacy MIDI parser restarts voice 0.
             # begin_track must replace the earlier capture rather than duplicate it.
-            self.assertEqual(2, len(track0))
-            self.assertEqual(6, len(track1))
-            self.assertEqual([48, 52], [n["raw_sequence_note"] for n in track0])
+            self.assertEqual(3, len(track0))
+            self.assertEqual(7, len(track1))
+            self.assertEqual([48, 52, 50], [n["raw_sequence_note"] for n in track0])
+            self.assertEqual([-2, -3, -128], [n["track_transpose_semitones"] for n in track0])
+            self.assertTrue(all(n["pitch_context_complete"] for n in track0))
             self.assertEqual(18, track0[0]["duration"])
             self.assertEqual(30, track0[1]["time"]["value"])
-            self.assertEqual(44, track0[1]["time"]["value"] + track0[1]["duration"])
+            self.assertEqual(44, track0[2]["time"]["value"])
+
+            # A synthetic sounding reference establishes sample offset separately
+            # from the actual source transpose retained by the decoder sidecar.
+            from instrument_analysis import SnesPitchReference, adapt_snes_brr_instrument, calibrate_usage, make_bundle
+            anchor = adapt_snes_brr_instrument(
+                game_or_module='Final Fantasy III', instrument_id=7, sample_id=7,
+                source_path=str(rom), driver='FF3', source_patch_command=0x21,
+                song_local_slot=1,
+                references=[SnesPitchReference(0x1000, 48, 43, basis='measured',
+                                              method='synthetic grounded sounding reference')],
+            )
+            calibrated = calibrate_usage(bundle, make_bundle([anchor], 'synthetic calibration'),
+                record_links={record['record_id']: anchor['record_id']})
+            joined_notes = calibrated['records'][0]['observation']['usage']['sequences'][0]['note_occurrences']
+            first = next(n for n in joined_notes if n['track_id'] == 0)
+            self.assertEqual(41, first['sounding_midi_note'])  # raw 48, driver -2, sample -5
+            self.assertEqual(-5, first['sample_tuning_semitones'])
+            self.assertNotIn('sounding_midi_note', track0[0])  # raw bundle stays unchanged
+            if jsonschema:
+                jsonschema.Draft202012Validator(schema).validate(calibrated)
 
             effects = record["observation"]["effects"]
-            transpose = next(effect for effect in effects if effect["raw_opcode"] == 0xD9)
-            self.assertEqual([0xFE], transpose["raw_operands"])
-            self.assertEqual({}, transpose["normalized"])
-            vibrato = next(effect for effect in effects if effect["raw_opcode"] == 0xC9)
-            self.assertEqual([3, 4, 5], vibrato["raw_operands"])
-            self.assertEqual("vibrato", vibrato["semantic"])
-            self.assertEqual(
-                song_offset + 2 + first_voice_offset + 2,
-                transpose["provenance"]["location"]["offset"],
+            transpose = next(
+                effect for effect in effects
+                if effect["raw_opcode"] == 0xD9 and effect["raw_operands"] == [0xFE]
+            )
+            self.assertEqual({
+                "scope": "track", "operation": "set", "value": -2, "unit": "semitone",
+            }, transpose["normalized"])
+            relative_effects = [effect for effect in effects if effect["raw_opcode"] == 0xDA]
+            self.assertEqual([-1, 1], [e["normalized"]["delta"] for e in relative_effects])
+            self.assertEqual([-3, -128], [e["normalized"]["value"] for e in relative_effects])
+
+            vibrato_on = next(effect for effect in effects if effect["raw_opcode"] == 0xC9)
+            vibrato_off = next(effect for effect in effects if effect["raw_opcode"] == 0xCA)
+            self.assertEqual([3, 4, 5], vibrato_on["raw_operands"])
+            self.assertEqual("vibrato", vibrato_on["semantic"])
+            self.assertTrue(
+                vibrato_on["provenance"]["parameters"]["observed_before_patch_selection"]
+            )
+            self.assertTrue(
+                vibrato_off["provenance"]["parameters"]["observed_before_patch_selection"]
             )
             self.assertEqual(
                 song_offset + 2 + first_voice_offset + 7,
-                vibrato["provenance"]["location"]["offset"],
+                transpose["provenance"]["location"]["offset"],
+            )
+            self.assertEqual(
+                song_offset + 2 + first_voice_offset,
+                vibrato_on["provenance"]["location"]["offset"],
             )
 
 
