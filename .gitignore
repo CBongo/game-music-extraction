@@ -41,3 +41,7 @@ akao/test*.yaml
 # Editor / tool cruft
 **/.vscode/
 **/.mscbackup/
+
+# Local benchmark/render artifacts (may contain private source audio)
+/benchmarks/instruments/generated/
+/instrument-renders/

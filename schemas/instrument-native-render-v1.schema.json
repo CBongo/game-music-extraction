@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-native-render-v1.schema.json",
+  "title": "Native source probe render receipt manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "engine",
+    "source_record_id",
+    "source",
+    "instrument",
+    "key",
+    "conditions",
+    "run_arguments",
+    "receipt_file",
+    "wav"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-native-render/v1"
+    },
+    "engine": {
+      "const": "MAME YM2151"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "audio_rom_path",
+        "audio_rom_sha256",
+        "mame_executable",
+        "mame_executable_sha256",
+        "probe_script",
+        "probe_script_sha256",
+        "common_script_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "audio_rom_path": {
+          "type": "string"
+        },
+        "audio_rom_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "mame_executable": {
+          "type": "string"
+        },
+        "mame_executable_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "probe_script": {
+          "type": "string"
+        },
+        "probe_script_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "common_script_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "patch_id",
+        "patch_num",
+        "patch_pointer",
+        "patch_bytes_hex"
+      ],
+      "properties": {
+        "patch_id": {
+          "type": "string"
+        },
+        "patch_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 177
+        },
+        "patch_pointer": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "patch_bytes_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{50}$"
+        }
+      }
+    },
+    "key": {
+      "type": "object",
+      "required": [
+        "keycode_raw_ym2151",
+        "midi_note",
+        "velocity",
+        "velocity_note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "keycode_raw_ym2151": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "midi_note": {
+          "type": "null"
+        },
+        "velocity": {
+          "type": "null"
+        },
+        "velocity_note": {
+          "type": "string"
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "required": [
+        "requested_hold_frames",
+        "requested_tail_frames",
+        "startup_frames",
+        "note_on_time_seconds",
+        "note_off_time_seconds",
+        "capture_end_time_seconds",
+        "sample_rate_requested",
+        "frame_period_seconds",
+        "global_lfo_and_noise"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "requested_hold_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requested_tail_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startup_frames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "note_on_time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "note_off_time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "capture_end_time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sample_rate_requested": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "frame_period_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "global_lfo_and_noise": {
+          "type": "string"
+        }
+      }
+    },
+    "run_arguments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "receipt_file": {
+      "type": "string"
+    },
+    "wav": {
+      "type": "object",
+      "required": [
+        "file",
+        "sample_rate",
+        "channels",
+        "sample_width_bytes",
+        "frames",
+        "duration_seconds",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000
+        },
+        "channels": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-benchmark-report-v1.schema.json",
+  "title": "Instrument benchmark evaluation report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "metrics",
+    "coverage",
+    "by_split"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "instrument-benchmark-report/v1"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "value",
+          "numerator",
+          "denominator",
+          "eligible_cases",
+          "predicted_cases"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "numerator": {
+            "type": "number"
+          },
+          "denominator": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "eligible_cases": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "predicted_cases": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "predicted_cases",
+        "records_present"
+      ],
+      "properties": {
+        "cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "predicted_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "records_present": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "by_split": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "metrics",
+          "coverage"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "value",
+                "numerator",
+                "denominator",
+                "eligible_cases",
+                "predicted_cases"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "numerator": {
+                  "type": "number"
+                },
+                "denominator": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "eligible_cases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "predicted_cases": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cases",
+              "predicted_cases",
+              "records_present"
+            ],
+            "properties": {
+              "cases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "predicted_cases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "records_present": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

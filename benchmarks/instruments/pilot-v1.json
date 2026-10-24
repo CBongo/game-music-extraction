@@ -1,0 +1,708 @@
+{
+  "schema_version": "instrument-benchmark/v1",
+  "name": "GME instrument pilot v1",
+  "license": "Apache-2.0 for manifest/code; generated fixtures CC0-1.0; local game assets excluded",
+  "description": "Pilot benchmark: original controlled fixtures, provisional historical converter labels, same-bank sanity recipes, and explicitly unlabeled source cases.",
+  "cases": [
+    {
+      "case_id": "ff4-flute",
+      "record_id": "ff4-flute",
+      "split": "historical-dev",
+      "source": {
+        "platform": "snes",
+        "game_or_module": "Final Fantasy II (US) / IV",
+        "driver": "FF2",
+        "source_instrument_id": 7
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "gm_program",
+            "program_0based": 73,
+            "program_1based": 74,
+            "melodic_percussion": false
+          }
+        ],
+        "gm_families": [
+          9
+        ],
+        "candidate_audition_octave_adjustment": 1
+      },
+      "label_basis": "historical_curated",
+      "provenance": {
+        "method": "Historical converter choice, retained as a provisional acceptable replacement, not acoustic ground truth. Legacy transpose is an audition octave count; observed pitch offset is unknown.",
+        "source": {
+          "kind": "local_game_source",
+          "path": "snes/ff2/ff2mus.pl",
+          "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+          "symbol": "@patchmap / @transpose",
+          "instrument_id": 7
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "local_game_source",
+        "path": "snes/ff2/ff2mus.pl",
+        "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+        "symbol": "@patchmap / @transpose",
+        "instrument_id": 7
+      }
+    },
+    {
+      "case_id": "ff4-trumpet",
+      "record_id": "ff4-trumpet",
+      "split": "historical-dev",
+      "source": {
+        "platform": "snes",
+        "game_or_module": "Final Fantasy II (US) / IV",
+        "driver": "FF2",
+        "source_instrument_id": 6
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "gm_program",
+            "program_0based": 56,
+            "program_1based": 57,
+            "melodic_percussion": false
+          }
+        ],
+        "gm_families": [
+          7
+        ],
+        "candidate_audition_octave_adjustment": 0
+      },
+      "label_basis": "historical_curated",
+      "provenance": {
+        "method": "Historical converter choice, retained as a provisional acceptable replacement, not acoustic ground truth. Legacy transpose is an audition octave count; observed pitch offset is unknown.",
+        "source": {
+          "kind": "local_game_source",
+          "path": "snes/ff2/ff2mus.pl",
+          "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+          "symbol": "@patchmap / @transpose",
+          "instrument_id": 6
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "local_game_source",
+        "path": "snes/ff2/ff2mus.pl",
+        "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+        "symbol": "@patchmap / @transpose",
+        "instrument_id": 6
+      }
+    },
+    {
+      "case_id": "ff4-bass",
+      "record_id": "ff4-bass",
+      "split": "historical-dev",
+      "source": {
+        "platform": "snes",
+        "game_or_module": "Final Fantasy II (US) / IV",
+        "driver": "FF2",
+        "source_instrument_id": 9
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "gm_program",
+            "program_0based": 34,
+            "program_1based": 35,
+            "melodic_percussion": false
+          }
+        ],
+        "gm_families": [
+          4
+        ],
+        "candidate_audition_octave_adjustment": -2
+      },
+      "label_basis": "historical_curated",
+      "provenance": {
+        "method": "Historical converter choice, retained as a provisional acceptable replacement, not acoustic ground truth. Legacy transpose is an audition octave count; observed pitch offset is unknown.",
+        "source": {
+          "kind": "local_game_source",
+          "path": "snes/ff2/ff2mus.pl",
+          "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+          "symbol": "@patchmap / @transpose",
+          "instrument_id": 9
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "local_game_source",
+        "path": "snes/ff2/ff2mus.pl",
+        "sha256": "f18896043b57276a43ad3bbc6326e4a6b927f65bf3701a6956c81e2ec16ea19a",
+        "symbol": "@patchmap / @transpose",
+        "instrument_id": 9
+      }
+    },
+    {
+      "case_id": "tracker-major-inversion",
+      "record_id": "tracker-major-inversion",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "ProTracker",
+        "game_or_module": "GME original oscillator samples",
+        "driver": "generated M.K. module"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "composite"
+          }
+        ],
+        "component_offsets": [
+          -5,
+          0,
+          4
+        ],
+        "abstain": false
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Exact authored component offsets relative to MIDI-60 trigger; original oscillator sums. Not a recording of commercial tracker music. Validate native module rendering separately.",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "tracker-major-inversion",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "tracker-major-inversion",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "tracker-minor",
+      "record_id": "tracker-minor",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "ProTracker",
+        "game_or_module": "GME original oscillator samples",
+        "driver": "generated M.K. module"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "composite"
+          }
+        ],
+        "component_offsets": [
+          0,
+          3,
+          7
+        ],
+        "abstain": false
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Exact authored component offsets relative to MIDI-60 trigger; original oscillator sums. Not a recording of commercial tracker music. Validate native module rendering separately.",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "tracker-minor",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "tracker-minor",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "tracker-sus4",
+      "record_id": "tracker-sus4",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "ProTracker",
+        "game_or_module": "GME original oscillator samples",
+        "driver": "generated M.K. module"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "composite"
+          }
+        ],
+        "component_offsets": [
+          0,
+          5,
+          7
+        ],
+        "abstain": false
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Exact authored component offsets relative to MIDI-60 trigger; original oscillator sums. Not a recording of commercial tracker music. Validate native module rendering separately.",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "tracker-sus4",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "tracker-sus4",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "tracker-power-octave",
+      "record_id": "tracker-power-octave",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "ProTracker",
+        "game_or_module": "GME original oscillator samples",
+        "driver": "generated M.K. module"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "composite"
+          }
+        ],
+        "component_offsets": [
+          0,
+          7,
+          12
+        ],
+        "abstain": false
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Exact authored component offsets relative to MIDI-60 trigger; original oscillator sums. Not a recording of commercial tracker music. Validate native module rendering separately.",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "tracker-power-octave",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "tracker-power-octave",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "single-rich-tone",
+      "record_id": "single-rich-tone",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "synthetic",
+        "game_or_module": "GME original oscillators",
+        "driver": "deterministic oscillator sum"
+      },
+      "labels": {
+        "observed_pitch_offset_semitones": 0,
+        "component_offsets": [
+          0
+        ]
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "generated_exact",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "single-rich-tone",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "single-rich-tone",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "pitch-offset-minus5",
+      "record_id": "pitch-offset-minus5",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "synthetic",
+        "game_or_module": "GME original oscillators",
+        "driver": "deterministic oscillator sum"
+      },
+      "labels": {
+        "observed_pitch_offset_semitones": -5,
+        "component_offsets": [
+          -5
+        ]
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "generated_exact",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "pitch-offset-minus5",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "pitch-offset-minus5",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "pitch-offset-plus7",
+      "record_id": "pitch-offset-plus7",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "synthetic",
+        "game_or_module": "GME original oscillators",
+        "driver": "deterministic oscillator sum"
+      },
+      "labels": {
+        "observed_pitch_offset_semitones": 7,
+        "component_offsets": [
+          7
+        ]
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "generated_exact",
+        "source": {
+          "kind": "generated_fixture",
+          "generator": "python -m instrument_analysis.fixtures",
+          "fixture_id": "pitch-offset-plus7",
+          "license": "CC0-1.0"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "pitch-offset-plus7",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "gm-melodic-percussion-control",
+      "record_id": "gm-melodic-percussion-control",
+      "split": "same-bank-sanity",
+      "source": {
+        "platform": "GM",
+        "game_or_module": "bank supplied at render time",
+        "driver": "FluidSynth"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "gm_program",
+            "program_0based": 11,
+            "program_1based": 12,
+            "melodic_percussion": true
+          }
+        ],
+        "abstain": false,
+        "gm_families": [
+          1
+        ]
+      },
+      "label_basis": "render_recipe_identity",
+      "provenance": {
+        "method": "Known generation route tests routing plumbing only; same-bank self-matches must not be reported as cross-game generalization.",
+        "source": {
+          "kind": "gm_reference_recipe",
+          "route": {
+            "kind": "gm_program",
+            "program_0based": 11,
+            "program_1based": 12,
+            "melodic_percussion": true
+          },
+          "requires": "FluidSynth executable plus explicit hashed GM SoundFont"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "gm_reference_recipe",
+        "route": {
+          "kind": "gm_program",
+          "program_0based": 11,
+          "program_1based": 12,
+          "melodic_percussion": true
+        },
+        "requires": "FluidSynth executable plus explicit hashed GM SoundFont"
+      }
+    },
+    {
+      "case_id": "gm-channel10-snare-control",
+      "record_id": "gm-channel10-snare-control",
+      "split": "same-bank-sanity",
+      "source": {
+        "platform": "GM",
+        "game_or_module": "bank supplied at render time",
+        "driver": "FluidSynth"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "gm_percussion",
+            "note": 38
+          }
+        ],
+        "abstain": false
+      },
+      "label_basis": "render_recipe_identity",
+      "provenance": {
+        "method": "Known generation route tests routing plumbing only; same-bank self-matches must not be reported as cross-game generalization.",
+        "source": {
+          "kind": "gm_reference_recipe",
+          "route": {
+            "kind": "gm_percussion",
+            "note": 38
+          },
+          "requires": "FluidSynth executable plus explicit hashed GM SoundFont"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "gm_reference_recipe",
+        "route": {
+          "kind": "gm_percussion",
+          "note": 38
+        },
+        "requires": "FluidSynth executable plus explicit hashed GM SoundFont"
+      }
+    },
+    {
+      "case_id": "gradius3-fm-ambiguous",
+      "record_id": "gradius3-fm-ambiguous",
+      "split": "unlabeled-review",
+      "source": {
+        "platform": "arcade",
+        "game_or_module": "Gradius III",
+        "driver": "YM2151"
+      },
+      "labels": {},
+      "label_basis": "unlabeled",
+      "provenance": {
+        "method": "Register/region metadata alone does not establish a GM label or observed acoustic offset. Excluded from supervised denominators until blinded review.",
+        "source": {
+          "kind": "local_game_source",
+          "path": "arcade/gradius3/rom/945_r05.d9"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "local_game_source",
+        "path": "arcade/gradius3/rom/945_r05.d9"
+      }
+    },
+    {
+      "case_id": "akao-multizone-unity-only",
+      "record_id": "akao-multizone-unity-only",
+      "split": "unlabeled-review",
+      "source": {
+        "platform": "psx",
+        "game_or_module": "Final Fantasy VIII",
+        "driver": "AKAO"
+      },
+      "labels": {},
+      "label_basis": "unlabeled",
+      "provenance": {
+        "method": "Register/region metadata alone does not establish a GM label or observed acoustic offset. Excluded from supervised denominators until blinded review.",
+        "source": {
+          "kind": "local_game_source",
+          "path": "psx/ff8/ff8img_1e_0.bin"
+        }
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.5,
+        "sample_rate": 22050,
+        "effects": "dry unless source-native patch requires otherwise"
+      },
+      "asset": {
+        "kind": "local_game_source",
+        "path": "psx/ff8/ff8img_1e_0.bin"
+      }
+    },
+    {
+      "case_id": "sfx-noise-burst",
+      "record_id": "sfx-noise-burst",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "synthetic",
+        "game_or_module": "GME original control signals",
+        "driver": "deterministic noise/silence generator"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "sfx",
+            "description": "Authored as a short noise-burst effect"
+          }
+        ],
+        "abstain": false
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Original authored control signal; route encodes intended function, not a universal acoustic classification"
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "sfx-noise-burst",
+        "license": "CC0-1.0"
+      }
+    },
+    {
+      "case_id": "abstain-silence",
+      "record_id": "abstain-silence",
+      "split": "synthetic-contract",
+      "source": {
+        "platform": "synthetic",
+        "game_or_module": "GME original control signals",
+        "driver": "deterministic noise/silence generator"
+      },
+      "labels": {
+        "routes": [
+          {
+            "kind": "abstain",
+            "reason": "No active instrument signal"
+          }
+        ],
+        "abstain": true
+      },
+      "label_basis": "generated_exact",
+      "provenance": {
+        "method": "Original authored control signal; route encodes intended function, not a universal acoustic classification"
+      },
+      "render_conditions": {
+        "note": 60,
+        "velocity": 96,
+        "duration_seconds": 1.0,
+        "tail_seconds": 0.0,
+        "sample_rate": 22050,
+        "effects": "authored oscillator envelope or control signal; no hardware emulation"
+      },
+      "asset": {
+        "kind": "generated_fixture",
+        "generator": "python -m instrument_analysis.fixtures",
+        "fixture_id": "abstain-silence",
+        "license": "CC0-1.0"
+      }
+    }
+  ]
+}

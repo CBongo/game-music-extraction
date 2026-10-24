@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-render-v1.schema.json",
+  "title": "GM reference render manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generator",
+    "soundfont",
+    "conditions",
+    "probes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-render/v1"
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "name",
+        "executable",
+        "executable_sha256",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "executable": {
+          "type": "string"
+        },
+        "executable_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "soundfont": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "preset_count"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "preset_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "required": [
+        "sample_rate",
+        "duration_seconds",
+        "tail_seconds",
+        "dry",
+        "reverb",
+        "chorus",
+        "midi_bank_select",
+        "midi_format",
+        "midi_ticks_per_second"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tail_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "dry": {
+          "type": "boolean"
+        },
+        "reverb": {
+          "type": "boolean"
+        },
+        "chorus": {
+          "type": "boolean"
+        },
+        "midi_bank_select": {
+          "const": "mma"
+        },
+        "midi_format": {
+          "const": 0
+        },
+        "midi_ticks_per_second": {
+          "const": 1000
+        }
+      }
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "probe_id",
+          "kind",
+          "source_record_id",
+          "route",
+          "channel_0based",
+          "channel_1based",
+          "bank",
+          "bank_select_msb",
+          "bank_select_lsb",
+          "program_0based",
+          "program_1based",
+          "note",
+          "velocity",
+          "preset_name",
+          "midi_sha256",
+          "wav",
+          "bank_source"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "probe_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "melodic",
+              "percussion"
+            ]
+          },
+          "source_record_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "$ref": "instrument-analysis-v1.schema.json#/$defs/route"
+          },
+          "channel_0based": {
+            "enum": [
+              0,
+              9
+            ]
+          },
+          "channel_1based": {
+            "enum": [
+              1,
+              10
+            ]
+          },
+          "bank": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16383
+          },
+          "bank_select_msb": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 127
+          },
+          "bank_select_lsb": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 127
+          },
+          "program_0based": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "program_1based": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 128
+          },
+          "note": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "velocity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 127
+          },
+          "preset_name": {
+            "type": "string"
+          },
+          "midi_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "wav": {
+            "type": "object",
+            "required": [
+              "file",
+              "sha256",
+              "sample_rate",
+              "channels",
+              "sample_width_bytes",
+              "frames",
+              "duration_seconds",
+              "peak_pcm16"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "sample_rate": {
+                "type": "integer"
+              },
+              "channels": {
+                "enum": [
+                  1,
+                  2
+                ]
+              },
+              "sample_width_bytes": {
+                "const": 2
+              },
+              "frames": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "duration_seconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "peak_pcm16": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32768
+              }
+            }
+          },
+          "bank_source": {
+            "enum": [
+              "midi_cc0_cc32",
+              "channel_10_gm_default"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
