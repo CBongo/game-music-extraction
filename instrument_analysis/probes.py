@@ -60,3 +60,53 @@ def plan_source_probes(bundle: dict[str,Any], *, standard_notes=(48,60,72),
                 probe['expected_sounding_midi_note']=note['sounding_midi_note']
             result['probes'].append(probe)
     return result
+
+
+def plan_native_register_probes(source_plan: dict, calibration: dict) -> dict:
+    """Plan SPU/S-DSP register ratios from grounded usage; remeasure each result."""
+    if source_plan.get('schema_version') != 'instrument-source-probe-plan/v1':
+        raise ValueError('unsupported source probe plan')
+    if (calibration.get('schema_version') != 'instrument-pitch-calibration/v1'
+            or calibration.get('status') != 'calibrated'
+            or calibration.get('basis') not in {'acoustic_measurement', 'verified_driver_reference'}):
+        raise ValueError('a grounded calibrated pitch artifact is required')
+    confidence, measured = calibration.get('confidence'), calibration.get('sounding_midi_note')
+    if (type(confidence) not in (float, int) or not math.isfinite(confidence)
+            or not 0.8 <= confidence <= 1 or type(measured) not in (float, int)
+            or not math.isfinite(measured) or not 0 <= measured <= 127):
+        raise ValueError('calibration pitch or confidence is invalid')
+    raw = calibration.get('native_raw_pitch', {})
+    if (raw.get('key') not in {'pitch_register_raw_s_dsp', 'pitch_register_raw_spu'}
+            or type(raw.get('value')) is not int or not 1 <= raw['value'] <= 0x3fff):
+        raise ValueError('only nonzero calibrated S-DSP/SPU pitch registers are supported')
+    for field in ('native_manifest_sha256', 'native_wav_sha256'):
+        value = calibration.get(field)
+        if not isinstance(value, str) or len(value) != 64 or any(c not in '0123456789abcdef' for c in value):
+            raise ValueError('calibration requires exact input hashes')
+    result = {'schema_version': 'instrument-native-register-plan/v1',
+              'status': 'planned_requires_remeasurement',
+              'conditions': deepcopy(source_plan['conditions']),
+              'calibration_manifest_sha256': calibration['native_manifest_sha256'],
+              'calibration_wav_sha256': calibration['native_wav_sha256'],
+              'probes': [], 'skipped': []}
+    for probe in source_plan['probes']:
+        reason = None
+        if probe['source_record_id'] != calibration.get('source_record_id'):
+            reason = 'different_source_record'
+        elif probe.get('comparison_pitch_known') is not True:
+            reason = 'unknown_source_pitch'
+        target = probe.get('expected_sounding_midi_note')
+        if reason is None and (type(target) not in (int, float) or not math.isfinite(target) or not 0 <= target <= 127):
+            reason = 'invalid_target_pitch'
+        register = None if reason else round(raw['value'] * 2 ** ((target - measured) / 12))
+        if reason is None and not 1 <= register <= 0x3fff:
+            reason = 'pitch_register_out_of_range'
+        if reason:
+            result['skipped'].append({'probe_id': probe['probe_id'], 'reason': reason})
+            continue
+        result['probes'].append({**deepcopy(probe),
+            'native_raw_pitch_request': {'key': raw['key'], 'value': register},
+            'target_sounding_midi_note': target,
+            'predicted_register_rounding_cents': 1200 * math.log2(register / raw['value']) - 100 * (target - measured),
+            'acoustic_pitch_verified': False})
+    return result

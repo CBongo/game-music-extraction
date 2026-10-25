@@ -35,8 +35,12 @@ This generator is standard-library-only and refuses to overwrite outputs unless
 `--overwrite` is explicit. WAVs are controlled oscillator/control signals, not
 native SNES/SPU/FM renders. Modules use a declared PAL sample-rate/period reference,
 zero finetune, non-looping original samples, and a bounded pattern loop to be
-handled by the module player. Confirm their actual playback with openmpt123 before
-using module-rendered pitch as measurement evidence. The checked-in tests validate
+handled by the module player. Seven generated modules have now been rendered through installed openmpt123
+0.8.9, with explicit 44.1 kHz mono PCM16, gain 0 dB, 8-tap interpolation, ramping
+0, dithering 0, repeat 0, and a one-second limit. All seven are nonzero and
+unclipped; exact commands and hashes are in ignored
+`instrument-renders/openmpt-fixtures-20261025/manifest.json`. Playback integrity
+does not by itself validate multipitch detection or tracker pitch calibration. The checked-in tests validate
 container structure and authored component offsets, not tracker-emulator fidelity.
 
 Evaluate canonical predictions by matching `record_id` to the manifest:

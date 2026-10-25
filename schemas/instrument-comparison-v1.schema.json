@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-comparison-v1.schema.json",
+  "title": "Hash-bound, phase-matched native and GM comparison manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "engine",
+    "input",
+    "pitch",
+    "route",
+    "conditions",
+    "outputs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-comparison/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input": {
+      "$ref": "#/$defs/inputs"
+    },
+    "pitch": {
+      "$ref": "#/$defs/pitch"
+    },
+    "route": {
+      "$ref": "#/$defs/route"
+    },
+    "conditions": {
+      "$ref": "#/$defs/conditions"
+    },
+    "outputs": {
+      "$ref": "#/$defs/outputs"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_manifest",
+        "native_wav",
+        "native_receipt",
+        "gm_manifest",
+        "gm_wav",
+        "pitch_calibration",
+        "soundfont"
+      ],
+      "properties": {
+        "native_manifest": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "native_wav": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "native_receipt": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "gm_manifest": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "gm_wav": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "pitch_calibration": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "soundfont": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "preset_count"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "preset_count": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "rawPitch": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "keycode_raw_ym2151"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_s_dsp"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16383
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_spu"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16383
+            }
+          }
+        }
+      ]
+    },
+    "pitch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calibration_basis",
+        "calibration_status",
+        "calibration_confidence",
+        "calibrated_sounding_midi_note",
+        "gm_note",
+        "residual_cents",
+        "tolerance_cents",
+        "native_raw_pitch",
+        "evidence"
+      ],
+      "properties": {
+        "calibration_basis": {
+          "enum": [
+            "acoustic_measurement",
+            "verified_driver_reference"
+          ]
+        },
+        "calibration_status": {
+          "const": "calibrated"
+        },
+        "calibration_confidence": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1
+        },
+        "calibrated_sounding_midi_note": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "gm_note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "residual_cents": {
+          "type": "number",
+          "minimum": -50,
+          "maximum": 50
+        },
+        "tolerance_cents": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "native_raw_pitch": {
+          "$ref": "#/$defs/rawPitch"
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gm_probe_id",
+        "kind",
+        "program_0based",
+        "program_1based",
+        "bank",
+        "preset_name",
+        "velocity"
+      ],
+      "properties": {
+        "gm_probe_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "gm_program"
+        },
+        "program_0based": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "program_1based": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "bank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383
+        },
+        "preset_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        }
+      }
+    },
+    "phaseAlignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_note_on_frame",
+        "native_note_off_frame",
+        "gm_note_on_frame",
+        "gm_note_off_frame",
+        "matched_hold_frames",
+        "matched_tail_frames",
+        "native_hold_available_frames",
+        "native_tail_available_frames",
+        "gm_hold_available_frames",
+        "gm_tail_available_frames",
+        "native_phase_jump_frames",
+        "gm_phase_jump_frames",
+        "native_uncertainty_frames",
+        "native_clock_origin_verified",
+        "alignment_method"
+      ],
+      "properties": {
+        "native_note_on_frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_note_off_frame": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "gm_note_on_frame": {
+          "const": 0
+        },
+        "gm_note_off_frame": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "matched_hold_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "matched_tail_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "native_hold_available_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "native_tail_available_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "gm_hold_available_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "gm_tail_available_frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "native_phase_jump_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gm_phase_jump_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_uncertainty_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_clock_origin_verified": {
+          "type": "boolean"
+        },
+        "alignment_method": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_rate",
+        "channels",
+        "sample_width_bytes",
+        "dry",
+        "source_gain",
+        "gm_gain",
+        "gap_seconds",
+        "gap_frames",
+        "gain_scope",
+        "source_fixed_volume_vs_midi_velocity_note",
+        "phase_alignment"
+      ],
+      "properties": {
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "channels": {
+          "const": 2
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "dry": {
+          "const": true
+        },
+        "source_gain": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 64
+        },
+        "gm_gain": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 64
+        },
+        "gap_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "gap_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gain_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_fixed_volume_vs_midi_velocity_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase_alignment": {
+          "$ref": "#/$defs/phaseAlignment"
+        }
+      }
+    },
+    "excerpt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "sha256",
+        "frames",
+        "sample_rate",
+        "channels",
+        "sample_width_bytes"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "channels": {
+          "const": 2
+        },
+        "sample_width_bytes": {
+          "const": 2
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_excerpt",
+        "gm_excerpt",
+        "ab_preview"
+      ],
+      "properties": {
+        "native_excerpt": {
+          "$ref": "#/$defs/excerpt"
+        },
+        "gm_excerpt": {
+          "$ref": "#/$defs/excerpt"
+        },
+        "ab_preview": {
+          "$ref": "#/$defs/excerpt"
+        }
+      }
+    }
+  }
+}

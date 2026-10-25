@@ -1,7 +1,7 @@
 from copy import deepcopy
 import unittest
 from instrument_analysis import make_bundle
-from instrument_analysis.probes import plan_source_probes
+from instrument_analysis.probes import plan_source_probes, plan_native_register_probes
 
 
 class SourceProbeTests(unittest.TestCase):
@@ -38,6 +38,24 @@ class SourceProbeTests(unittest.TestCase):
         for kwargs in ({'velocity':0},{'max_usage_notes':0},{'duration_seconds':float('nan')},{'standard_notes':(60,60)}):
             with self.assertRaises(ValueError):
                 plan_source_probes(self.bundle(),**kwargs)
+
+
+    def test_register_plan_preserves_usage_and_requires_new_measurement(self):
+        plan=plan_source_probes(self.bundle())
+        calibration={'schema_version':'instrument-pitch-calibration/v1','status':'calibrated',
+            'basis':'acoustic_measurement','confidence':0.99,'source_record_id':'source:7',
+            'sounding_midi_note':49,'native_raw_pitch':{'key':'pitch_register_raw_spu','value':4096},
+            'native_manifest_sha256':'a'*64,'native_wav_sha256':'b'*64}
+        result=plan_native_register_probes(plan,calibration)
+        self.assertEqual([2048,4096],[p['native_raw_pitch_request']['value'] for p in result['probes']])
+        self.assertEqual('planned_requires_remeasurement',result['status'])
+        self.assertTrue(all(not p['acoustic_pitch_verified'] for p in result['probes']))
+        self.assertIn('pitch_register_out_of_range',[p['reason'] for p in result['skipped']])
+        self.assertIn('unknown_source_pitch',[p['reason'] for p in result['skipped']])
+        self.assertEqual(40,result['probes'][0]['trigger_note'])
+        for change in ({'status':'abstain'},{'basis':'curated'},{'confidence':0.7},{'native_manifest_sha256':'bad'}):
+            with self.assertRaises(ValueError):
+                plan_native_register_probes(plan,{**calibration,**change})
 
 
 if __name__=='__main__':

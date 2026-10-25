@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-pitch-calibration-v1.schema.json",
+  "title": "Hash-bound native render acoustic pitch calibration",
+  "description": "A conservative acoustic fundamental measurement or explicitly grounded driver reference for one exact source render.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "basis",
+    "status",
+    "source_record_id",
+    "native_manifest_path",
+    "native_manifest_sha256",
+    "native_wav_path",
+    "native_wav_sha256",
+    "engine",
+    "native_raw_pitch",
+    "sounding_midi_note",
+    "f0_hz",
+    "confidence",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-pitch-calibration/v1"
+    },
+    "basis": {
+      "enum": [
+        "acoustic_measurement",
+        "verified_driver_reference"
+      ]
+    },
+    "status": {
+      "enum": [
+        "calibrated",
+        "abstain"
+      ]
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_manifest_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "native_wav_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_wav_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "engine": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_raw_pitch": {
+      "$ref": "#/$defs/rawPitch"
+    },
+    "sounding_midi_note": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 127
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "f0_hz": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "method": {
+      "type": "string",
+      "minLength": 1
+    },
+    "window_estimates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/windowEstimate"
+      }
+    },
+    "median_absolute_deviation_cents": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "basis": {
+            "const": "acoustic_measurement"
+          }
+        },
+        "required": [
+          "basis"
+        ]
+      },
+      "then": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "window_estimates": {
+            "minItems": 0
+          }
+        },
+        "required": [
+          "method",
+          "window_estimates",
+          "median_absolute_deviation_cents",
+          "f0_hz"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "basis": {
+            "const": "verified_driver_reference"
+          }
+        },
+        "required": [
+          "basis"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "calibrated"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "sounding_midi_note": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.72,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "abstain"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "sounding_midi_note": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "basis": {
+            "const": "acoustic_measurement"
+          },
+          "status": {
+            "const": "calibrated"
+          }
+        },
+        "required": [
+          "basis",
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "f0_hz": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "median_absolute_deviation_cents": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "basis": {
+            "const": "acoustic_measurement"
+          },
+          "status": {
+            "const": "calibrated"
+          }
+        },
+        "required": [
+          "basis",
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "window_estimates": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "f0_hz": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "f0_hz"
+              ]
+            },
+            "minContains": 2
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rawPitch": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "keycode_raw_ym2151"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_s_dsp"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16383
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_spu"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16383
+            }
+          }
+        }
+      ]
+    },
+    "windowEstimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_seconds",
+        "end_seconds",
+        "f0_hz",
+        "confidence",
+        "periodicity",
+        "ambiguity",
+        "envelope_modulation"
+      ],
+      "properties": {
+        "start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "f0_hz": {
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "periodicity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ambiguity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "envelope_modulation": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

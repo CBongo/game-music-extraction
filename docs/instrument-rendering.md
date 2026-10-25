@@ -171,9 +171,9 @@ and WAV clocks retain the bounded alignment limitation described above. A
 successful capture is evidence of playback under those recorded conditions;
 it does not establish physical-console equivalence or perceptual pitch alignment.
 
-## Remaining acceptance work
+## Comparison integration and limits
 
-Bead `gme-0r4.6` remains in progress. Real all-program GM audio and native FM
+Bead `gme-0r4.6` is complete. Real all-program GM audio and native FM
 capture have now been validated; see [the validation record](instrument-render-validation.md).
 The 431 raw FluidSynth captures retain engine-generated release/padding beyond
 the requested 0.5 s note plus minimum 0.5 s tail. Their actual lengths are recorded
@@ -183,10 +183,10 @@ in GeneralUser banks 0 and 1 verify bank selection within one SoundFont, not
 agreement across different SoundFonts or synthesizer implementations.
 
 Native AKAO/SPU and SNES DSP backends now have validated, byte-identical repeat
-captures with source-memory and register readback. Bead `gme-0r4.6.3` tracks
-connecting calibrated source pitches and usage-selected triggers to matched GM
-comparison windows and manifest-linked previews. Raw-register playback does not
-establish pitch alignment by itself.
+captures with source-memory and register readback. The completed [comparison pipeline](instrument-comparisons.md) connects measured
+source pitches and usage-selected trigger plans to matched GM comparison windows
+and manifest-linked previews. Raw-register playback does not establish pitch
+alignment by itself.
 Matching source/reference effects, acoustic calibration, and cross-SoundFont
 evidence must use real render manifests before classifier evaluation. The tests
 and live integrity checks do not establish perceptual similarity or hardware
