@@ -1,6 +1,7 @@
 """Native Gradius III YM2151 probe capture through MAME."""
 from __future__ import annotations
 
+import array
 import hashlib
 import json
 import math
@@ -8,8 +9,10 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import wave
+import uuid
 
 MANIFEST_VERSION = "instrument-native-render/v1"
 RECEIPT_VERSION = "gradius3-native-probe-receipt/v1"
@@ -89,7 +92,8 @@ def _validate_receipt(receipt: object, *, patch_num: int, patch_id: str,
 
 
 def _trim_capture(capture: Path, destination: Path, *, sample_rate: int,
-                  start_seconds: float, end_seconds: float) -> dict:
+                  start_seconds: float, note_off_seconds: float,
+                  end_seconds: float, frame_period_seconds: float) -> tuple[dict, dict]:
     try:
         with wave.open(str(capture), "rb") as source:
             channels, width = source.getnchannels(), source.getsampwidth()
@@ -98,17 +102,46 @@ def _trim_capture(capture: Path, destination: Path, *, sample_rate: int,
                 raise RuntimeError("MAME WAV must be uncompressed mono/stereo PCM16")
             if rate != sample_rate:
                 raise RuntimeError(f"MAME WAV sample rate {rate} does not match requested {sample_rate}")
-            first = round(start_seconds * rate)
-            last = round(end_seconds * rate)
-            if first < 0 or last <= first or last > total_frames:
-                raise RuntimeError("MAME WAV does not contain the receipt's complete note and tail interval")
-            source.setpos(first)
-            pcm = source.readframes(last - first)
-            frames = last - first
-            if len(pcm) != frames * channels * width or not pcm:
-                raise RuntimeError("MAME WAV capture interval is empty or truncated")
+            pcm = source.readframes(total_frames)
+            if len(pcm) != total_frames * channels * width:
+                raise RuntimeError("MAME WAV capture is truncated")
     except (OSError, EOFError, wave.Error) as exc:
         raise RuntimeError(f"not a readable MAME PCM WAV: {capture}") from exc
+    recorded_seconds = total_frames / rate
+    end_shortfall = max(0.0, end_seconds - recorded_seconds)
+    end_overrun = max(0.0, recorded_seconds - end_seconds)
+    if max(end_shortfall, end_overrun) > frame_period_seconds:
+        raise RuntimeError("MAME WAV end differs from the receipt by more than one video frame")
+
+    # Keep one full video frame before the key-on timestamp to cover mixer-clock
+    # alignment and slow instrument attacks. The first nonzero sample is diagnostic only.
+    requested_start = max(0.0, start_seconds - frame_period_seconds)
+    first_frame = round(requested_start * rate)
+    last_frame = min(round(end_seconds * rate), total_frames)
+    if last_frame <= first_frame:
+        raise RuntimeError("MAME WAV does not contain a usable note/tail interval")
+    frame_bytes = channels * width
+    raw_pcm = pcm
+    pcm = raw_pcm[first_frame * frame_bytes:last_frame * frame_bytes]
+    frames = last_frame - first_frame
+    if not pcm or len(pcm) != frames * frame_bytes:
+        raise RuntimeError("MAME WAV capture interval is empty or truncated")
+    actual_start = first_frame / rate
+    actual_end = last_frame / rate
+    expected_capture_seconds = end_seconds - requested_start
+    actual_capture_seconds = frames / rate
+    if abs(actual_capture_seconds - expected_capture_seconds) > frame_period_seconds:
+        raise RuntimeError("MAME WAV note/tail duration differs by more than one video frame")
+
+    # PCM16 signal checks are stored in the receipt metadata, not the strict manifest schema.
+    samples = array.array("h")
+    samples.frombytes(pcm)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    peak = max((abs(value) for value in samples), default=0)
+    rms = math.sqrt(sum(value * value for value in samples) / len(samples)) if samples else 0.0
+    first_nonzero_byte = next((i for i, value in enumerate(raw_pcm) if value), None)
+    first_nonzero_seconds = (first_nonzero_byte // frame_bytes) / rate if first_nonzero_byte is not None else None
     try:
         with wave.open(str(destination), "wb") as target:
             target.setnchannels(channels)
@@ -117,13 +150,31 @@ def _trim_capture(capture: Path, destination: Path, *, sample_rate: int,
             target.writeframes(pcm)
     except (OSError, wave.Error) as exc:
         raise RuntimeError(f"could not write trimmed WAV: {destination}") from exc
-    return {
+    wav_info = {
         "sample_rate": rate,
         "channels": channels,
         "sample_width_bytes": width,
         "frames": frames,
-        "duration_seconds": frames / rate,
+        "duration_seconds": actual_capture_seconds,
     }
+    alignment = {
+        "requested_note_on_seconds": start_seconds,
+        "requested_note_off_seconds": note_off_seconds,
+        "receipt_capture_end_seconds": end_seconds,
+        "actual_trim_start_seconds": actual_start,
+        "actual_trim_end_seconds": actual_end,
+        "alignment_uncertainty_seconds": frame_period_seconds,
+        "lead_in_frames": max(0, round(start_seconds * rate) - first_frame),
+        "tail_shortfall_seconds": max(0.0, end_seconds - actual_end),
+        "capture_end_overrun_seconds": max(0.0, actual_end - end_seconds),
+        "clock_origin_verified": False,
+        "first_nonzero_sample_seconds_diagnostic": first_nonzero_seconds,
+        "recorded_wav_duration_seconds": recorded_seconds,
+        "peak_pcm16": peak,
+        "rms_pcm16": rms,
+        "clipped_samples_pcm16": sum(1 for value in samples if abs(value) >= 32767),
+    }
+    return wav_info, alignment
 
 
 def _resolve_mame(mame_path: str | Path) -> Path:
@@ -191,7 +242,7 @@ def render_gradius3_probe(
     if collisions:
         raise FileExistsError(f"native render output already exists: {collisions[0]}")
 
-    with tempfile.TemporaryDirectory(prefix=".g3-probe-", dir=output) as stage_name:
+    with tempfile.TemporaryDirectory(prefix=".g3-probe-") as stage_name:
         stage = Path(stage_name)
         staged_receipt = stage / "receipt.json"
         captured_wav = stage / "capture.wav"
@@ -203,8 +254,19 @@ def render_gradius3_probe(
             "GME_G3_TAIL_FRAMES": str(tail_frames),
             "GME_G3_RECEIPT": str(staged_receipt),
         })
+        output_dirs = {name: stage / name for name in ("home", "cfg", "nvram", "input", "state", "snapshots", "diff", "comments")}
+        for path in output_dirs.values():
+            path.mkdir()
         argv = [
-            str(mame), "gradius3", "-rompath", str(roms),
+            str(mame), "gradius3", "-noreadconfig", "-nowriteconfig",
+            "-rompath", str(roms), "-homepath", str(output_dirs["home"]),
+            "-cfg_directory", str(output_dirs["cfg"]),
+            "-nvram_directory", str(output_dirs["nvram"]),
+            "-input_directory", str(output_dirs["input"]),
+            "-state_directory", str(output_dirs["state"]),
+            "-snapshot_directory", str(output_dirs["snapshots"]),
+            "-diff_directory", str(output_dirs["diff"]),
+            "-comment_directory", str(output_dirs["comments"]),
             "-autoboot_script", str(_SCRIPT), "-autoboot_delay", "0",
             "-video", "none", "-samplerate", str(sample_rate),
             "-wavwrite", str(captured_wav),
@@ -214,25 +276,34 @@ def render_gradius3_probe(
             result = subprocess.run(argv, cwd=stage, env=env, shell=False,
                                     capture_output=True, text=True, timeout=timeout_seconds, check=False)
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"MAME native probe timed out after {timeout_seconds} seconds") from exc
+            raise RuntimeError(f"MAME native probe timed out after {timeout_seconds} seconds; stdout={exc.stdout!r}; stderr={exc.stderr!r}") from exc
         except OSError as exc:
             raise RuntimeError(f"MAME invocation failed: {exc}") from exc
         if result.returncode:
-            detail = (result.stderr or result.stdout or "").strip()[-2000:]
-            raise RuntimeError(f"MAME exited {result.returncode}: {detail}")
+            raise RuntimeError(f"MAME exited {result.returncode}; stdout={result.stdout!r}; stderr={result.stderr!r}")
         if not staged_receipt.is_file():
-            raise RuntimeError("MAME exited without a probe receipt")
+            raise RuntimeError(f"MAME exited without a probe receipt; stdout={result.stdout!r}; stderr={result.stderr!r}")
         try:
             raw_receipt = json.loads(staged_receipt.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError("MAME wrote an invalid probe receipt") from exc
-        validated = _validate_receipt(raw_receipt, patch_num=patch_num,
-            patch_id=str(patch_id), keycode=keycode, hold_frames=hold_frames,
-            tail_frames=tail_frames, audio_rom=rom_bytes)
-        wav_info = _trim_capture(captured_wav, stage / wav_path.name,
-            sample_rate=sample_rate,
-            start_seconds=validated["note_on_time_seconds"],
-            end_seconds=validated["capture_end_time_seconds"])
+            raise RuntimeError(f"MAME wrote an invalid probe receipt; stdout={result.stdout!r}; stderr={result.stderr!r}") from exc
+        try:
+            validated = _validate_receipt(raw_receipt, patch_num=patch_num,
+                patch_id=str(patch_id), keycode=keycode, hold_frames=hold_frames,
+                tail_frames=tail_frames, audio_rom=rom_bytes)
+            wav_info, wav_alignment = _trim_capture(captured_wav, stage / wav_path.name,
+                sample_rate=sample_rate,
+                start_seconds=validated["note_on_time_seconds"],
+                note_off_seconds=validated["note_off_time_seconds"],
+                end_seconds=validated["capture_end_time_seconds"],
+                frame_period_seconds=validated["frame_period_seconds"])
+        except RuntimeError as exc:
+            raise RuntimeError(f"{exc}; MAME stdout={result.stdout!r}; stderr={result.stderr!r}") from exc
+        raw_receipt["wav_alignment"] = wav_alignment
+        manifest_alignment = {key: wav_alignment[key] for key in (
+            "requested_note_on_seconds", "actual_trim_start_seconds",
+            "actual_trim_end_seconds", "alignment_uncertainty_seconds",
+            "tail_shortfall_seconds", "lead_in_frames", "clock_origin_verified")}
         staged_wav = stage / wav_path.name
         staged_receipt_final = stage / receipt_path.name
         staged_receipt_final.write_text(json.dumps(raw_receipt, indent=2, sort_keys=True)+"\n",
@@ -272,6 +343,7 @@ def render_gradius3_probe(
                 "sample_rate_requested": sample_rate,
                 "frame_period_seconds": validated['frame_period_seconds'],
                 "global_lfo_and_noise": "disabled for isolated patch probe",
+                "wav_alignment": manifest_alignment,
             },
             "run_arguments": argv,
             "receipt_file": receipt_path.name,
@@ -281,8 +353,22 @@ def render_gradius3_probe(
         staged_manifest = stage / manifest_path.name
         staged_manifest.write_text(json.dumps(manifest, indent=2, sort_keys=True)+"\n",
                                    encoding="utf-8")
-        # Output paths were checked before rendering. Publish all three only on success.
-        staged_wav.replace(wav_path)
-        staged_receipt_final.replace(receipt_path)
-        staged_manifest.replace(manifest_path)
+        # Copy to an output-local stage, then publish same-volume replacements.
+        # The MAME working stage may be on the system temp volume.
+        publish = output / f".g3-publish-{uuid.uuid4().hex}"
+        publish.mkdir()
+        try:
+            publish_wav = publish / wav_path.name
+            publish_receipt = publish / receipt_path.name
+            publish_manifest = publish / manifest_path.name
+            shutil.copyfile(staged_wav, publish_wav)
+            shutil.copyfile(staged_receipt_final, publish_receipt)
+            shutil.copyfile(staged_manifest, publish_manifest)
+            publish_wav.replace(wav_path)
+            publish_receipt.replace(receipt_path)
+            publish_manifest.replace(manifest_path)
+        finally:
+            if publish.resolve().parent != output.resolve() or not publish.name.startswith('.g3-publish-'):
+                raise RuntimeError('unsafe native render publication staging path')
+            shutil.rmtree(publish)
     return manifest

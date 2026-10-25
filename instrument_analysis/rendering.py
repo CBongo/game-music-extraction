@@ -12,7 +12,8 @@ import shutil
 import struct
 import subprocess
 import sys
-import tempfile
+from contextlib import contextmanager
+import uuid
 import wave
 from typing import Iterable
 
@@ -223,6 +224,26 @@ def _wav_info(path: Path, sample_rate: int, minimum_frames: int) -> dict:
             "peak_pcm16": max((abs(sample) for sample in samples), default=0)}
 
 
+@contextmanager
+def _staging_directory(output: Path):
+    """Create a private stage with inherited permissions on SMB shares."""
+    for _ in range(10):
+        stage = output / f".gm-render-{uuid.uuid4().hex}"
+        try:
+            stage.mkdir(mode=0o777)
+        except FileExistsError:
+            continue
+        try:
+            yield stage
+        finally:
+            if stage.resolve().parent != output.resolve() or not stage.name.startswith(".gm-render-"):
+                raise RuntimeError("unsafe renderer staging path")
+            shutil.rmtree(stage)
+        return
+    raise RuntimeError("could not allocate a renderer staging directory")
+
+
+
 def _run(argv: list[str], *, timeout: int) -> subprocess.CompletedProcess:
     try:
         result = subprocess.run(argv, shell=False, capture_output=True,
@@ -277,7 +298,7 @@ def render_gm_reference_set(
         collisions = [path for path in (*paths, manifest_path) if path.exists()]
         if collisions:
             raise FileExistsError(f"reference output already exists: {collisions[0]}")
-    version = _run([str(executable), "--version"], timeout=15)
+    version = _run([str(executable), "-V"], timeout=15)
     manifest = {
         "schema_version": MANIFEST_VERSION,
         "generator": {"name": "instrument_analysis.rendering",
@@ -293,8 +314,7 @@ def render_gm_reference_set(
                        "midi_ticks_per_second": TICKS_PER_SECOND},
         "probes": [],
     }
-    with tempfile.TemporaryDirectory(prefix=".gm-render-", dir=output) as stage_name:
-        stage = Path(stage_name)
+    with _staging_directory(output) as stage:
         config = stage / "empty.cfg"
         config.write_text("", encoding="utf-8")
         for probe in probes:
@@ -304,13 +324,13 @@ def render_gm_reference_set(
             midi.write_bytes(make_probe_midi(probe,
                 duration_seconds=duration / TICKS_PER_SECOND,
                 tail_seconds=tail / TICKS_PER_SECOND))
-            command = [str(executable), "--no-shell", "--no-midi-in", "--quiet",
-                       f"--load-config={config}", f"--sample-rate={sample_rate}",
-                       f"--chorus={0 if dry else 1}",
-                       f"--reverb={0 if dry else 1}",
+            # Short options also work in Windows builds compiled without getopt.
+            command = [str(executable), "-i", "-n", "-q",
+                       "-f", str(config), "-r", str(sample_rate),
+                       "-C", "0" if dry else "1", "-R", "0" if dry else "1",
                        "-o", "synth.midi-bank-select=mma",
-                       "--audio-file-type=wav", "--audio-file-format=s16",
-                       f"--fast-render={wav}", str(soundfont), str(midi)]
+                       "-T", "wav", "-O", "s16", "-F", str(wav),
+                       str(soundfont), str(midi)]
             try:
                 _run(command, timeout=120)
                 info = _wav_info(wav, sample_rate, minimum_frames)

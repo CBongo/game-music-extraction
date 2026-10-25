@@ -11,7 +11,7 @@ import wave
 
 from instrument_analysis.rendering import (
     MANIFEST_VERSION, make_probe_midi, plan_gm_reference_probes,
-    render_gm_reference_set, read_soundfont_presets,
+    render_gm_reference_set, read_soundfont_presets, _staging_directory,
 )
 
 
@@ -115,9 +115,9 @@ class RenderingTests(unittest.TestCase):
 
             def fake_run(argv, **kwargs):
                 calls.append((list(argv), kwargs))
-                if "--version" in argv:
+                if "-V" in argv:
                     return subprocess.CompletedProcess(argv, 0, "FluidSynth 2.5.4\n", "")
-                wav_path = Path(next(arg.split("=", 1)[1] for arg in argv if arg.startswith("--fast-render=")))
+                wav_path = Path(argv[argv.index("-F") + 1])
                 midi_path = Path(argv[-1])
                 self.assertTrue(midi_path.is_file())
                 with wave.open(str(wav_path), "wb") as stream:
@@ -148,6 +148,7 @@ class RenderingTests(unittest.TestCase):
                 self.assertEqual(entry["wav"]["sha256"], hashlib.sha256(wav_file.read_bytes()).hexdigest())
             disk = json.loads((root / "out" / "manifest.json").read_text())
             self.assertEqual(disk, manifest)
+            self.assertEqual(list((root / "out").glob(".gm-render-*")), [])
             try:
                 from jsonschema import Draft202012Validator
                 from referencing import Registry,Resource
@@ -168,11 +169,11 @@ class RenderingTests(unittest.TestCase):
             render_calls = [argv for argv, _ in calls[1:]]
             self.assertNotEqual(render_calls[0][-1], render_calls[1][-1])
             for argv in render_calls:
-                self.assertIn("--no-shell", argv)
-                self.assertIn("--no-midi-in", argv)
+                self.assertIn("-i", argv)
+                self.assertIn("-n", argv)
                 self.assertIn("synth.midi-bank-select=mma", argv)
-                self.assertIn("--chorus=0", argv)
-                self.assertIn("--reverb=0", argv)
+                self.assertEqual(argv[argv.index("-C") + 1], "0")
+                self.assertEqual(argv[argv.index("-R") + 1], "0")
             with patch("instrument_analysis.rendering.shutil.which", return_value=str(exe)):
                 with self.assertRaises(FileExistsError):
                     render_gm_reference_set(sf, root / "out",
@@ -188,7 +189,7 @@ class RenderingTests(unittest.TestCase):
             exe.write_bytes(b"executable")
 
             def failing_run(argv, **kwargs):
-                if "--version" in argv:
+                if "-V" in argv:
                     return subprocess.CompletedProcess(argv, 0, "FluidSynth test", "")
                 return subprocess.CompletedProcess(argv, 2, "", "bad soundfont")
 
@@ -199,6 +200,29 @@ class RenderingTests(unittest.TestCase):
                         notes=(60,), programs=(0,), percussion_keys=())
             self.assertFalse((root / "out" / "manifest.json").exists())
             self.assertEqual(list((root / "out").glob("*.wav")), [])
+            self.assertEqual(list((root / "out").glob(".gm-render-*")), [])
+
+
+    def test_staging_uses_inherited_permissions_and_cleans_up(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original_mkdir = Path.mkdir
+            modes = []
+
+            def guarded_mkdir(path, mode=0o777, parents=False, exist_ok=False):
+                if path.name.startswith(".gm-render-"):
+                    modes.append(mode)
+                    if mode == 0o700:
+                        raise PermissionError("restricted SMB directory")
+                return original_mkdir(path, mode=mode, parents=parents,
+                                      exist_ok=exist_ok)
+
+            with patch.object(Path, "mkdir", guarded_mkdir):
+                with _staging_directory(root) as stage:
+                    (stage / "probe.mid").write_bytes(b"MThd")
+                    self.assertTrue((stage / "probe.mid").exists())
+            self.assertEqual(modes, [0o777])
+            self.assertFalse(stage.exists())
 
 
     def test_zero_velocity_is_rejected(self):
@@ -261,10 +285,9 @@ class RenderingTests(unittest.TestCase):
             exe.write_bytes(b"executable")
 
             def short_run(argv, **kwargs):
-                if "--version" in argv:
+                if "-V" in argv:
                     return subprocess.CompletedProcess(argv, 0, "FluidSynth test", "")
-                wav_path = Path(next(arg.split("=", 1)[1]
-                                     for arg in argv if arg.startswith("--fast-render=")))
+                wav_path = Path(argv[argv.index("-F") + 1])
                 with wave.open(str(wav_path), "wb") as stream:
                     stream.setnchannels(2)
                     stream.setsampwidth(2)
@@ -279,6 +302,7 @@ class RenderingTests(unittest.TestCase):
                         notes=(60,), programs=(0,), percussion_keys=())
             self.assertFalse((root / "out" / "manifest.json").exists())
             self.assertEqual(list((root / "out").glob("*.wav")), [])
+            self.assertEqual(list((root / "out").glob(".gm-render-*")), [])
 
 if __name__ == "__main__":
     unittest.main()

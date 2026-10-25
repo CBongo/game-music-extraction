@@ -173,6 +173,85 @@
         },
         "global_lfo_and_noise": {
           "type": "string"
+        },
+        "wav_alignment": {
+          "type": "object",
+          "required": [
+            "requested_note_on_seconds",
+            "actual_trim_start_seconds",
+            "actual_trim_end_seconds",
+            "alignment_uncertainty_seconds",
+            "lead_in_frames",
+            "tail_shortfall_seconds",
+            "clock_origin_verified"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "requested_note_on_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "actual_trim_start_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "actual_trim_end_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "alignment_uncertainty_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tail_shortfall_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "lead_in_frames": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Leading PCM sample frames retained before the receipt note-on"
+            },
+            "clock_origin_verified": {
+              "type": "boolean"
+            },
+            "requested_note_off_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "receipt_capture_end_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "capture_end_overrun_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "recorded_wav_duration_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "rms_pcm16": {
+              "type": "number",
+              "minimum": 0
+            },
+            "peak_pcm16": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 32768
+            },
+            "clipped_samples_pcm16": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "first_nonzero_sample_seconds_diagnostic": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
         }
       }
     },

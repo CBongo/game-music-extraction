@@ -56,7 +56,7 @@ def _capture(argv, env, *, receipt=True, status="ok"):
         stream.setnchannels(2)
         stream.setsampwidth(2)
         stream.setframerate(44100)
-        stream.writeframes(b"\x01\x00\xfe\xff" * 4410)
+        stream.writeframes(bytes(441 * 4) + bytes(100 * 4) + b"\x01\x00\xfe\xff" * 782)
     if receipt:
         rom = Path(env["_TEST_AUDIO_ROM"]).read_bytes()
         patch_num = int(env["GME_G3_PATCH"])
@@ -90,8 +90,18 @@ class NativeRenderingTests(unittest.TestCase):
             self.assertEqual(manifest["key"]["keycode_raw_ym2151"], 66)
             self.assertIsNone(manifest["key"]["midi_note"])
             self.assertIsNone(manifest["key"]["velocity"])
-            self.assertEqual(manifest["wav"]["frames"], 882)
-            self.assertEqual(manifest["wav"]["duration_seconds"], 882 / 44100)
+            self.assertEqual(manifest["wav"]["frames"], 1103)
+            self.assertEqual(manifest["wav"]["duration_seconds"], 1103 / 44100)
+            receipt = json.loads((root / "out" / manifest["receipt_file"]).read_text())
+            alignment = manifest["conditions"]["wav_alignment"]
+            self.assertEqual(alignment["lead_in_frames"], 221)
+            self.assertEqual(alignment["tail_shortfall_seconds"], 0.0)
+            self.assertFalse(alignment["clock_origin_verified"])
+            self.assertEqual(receipt["wav_alignment"]["first_nonzero_sample_seconds_diagnostic"], 541 / 44100)
+            with wave.open(str(root / "out" / manifest["wav"]["file"]), "rb") as trimmed:
+                data = trimmed.readframes(trimmed.getnframes())
+            self.assertEqual(data[:4], bytes(4))  # keep one-frame lead and attack silence
+            self.assertEqual(next(i for i, value in enumerate(data) if value) // 4, 321)
             out = root / "out"
             wav_path = out / manifest["wav"]["file"]
             self.assertEqual(manifest["wav"]["sha256"], hashlib.sha256(wav_path.read_bytes()).hexdigest())
@@ -123,6 +133,53 @@ class NativeRenderingTests(unittest.TestCase):
             self.assertEqual(kwargs["env"]["GME_G3_KEYCODE"], "66")
             self.assertEqual(kwargs["env"]["GME_G3_PATCH"], str(patch_num))
 
+    def test_missing_receipt_preserves_full_mame_logs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            exe, romdir, audio, patch_num, _, _ = _fixture(root)
+            def fake_run(argv, **kwargs):
+                return subprocess.CompletedProcess(argv, 0, "complete stdout", "complete stderr")
+            with patch("instrument_analysis.native_rendering.subprocess.run", side_effect=fake_run):
+                with self.assertRaisesRegex(RuntimeError, "stdout='complete stdout'.*stderr='complete stderr'"):
+                    render_gradius3_probe(mame_path=exe, rompath=romdir,
+                        audio_rom_path=audio, output_dir=root / "out",
+                        source_record_id="source-7", patch_id=patch_num, keycode=66,
+                        hold_frames=2, tail_frames=2)
+            self.assertEqual(list((root / "out").glob("gradius3-*")), [])
+
+    def test_wav_end_buffer_shortfall_is_bounded_to_one_frame(self):
+        for drop_frames, accepted in ((50, True), (222, False)):
+            with self.subTest(drop_frames=drop_frames), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                exe, romdir, audio, patch_num, _, _ = _fixture(root)
+                def fake_run(argv, **kwargs):
+                    kwargs["env"]["_TEST_AUDIO_ROM"] = str(audio)
+                    result = _capture(argv, kwargs["env"])
+                    wav_path = Path(argv[argv.index("-wavwrite") + 1])
+                    with wave.open(str(wav_path), "rb") as stream:
+                        params = stream.getparams()
+                        frames = stream.readframes(stream.getnframes())
+                    with wave.open(str(wav_path), "wb") as stream:
+                        stream.setnchannels(params.nchannels)
+                        stream.setsampwidth(params.sampwidth)
+                        stream.setframerate(params.framerate)
+                        stream.writeframes(frames[:-drop_frames * 4])
+                    return result
+                with patch("instrument_analysis.native_rendering.subprocess.run", side_effect=fake_run):
+                    if accepted:
+                        result = render_gradius3_probe(mame_path=exe, rompath=romdir,
+                            audio_rom_path=audio, output_dir=root / "out",
+                            source_record_id="source-7", patch_id=patch_num, keycode=66,
+                            hold_frames=2, tail_frames=2)
+                        self.assertGreater(result["conditions"]["wav_alignment"]["tail_shortfall_seconds"], 0)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "more than one video frame"):
+                            render_gradius3_probe(mame_path=exe, rompath=romdir,
+                                audio_rom_path=audio, output_dir=root / "out",
+                                source_record_id="source-7", patch_id=patch_num, keycode=66,
+                                hold_frames=2, tail_frames=2)
+                if not accepted:
+                    self.assertEqual(list((root / "out").glob("gradius3-*")), [])
     def test_timeout_nonzero_and_missing_receipt_do_not_publish(self):
         for mode in ("timeout", "nonzero", "missing"):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:

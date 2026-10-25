@@ -6,22 +6,31 @@ versioned `instrument-render/v1` manifest in
 engine version, render settings, MIDI hashes, canonical routes, and WAV properties.
 
 It needs a runnable FluidSynth executable and an unpacked SoundFont `.sf2`/`.sf3`.
-The inventory for this work found neither on PATH or in the checked audio/tool
-folders; `FluidR3_GM.sfArk` in Downloads is compressed and cannot be supplied
-as an SF2. Useful official sources:
+Live validation on 2026-10-25 used these installed tools:
 
-- [FluidSynth Windows binaries](https://www.fluidsynth.org/download/).
-- [GeneralUser GS](https://www.schristiancollins.com/generaluser.php), as a concrete
-  GM bank choice; retain the chosen archive's own license and version locally.
-- [MAME installation](https://docs.mamedev.org/initialsetup/installingmame.html).
-  The downloaded `mame0285b_x64.exe` can be extracted to a directory.
-- [openmpt123](https://lib.openmpt.org/libopenmpt/download/) for independent native
-  module playback validation of the original ProTracker fixtures.
+- Native FluidSynth 2.4.7: `C:/tools/fluidsynth/bin/fluidsynth.exe`.
+  `fluidsynth` on PATH resolves to a Chocolatey shim; passing the native executable
+  records the actual engine binary hash. This Windows build lacks `getopt` and
+  rejects long CLI options, so the harness uses supported short options, including
+  separate `-C 0` / `-R 0` arguments.
+- `D:/GeneralUser-GS/GeneralUser-GS.sf2`, whose embedded name is
+  **GeneralUser GS 2.0.3 BETA**. All bank-0 programs and the standard drum preset
+  were present; hashes identify this exact bank rather than its filename alone.
+- MAME 0.285: `H:/emulators/Arcade/mame0285b_x64/mame.exe`, with the installed
+  `roms/gradius3.zip`. Its audio ROM matches the repository's private audio ROM.
+
+For another machine, official sources are [FluidSynth](https://www.fluidsynth.org/download/),
+[GeneralUser GS](https://www.schristiancollins.com/generaluser.php), and
+[MAME installation](https://docs.mamedev.org/initialsetup/installingmame.html).
+[openmpt123](https://lib.openmpt.org/libopenmpt/download/) remains useful for
+independent native playback validation of the original ProTracker fixtures.
+The bank's embedded license is retained in the local asset; no bank or game data
+is added to Git.
 
 A two-probe smoke run after providing real paths:
 
 ```powershell
-python -m instrument_analysis.rendering --fluidsynth C:/tools/fluidsynth/bin/fluidsynth.exe --soundfont C:/soundfonts/GeneralUser.sf2 --output instrument-renders/gm-smoke --programs 0 --notes 60 --percussion 38
+python -m instrument_analysis.rendering --fluidsynth C:/tools/fluidsynth/bin/fluidsynth.exe --soundfont D:/GeneralUser-GS/GeneralUser-GS.sf2 --output instrument-renders/gm-smoke --programs 0 --notes 60 --percussion 38
 ```
 
 Omit the subset flags for all 128 programs at notes 48/60/72 plus all 47 standard
@@ -60,8 +69,8 @@ pitch alignment. Source record IDs link back to the canonical observation bundle
 from instrument_analysis.native_rendering import render_gradius3_probe
 
 manifest = render_gradius3_probe(
-    mame_path='C:/tools/mame/mame.exe',
-    rompath='arcade/gradius3/rom',
+    mame_path='H:/emulators/Arcade/mame0285b_x64/mame.exe',
+    rompath='H:/emulators/Arcade/mame0285b_x64/roms',
     audio_rom_path='arcade/gradius3/rom/945_r05.d9',
     output_dir='instrument-renders/gradius3',
     source_record_id='gradius3-fm-3', patch_id=3, keycode=66,
@@ -78,22 +87,46 @@ receipt. Startup timeout fails instead of proceeding with uncertain state. The
 wrapper checks patch bytes against the supplied audio ROM, validates timing and
 PCM capture, trims boot audio, and records hashes and the exact run arguments.
 The receipt/WAV/manifest are staged and published only after validation.
+MAME scratch runs on the local temp volume; output-local publication stages use
+inherited permissions and same-volume renames. Python's restrictive temporary
+file/directory modes denied access on this SMB workspace, so publication avoids
+those modes. MAME configuration reads/writes are disabled and its writable runtime
+directories point into the isolated scratch folder.
 
 The [MAME Lua device documentation](https://docs.mamedev.org/luascript/ref-devices.html)
 defines screen frame period as seconds, while machine time is an attotime converted
 using `as_double()` per the
-[core API](https://docs.mamedev.org/luascript/ref-core.html). The script has a syntax
-check and mocked process/receipt tests; **live MAME playback is not yet validated**.
-Capture alignment, ROM-set compatibility, and calibrated MIDI pitch require a
-real run. No private ROM/audio assets are checked in.
+[core API](https://docs.mamedev.org/luascript/ref-core.html). Live MAME playback now
+passes twice through the public wrapper, with matching ROM bytes, successful
+receipts, schema-valid manifests, and byte-identical PCM. The mixer WAV clock is
+not proven to share the Lua time origin. Keep one video frame of pre-on lead,
+permit at most one frame of end-buffer discrepancy, and record the actual sample
+interval and uncertainty in `conditions.wav_alignment`. The real capture's end
+shortfall is 7.145 ms within a 16.896 ms bound. First-nonzero time is diagnostic
+only; trimming to it would remove slow attacks. This is bounded alignment, not
+sample-exact note timing. No private ROM/audio assets are checked in.
+
+At Gradius III's chip clock, raw keycode `0x42` nominally corresponds to
+D-sharp4 / MIDI 63. This follows the MAME 0.285 YMFM key-code phase-step mapping,
+not a measurement of the patch's audible fundamental. Operator ratios, detuning,
+and FM routing can alter that fundamental, so the native manifest still leaves
+its perceptual MIDI-note and velocity fields unset. See the source references and
+actual results in [the validation record](instrument-render-validation.md).
 
 ## Remaining acceptance work
 
-Bead `gme-0r4.6` remains in progress. Real all-program GM audio and MAME captures
-have not been generated in this environment because the executable/bank setup is
-missing. Native AKAO/SPU and SNES DSP probe backends also remain to be implemented
-and validated; re-exporting their samples to SoundFont is not claimed as native
-hardware playback. Matching source/reference effects, acoustic calibration, and
-cross-bank evidence must use real render manifests before classifier evaluation.
-The current tests verify planning, file formats, process boundaries, failure
-handling, and metadata integrity, not perceptual similarity or emulator fidelity.
+Bead `gme-0r4.6` remains in progress. Real all-program GM audio and native FM
+capture have now been validated; see [the validation record](instrument-render-validation.md).
+The 431 raw FluidSynth captures retain engine-generated release/padding beyond
+the requested 0.5 s note plus minimum 0.5 s tail. Their actual lengths are recorded
+(about 3.007 to 41.993 s); use the declared MIDI phase/window when comparing,
+rather than assuming that the entire files have matched lengths. Separate presets
+in GeneralUser banks 0 and 1 verify bank selection within one SoundFont, not
+agreement across different SoundFonts or synthesizer implementations.
+
+Native AKAO/SPU and SNES DSP probe backends remain to be implemented and validated;
+re-exporting their samples to SoundFont is not claimed as native hardware playback.
+Matching source/reference effects, acoustic calibration, and cross-SoundFont
+evidence must use real render manifests before classifier evaluation. The tests
+and live integrity checks do not establish perceptual similarity or hardware
+fidelity beyond the named emulator/runtime conditions.
