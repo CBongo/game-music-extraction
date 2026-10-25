@@ -113,6 +113,64 @@ and FM routing can alter that fundamental, so the native manifest still leaves
 its perceptual MIDI-note and velocity fields unset. See the source references and
 actual results in [the validation record](instrument-render-validation.md).
 
+## Native SNES and AKAO/SPU probes
+
+The source-chip backends use MAME's native decoding, interpolation, and envelope
+processing. They accept explicit raw pitch registers and preserve source sample
+loops and envelope registers. They do not infer acoustic MIDI pitch or MIDI
+velocity from those registers. Isolated dry captures disable echo/reverb, noise,
+and pitch modulation; whole-song driver behavior and region-specific overrides
+require separate context.
+
+`instrument_analysis.snes_rendering.render_snes_spc_probe` selects a voice from a
+standard SPC snapshot. It restores the snapshot's sample RAM and sample-directory
+entry, SRCN, ADSR, and GAIN, with fixed voice/master volume. An original minimal
+test cartridge stops the main CPU, while a verified scratch instruction stops the
+SPC CPU outside the selected sample and directory. A local, hash-verified 64-byte
+IPL block is supplied privately to MAME from an existing emulator installation;
+it is never stored in the repository. The source executable path and offset are
+explicit inputs, rather than a general firmware-discovery mechanism.
+
+`instrument_analysis.psx_rendering.render_akao_spu_probe` selects one raw
+articulation from an AKAO 3.1/3.2 sample bank. MAME 0.285's Konami GV board exposes
+the PlayStation SPU without requiring an emulated game program. This is a named
+arcade-board engine: the board swaps SPU output channels and applies 0.75 speaker
+gain, and MAME marks its driver imperfect. An isolated CPU loop prevents the
+board BIOS from modifying the probe. The renderer uploads the bounded ADPCM
+payload and preserves the articulation's start, repeat address, and raw ADSR.
+It does not apply unprovided instrument-region tuning or ADSR overrides.
+
+Example calls with the installed assets (choose new output folders for each run):
+
+```python
+from instrument_analysis.snes_rendering import render_snes_spc_probe
+from instrument_analysis.psx_rendering import render_akao_spu_probe
+
+snes_manifest = render_snes_spc_probe(
+    'snes/ff2/spcs/Airship.spc',
+    mame_path='H:/emulators/Arcade/mame0285b_x64/mame.exe',
+    output_dir='instrument-renders/snes-example',
+    source_record_id='ff2-airship-voice0', voice=0, pitch_register=0x1000,
+    ipl_source_path='H:/emulators/snes/snes9x/snes9xw128/snes9xw.exe',
+    ipl_source_offset=0x89878,
+)
+spu_manifest = render_akao_spu_probe(
+    'psx/ff8/ff8img_1e_1.bin', format_version='3.1',
+    mame_path='H:/emulators/Arcade/mame0285b_x64/mame.exe',
+    rom_path='H:/emulators/Arcade/mame0285b_x64/roms',
+    output_dir='instrument-renders/spu-example',
+    source_record_id='ff8-set10-art76', articulation_id=76,
+    pitch_register=0x1000,
+)
+```
+
+These backends publish `instrument-native-chip-render/v1` manifests, separate
+from the existing FM manifest, with exact source/engine/script hashes, raw patch
+state, requested frame counts, native receipts, and PCM properties. The receipt
+and WAV clocks retain the bounded alignment limitation described above. A
+successful capture is evidence of playback under those recorded conditions;
+it does not establish physical-console equivalence or perceptual pitch alignment.
+
 ## Remaining acceptance work
 
 Bead `gme-0r4.6` remains in progress. Real all-program GM audio and native FM
@@ -124,8 +182,11 @@ rather than assuming that the entire files have matched lengths. Separate preset
 in GeneralUser banks 0 and 1 verify bank selection within one SoundFont, not
 agreement across different SoundFonts or synthesizer implementations.
 
-Native AKAO/SPU and SNES DSP probe backends remain to be implemented and validated;
-re-exporting their samples to SoundFont is not claimed as native hardware playback.
+Native AKAO/SPU and SNES DSP backends now have validated, byte-identical repeat
+captures with source-memory and register readback. Bead `gme-0r4.6.3` tracks
+connecting calibrated source pitches and usage-selected triggers to matched GM
+comparison windows and manifest-linked previews. Raw-register playback does not
+establish pitch alignment by itself.
 Matching source/reference effects, acoustic calibration, and cross-SoundFont
 evidence must use real render manifests before classifier evaluation. The tests
 and live integrity checks do not establish perceptual similarity or hardware

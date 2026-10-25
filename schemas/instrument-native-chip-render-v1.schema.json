@@ -1,0 +1,1044 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-native-chip-render-v1.schema.json",
+  "title": "Native SNES S-DSP or PlayStation SPU chip render manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "engine",
+    "source_record_id",
+    "source",
+    "instrument",
+    "key",
+    "conditions",
+    "run_arguments",
+    "receipt_file",
+    "wav"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-native-chip-render/v1"
+    },
+    "engine": {
+      "enum": [
+        "MAME SNES S-DSP",
+        "MAME PlayStation SPU (Konami GV)"
+      ]
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_arguments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "receipt_file": {
+      "$ref": "#/$defs/path"
+    },
+    "wav": {
+      "$ref": "#/$defs/wav"
+    },
+    "source": {
+      "type": "object"
+    },
+    "instrument": {
+      "type": "object"
+    },
+    "key": {
+      "type": "object"
+    },
+    "conditions": {
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/snes"
+    },
+    {
+      "$ref": "#/$defs/psx"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "secs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "wav": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "sample_rate",
+        "channels",
+        "sample_width_bytes",
+        "frames",
+        "duration_seconds",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "$ref": "#/$defs/path"
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "channels": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_note_on_seconds",
+        "actual_trim_start_seconds",
+        "actual_trim_end_seconds",
+        "alignment_uncertainty_seconds",
+        "lead_in_frames",
+        "tail_shortfall_seconds",
+        "clock_origin_verified"
+      ],
+      "properties": {
+        "requested_note_on_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "actual_trim_start_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "actual_trim_end_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "alignment_uncertainty_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "lead_in_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tail_shortfall_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "clock_origin_verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "times": {
+      "type": "object",
+      "properties": {
+        "requested_hold_frames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "requested_tail_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600
+        },
+        "note_on_time_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "note_off_time_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "capture_end_time_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "flush_frames": {
+          "const": 1
+        },
+        "capture_flush_end_time_seconds": {
+          "$ref": "#/$defs/secs"
+        },
+        "frame_period_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "sample_rate_requested": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "wav_alignment": {
+          "$ref": "#/$defs/alignment"
+        }
+      }
+    },
+    "snes": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "const": "MAME SNES S-DSP"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "spc_path",
+            "spc_sha256",
+            "aram_sha256",
+            "dsp_registers_sha256",
+            "mame_executable",
+            "mame_executable_sha256",
+            "mame_version",
+            "probe_script",
+            "probe_script_sha256",
+            "ipl_source_path",
+            "ipl_source_sha256",
+            "ipl_source_offset",
+            "ipl_block_sha1",
+            "test_cartridge_sha256"
+          ],
+          "properties": {
+            "spc_path": {
+              "$ref": "#/$defs/path"
+            },
+            "spc_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "aram_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "dsp_registers_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "mame_executable": {
+              "$ref": "#/$defs/path"
+            },
+            "mame_executable_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "mame_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "probe_script": {
+              "$ref": "#/$defs/path"
+            },
+            "probe_script_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "ipl_source_path": {
+              "$ref": "#/$defs/path"
+            },
+            "ipl_source_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "ipl_source_offset": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ipl_block_sha1": {
+              "const": "97e352553e94242ae823547cd853eecda55c20f0"
+            },
+            "test_cartridge_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "instrument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "voice",
+            "srcn",
+            "sample_directory_base",
+            "sample_directory_address",
+            "sample_start_address",
+            "sample_loop_address",
+            "sample_end_address_exclusive",
+            "brr_frame_count",
+            "brr_looping",
+            "brr_end_header",
+            "adsr1",
+            "adsr2",
+            "gain",
+            "original_pitch_register",
+            "dir_register_raw",
+            "voice_register_bytes_hex"
+          ],
+          "properties": {
+            "voice": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            "srcn": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "sample_directory_base": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65280,
+              "multipleOf": 256
+            },
+            "sample_directory_address": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65532
+            },
+            "sample_start_address": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "sample_loop_address": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "sample_end_address_exclusive": {
+              "type": "integer",
+              "minimum": 9,
+              "maximum": 65536
+            },
+            "brr_frame_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7282
+            },
+            "brr_looping": {
+              "type": "boolean"
+            },
+            "brr_end_header": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255
+            },
+            "adsr1": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "adsr2": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "gain": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "original_pitch_register": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16383
+            },
+            "dir_register_raw": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "voice_register_bytes_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$"
+            }
+          }
+        },
+        "key": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pitch_register_raw_s_dsp",
+            "midi_note",
+            "velocity",
+            "velocity_note"
+          ],
+          "properties": {
+            "pitch_register_raw_s_dsp": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16383
+            },
+            "midi_note": {
+              "type": "null"
+            },
+            "velocity": {
+              "type": "null"
+            },
+            "velocity_note": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "conditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requested_hold_frames",
+            "requested_tail_frames",
+            "startup_frames",
+            "note_on_time_seconds",
+            "note_off_time_seconds",
+            "capture_end_time_seconds",
+            "flush_frames",
+            "capture_flush_end_time_seconds",
+            "frame_period_seconds",
+            "sample_rate_requested",
+            "source_spc_pc",
+            "spc_stop_pc",
+            "aram_load",
+            "dsp_registers",
+            "wav_alignment"
+          ],
+          "properties": {
+            "requested_hold_frames": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            },
+            "requested_tail_frames": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600
+            },
+            "startup_frames": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300
+            },
+            "note_on_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "note_off_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "capture_end_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "flush_frames": {
+              "const": 1
+            },
+            "capture_flush_end_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "frame_period_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "sample_rate_requested": {
+              "type": "integer",
+              "minimum": 8000,
+              "maximum": 192000
+            },
+            "source_spc_pc": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "spc_stop_pc": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "aram_load": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source_bytes",
+                "loaded_bytes",
+                "skipped_io_bytes",
+                "readback_verified_bytes",
+                "modified_bytes",
+                "stop_opcode"
+              ],
+              "properties": {
+                "source_bytes": {
+                  "const": 65536
+                },
+                "loaded_bytes": {
+                  "const": 65520
+                },
+                "skipped_io_bytes": {
+                  "const": 16
+                },
+                "readback_verified_bytes": {
+                  "const": 65520
+                },
+                "modified_bytes": {
+                  "const": 1
+                },
+                "stop_opcode": {
+                  "const": 255
+                }
+              }
+            },
+            "dsp_registers": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "srcn",
+                "pitch_low",
+                "pitch_high",
+                "adsr1",
+                "adsr2",
+                "gain",
+                "dir_register",
+                "voice_volume_left",
+                "voice_volume_right",
+                "master_volume_left",
+                "master_volume_right",
+                "echo_enable",
+                "noise_enable",
+                "pitch_mod_enable",
+                "echo_volume_left",
+                "echo_volume_right",
+                "flg"
+              ],
+              "properties": {
+                "srcn": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "pitch_low": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "pitch_high": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 63
+                },
+                "adsr1": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "adsr2": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "gain": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "dir_register": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "voice_volume_left": {
+                  "const": 127
+                },
+                "voice_volume_right": {
+                  "const": 127
+                },
+                "master_volume_left": {
+                  "const": 127
+                },
+                "master_volume_right": {
+                  "const": 127
+                },
+                "echo_enable": {
+                  "const": 0
+                },
+                "noise_enable": {
+                  "const": 0
+                },
+                "pitch_mod_enable": {
+                  "const": 0
+                },
+                "echo_volume_left": {
+                  "const": 0
+                },
+                "echo_volume_right": {
+                  "const": 0
+                },
+                "flg": {
+                  "const": 32
+                }
+              }
+            },
+            "wav_alignment": {
+              "$ref": "#/$defs/alignment"
+            }
+          }
+        }
+      },
+      "required": [
+        "engine",
+        "source",
+        "instrument",
+        "key",
+        "conditions"
+      ]
+    },
+    "psx": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "const": "MAME PlayStation SPU (Konami GV)"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "akao_bank_path",
+            "akao_bank_sha256",
+            "mame_executable",
+            "mame_executable_sha256",
+            "mame_version",
+            "konamigv_rom_archive",
+            "konamigv_rom_archive_sha256",
+            "probe_script",
+            "probe_script_sha256",
+            "uploaded_payload_sha256"
+          ],
+          "properties": {
+            "akao_bank_path": {
+              "$ref": "#/$defs/path"
+            },
+            "akao_bank_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "mame_executable": {
+              "$ref": "#/$defs/path"
+            },
+            "mame_executable_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "mame_version": {
+              "type": "string",
+              "pattern": "^(?:MAME )?0\\.285(?:$|[ .(])"
+            },
+            "konamigv_rom_archive": {
+              "$ref": "#/$defs/path"
+            },
+            "konamigv_rom_archive_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "probe_script": {
+              "$ref": "#/$defs/path"
+            },
+            "probe_script_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "uploaded_payload_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "instrument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format_version",
+            "sample_set_id",
+            "header_flags",
+            "header_unknown_08",
+            "header_unknown_0c",
+            "spu_destination",
+            "declared_payload_bytes",
+            "actual_payload_bytes",
+            "physical_payload_bytes",
+            "declared_payload_shortfall_bytes",
+            "payload_offset",
+            "articulation_id",
+            "articulation_index",
+            "articulation_offset",
+            "sample_start_offset",
+            "loop_offset",
+            "sample_end_block_offset",
+            "sample_end_flags",
+            "raw_fine_tune",
+            "raw_unity_key",
+            "adsr1",
+            "adsr2",
+            "selected_sample_complete",
+            "bank_payload_complete",
+            "truncation_warning",
+            "articulation_bytes_hex",
+            "sample_first_block_hex",
+            "sample_end_block_hex"
+          ],
+          "properties": {
+            "format_version": {
+              "enum": [
+                "3.1",
+                "3.2"
+              ]
+            },
+            "sample_set_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "header_flags": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "header_unknown_08": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "header_unknown_0c": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "spu_destination": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 524280,
+              "multipleOf": 8
+            },
+            "declared_payload_bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "actual_payload_bytes": {
+              "type": "integer",
+              "minimum": 16,
+              "maximum": 524288,
+              "multipleOf": 16
+            },
+            "physical_payload_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "declared_payload_shortfall_bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "payload_offset": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 65600
+            },
+            "articulation_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "articulation_index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4095
+            },
+            "articulation_offset": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 65504
+            },
+            "sample_start_offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 524272,
+              "multipleOf": 16
+            },
+            "loop_offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 524272,
+              "multipleOf": 16
+            },
+            "sample_end_block_offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 524272,
+              "multipleOf": 16
+            },
+            "sample_end_flags": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "raw_fine_tune": {
+              "type": "integer",
+              "minimum": -32768,
+              "maximum": 32767
+            },
+            "raw_unity_key": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "adsr1": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "adsr2": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "selected_sample_complete": {
+              "const": true
+            },
+            "bank_payload_complete": {
+              "type": "boolean"
+            },
+            "truncation_warning": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "articulation_bytes_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "sample_first_block_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "sample_end_block_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        },
+        "key": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pitch_register_raw_spu",
+            "midi_note",
+            "velocity",
+            "pitch_note"
+          ],
+          "properties": {
+            "pitch_register_raw_spu": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16383
+            },
+            "midi_note": {
+              "type": "null"
+            },
+            "velocity": {
+              "type": "null"
+            },
+            "pitch_note": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "conditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requested_hold_frames",
+            "requested_tail_frames",
+            "note_on_time_seconds",
+            "note_off_time_seconds",
+            "capture_end_time_seconds",
+            "frame_period_seconds",
+            "sample_rate_requested",
+            "board",
+            "cpu_isolation",
+            "spu_voice",
+            "spu_reverb_fm_noise",
+            "upload_verification",
+            "wav_alignment"
+          ],
+          "properties": {
+            "requested_hold_frames": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            },
+            "requested_tail_frames": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600
+            },
+            "note_on_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "note_off_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "capture_end_time_seconds": {
+              "$ref": "#/$defs/secs"
+            },
+            "frame_period_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "sample_rate_requested": {
+              "type": "integer",
+              "minimum": 8000,
+              "maximum": 192000
+            },
+            "board": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "system",
+                "hardware",
+                "spu_clock_hz",
+                "speaker_gain",
+                "speaker_routing",
+                "mame_driver_status"
+              ],
+              "properties": {
+                "system": {
+                  "const": "konamigv"
+                },
+                "hardware": {
+                  "const": "Konami GV PlayStation-derived arcade board"
+                },
+                "spu_clock_hz": {
+                  "const": 33868800
+                },
+                "speaker_gain": {
+                  "const": 0.75
+                },
+                "speaker_routing": {
+                  "const": "SPU output 1 to left; output 0 to right"
+                },
+                "mame_driver_status": {
+                  "const": "imperfect"
+                }
+              }
+            },
+            "cpu_isolation": {
+              "const": "Uncached KSEG1 RAM branch loop at 0xA0010000; SR interrupts masked."
+            },
+            "spu_voice": {
+              "const": "voice 0 only; raw AKAO articulation ADSR; no instrument-region override"
+            },
+            "spu_reverb_fm_noise": {
+              "const": "disabled"
+            },
+            "upload_verification": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "words_written",
+                "first_word",
+                "last_word",
+                "voice_start_register_readback",
+                "voice_pitch_register_readback",
+                "adsr1_readback",
+                "adsr2_readback",
+                "spu_control_readback",
+                "cpu_pc_after_upload",
+                "verified_payload_bytes",
+                "dma_readback_base"
+              ],
+              "properties": {
+                "words_written": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 262144
+                },
+                "first_word": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4294967295
+                },
+                "last_word": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4294967295
+                },
+                "voice_start_register_readback": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "voice_pitch_register_readback": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "adsr1_readback": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "adsr2_readback": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "spu_control_readback": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "cpu_pc_after_upload": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4294967295
+                },
+                "verified_payload_bytes": {
+                  "type": "integer",
+                  "minimum": 16,
+                  "maximum": 524288
+                },
+                "dma_readback_base": {
+                  "const": 131072
+                }
+              }
+            },
+            "wav_alignment": {
+              "$ref": "#/$defs/alignment"
+            }
+          }
+        }
+      },
+      "required": [
+        "engine",
+        "source",
+        "instrument",
+        "key",
+        "conditions"
+      ]
+    }
+  }
+}

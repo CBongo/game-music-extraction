@@ -69,8 +69,83 @@ The manifest correctly keeps perceptual MIDI pitch and velocity unset.
 
 ## Verification scope
 
-The 74-test instrument-analysis suite passes after the live Windows CLI,
+The 82-test instrument-analysis suite passes after the live Windows CLI,
 SMB publication permissions, isolated MAME configuration, and bounded alignment
 fixes. These results establish reproducible renders under named conditions;
 they do not establish perceptual similarity or physical-hardware equivalence.
-Native SNES DSP and AKAO/SPU captures are being added under bead gme-0r4.6.2.
+Native SNES DSP and AKAO/SPU capture evidence follows below. Calibrated source/GM
+comparison previews remain tracked by gme-0r4.6.3; no acoustic pitch match is claimed.
+
+
+## Native SNES S-DSP
+
+The final source is `snes/ff2/spcs/Airship.spc`, voice 0, with an explicit raw
+S-DSP pitch register of 0x1000. MAME 0.285 restores SRCN 0x40, DIR 0x1E,
+BRR start 0x3000 and repeat 0x301B, 672 BRR blocks with an end/loop flag, and
+raw ADSR1/ADSR2/GAIN FF/E0/A3. The snapshot's original pitch register is 1831;
+the probe's explicit 4096 is recorded separately.
+
+The receipt confirms 65,520 ARAM bytes loaded and read back, with the mapped
+F0-FF I/O range skipped. One STOP byte at 0x0200 halts the SPC CPU outside the
+sample and directory. The minimal test cartridge stops the main CPU. Native
+DSP decode/interpolation and envelopes remain active; echo, noise, and pitch
+modulation are disabled and voice/master volume is fixed at 127.
+
+Final captures are in `snes-spc-live-20261025-final/` and
+`snes-spc-live-20261025-final-repeat/`. Both WAVs are byte-identical stereo
+PCM16 at 44100 Hz, 44762 frames, peak 29695, RMS 5064.5711, and no clipping-edge
+samples. Both WAV SHA-256 values are
+`b1d9a20d0de1319443d472171ca9579d0581ac2961ed300201b0c707597ce291`.
+The final Lua script SHA-256 is
+`de2d126147a5077231b70709fb864ff6fd0e13cdba619f724c30301b953aa346`.
+
+The requested 30-frame hold and 30-frame release end at 1.015000788 seconds;
+a further frame flushes the mixer before exit. The retained WAV endpoint is
+1.015011338 seconds, with zero tail shortfall. Clock-origin verification remains
+false and the recorded uncertainty is one 16.639 ms video frame. The firmware
+block is verified against the required 64-byte IPL SHA-1
+`97e352553e94242ae823547cd853eecda55c20f0` and extracted only into temporary
+private runtime storage from the existing emulator executable. All input and
+script hashes were independently checked against the final manifests.
+
+## Native AKAO PlayStation SPU
+
+The final source is the explicitly identified AKAO **3.1** bank
+`psx/ff8/ff8img_1e_1.bin`, sample set 10, articulation 76. FF8's format version
+is supplied by the caller; magic bytes alone do not determine it. The raw pitch
+register is 0x1000, with raw ADSR1 0x35FF and ADSR2 0x5FCE. The raw articulation
+is `80990200e0e2020023912400ff35ce5f`; no source-region tuning or envelope override
+is inferred.
+
+The source declares 247104 payload bytes but physically contains 247056 bytes.
+The manifest marks the bank incomplete and records the 48-byte discrepancy.
+Only the selected sample is proved complete: its final 16-byte ADPCM block at
+payload offset 247040 has end/repeat flags 3. The wrapper bounds uploads to the
+available declared payload and rejects a selected sample lacking a complete end
+block or a valid repeat address.
+
+The Lua receipt proves all 247056 uploaded bytes by DMA4 readback from SPU RAM
+into main RAM and a byte-for-byte comparison before key-on. It also records
+native voice start, pitch, ADSR, and control-register readbacks. A main-CPU RAM
+loop prevents BIOS writes during playback. The named engine is MAME 0.285's
+Konami GV arcade board: its 0.75 speaker gain, swapped output routing, and
+imperfect driver status are recorded rather than equated to a retail console.
+Reverb, FM, and noise are disabled for this isolated dry probe.
+
+Final captures are in `akao-spu-ff8-v31-live-20261025/` and
+`akao-spu-ff8-v31-repeat-20261025/`. Both WAVs are byte-identical stereo PCM16
+at 44100 Hz, 44965 frames, peak 15954, RMS 3235.7425, and no clipping-edge samples.
+Both WAV SHA-256 values are
+`df0f54d2de173c82c8b1fca2898032f2d298f5f850859a59ad51315d423654e7`.
+The final Lua script SHA-256 is
+`5f2260a109bf08bf64627db27d4ce7c1defced85cb753a627b7aff7bd743e053`.
+The 30-frame hold and 30-frame release are validated against the receipt clock;
+end rounding leaves a 7.395 microsecond shortfall, within the recorded one-frame
+alignment uncertainty of 16.715 ms.
+
+All four final SNES/SPU manifests validate against
+`schemas/instrument-native-chip-render-v1.schema.json`. Independent auditing
+rechecked source/executable/script hashes, raw source fields, receipts, frame
+counts, requested timings, WAV hashes, and PCM metrics. A missing uploaded-payload
+hash fails schema validation. The local audit summary is preserved in ignored
+`instrument-renders/native-chip-validation-summary.json`.
