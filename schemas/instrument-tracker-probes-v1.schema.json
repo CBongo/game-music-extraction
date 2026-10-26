@@ -1,0 +1,653 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-tracker-probes-v1.schema.json",
+  "title": "Hash-bound isolated ProTracker sample pitch probes",
+  "description": "Strict M.K. tracker sample probe manifest. Trigger MIDI notes are caller-supplied test conditions; no period-to-note inference is claimed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "source",
+    "renderer",
+    "conditions",
+    "probes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-tracker-sample-probes/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "renderer": {
+      "$ref": "#/$defs/renderer"
+    },
+    "conditions": {
+      "$ref": "#/$defs/conditions"
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "$ref": "#/$defs/probe"
+      }
+    },
+    "manifest_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional API return location; disk manifests may omit this convenience field."
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "basename": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\\\/:*?\"<>|]+$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_sha256",
+        "module_format",
+        "sample_number",
+        "sample_header_hex",
+        "sample_bytes_sha256",
+        "sample_length_bytes",
+        "finetune_raw_nibble",
+        "finetune_signed_eighth_semitones",
+        "volume_raw_0_64",
+        "loop_header_start_bytes",
+        "loop_header_length_bytes",
+        "loop_enabled",
+        "effective_loop_start_bytes",
+        "effective_loop_length_bytes"
+      ],
+      "properties": {
+        "module_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "module_format": {
+          "const": "ProTracker M.K. (strict 4-channel)"
+        },
+        "sample_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31
+        },
+        "sample_header_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{60}$"
+        },
+        "sample_bytes_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_length_bytes": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 131070,
+          "multipleOf": 2
+        },
+        "finetune_raw_nibble": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "finetune_signed_eighth_semitones": {
+          "type": "integer",
+          "minimum": -8,
+          "maximum": 7
+        },
+        "volume_raw_0_64": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "loop_header_start_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "multipleOf": 2
+        },
+        "loop_header_length_bytes": {
+          "type": "integer",
+          "multipleOf": 2
+        },
+        "loop_enabled": {
+          "type": "boolean"
+        },
+        "effective_loop_start_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "effective_loop_length_bytes": {
+          "type": "integer",
+          "multipleOf": 2
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "loop_enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "loop_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "loop_header_length_bytes": {
+                "type": "integer",
+                "minimum": 4
+              },
+              "effective_loop_start_bytes": {
+                "type": "integer"
+              },
+              "effective_loop_length_bytes": {
+                "type": "integer",
+                "minimum": 4
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "loop_enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "loop_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "effective_loop_start_bytes": {
+                "type": "null"
+              },
+              "effective_loop_length_bytes": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "version"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filter_taps",
+        "sample_offset_effect_units",
+        "note_cut_time_seconds",
+        "analysis_guard_seconds",
+        "end_seconds",
+        "amiga_resampler_enabled",
+        "amiga_resampler_type_control",
+        "resampler_profile"
+      ],
+      "properties": {
+        "filter_taps": {
+          "enum": [
+            1,
+            2,
+            4,
+            8
+          ]
+        },
+        "sample_offset_effect_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "note_cut_time_seconds": {
+          "const": 0.9230769230769231
+        },
+        "analysis_guard_seconds": {
+          "const": 0.04
+        },
+        "end_seconds": {
+          "const": 1.0
+        },
+        "amiga_resampler_enabled": {
+          "type": "boolean"
+        },
+        "amiga_resampler_type_control": {
+          "const": "a500"
+        },
+        "resampler_profile": {
+          "type": "string",
+          "pattern": "^(amiga-a500|libopenmpt-filter-(1|2|4|8)-tap)$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "const": "amiga-a500"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "pattern": "^libopenmpt-filter-(1|2|4|8)-tap$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "eventCut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extended_effect",
+        "row",
+        "time_seconds"
+      ],
+      "properties": {
+        "extended_effect": {
+          "const": "EC0"
+        },
+        "row": {
+          "const": 8
+        },
+        "time_seconds": {
+          "const": 0.9230769230769231
+        }
+      }
+    },
+    "renderConditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bpm",
+        "channels",
+        "dither",
+        "duration_seconds_requested",
+        "filter_taps",
+        "gain_db",
+        "nominal_sample_rate_hz",
+        "note_cut",
+        "openmpt123_version",
+        "period_basis",
+        "period_raw_protracker_12bit",
+        "ramping",
+        "repeat_count",
+        "sample_offset_bytes",
+        "sample_offset_effect_units",
+        "sample_rate",
+        "sample_width_bytes",
+        "selected_source_sample_header_and_data",
+        "source_song_patterns_and_effects",
+        "speed_ticks_per_row",
+        "stereo_separation_percent",
+        "source_sample_sha256",
+        "sample_finetune_signed_eighth_semitones",
+        "finetune_rate_factor",
+        "sample_rate_after_finetune_hz",
+        "sample_length_bytes",
+        "expected_sample_end_seconds",
+        "analysis_end_seconds",
+        "analysis_guard_seconds",
+        "audible_end_basis",
+        "sample_end_estimation_method",
+        "amiga_resampler_enabled",
+        "amiga_resampler_type_control",
+        "resampler_profile"
+      ],
+      "properties": {
+        "bpm": {
+          "const": 130
+        },
+        "channels": {
+          "const": 2
+        },
+        "dither": {
+          "const": 0
+        },
+        "duration_seconds_requested": {
+          "const": 1.0
+        },
+        "filter_taps": {
+          "enum": [
+            1,
+            2,
+            4,
+            8
+          ]
+        },
+        "gain_db": {
+          "const": 0
+        },
+        "nominal_sample_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "note_cut": {
+          "$ref": "#/$defs/eventCut"
+        },
+        "openmpt123_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_basis": {
+          "const": "explicit caller-supplied tracker period; nominal sample rate = 7093789.2/(2*period) Hz; no note-to-period inference"
+        },
+        "period_raw_protracker_12bit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4095
+        },
+        "ramping": {
+          "const": 0
+        },
+        "repeat_count": {
+          "const": 0
+        },
+        "sample_offset_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65280,
+          "multipleOf": 256
+        },
+        "sample_offset_effect_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "selected_source_sample_header_and_data": {
+          "const": "preserved verbatim in probe MOD"
+        },
+        "source_song_patterns_and_effects": {
+          "const": "replaced by a single selected-sample probe pattern"
+        },
+        "speed_ticks_per_row": {
+          "const": 6
+        },
+        "stereo_separation_percent": {
+          "const": 100
+        },
+        "source_sample_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_finetune_signed_eighth_semitones": {
+          "type": "integer",
+          "minimum": -8,
+          "maximum": 7
+        },
+        "finetune_rate_factor": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sample_rate_after_finetune_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sample_length_bytes": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 131070
+        },
+        "expected_sample_end_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "analysis_end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "analysis_guard_seconds": {
+          "const": 0.04
+        },
+        "audible_end_basis": {
+          "const": "min(pattern note-cut time, expected one-shot sample exhaustion); loops end at pattern note cut"
+        },
+        "sample_end_estimation_method": {
+          "const": "remaining sample bytes divided by PAL clock/(2*period) and 2^(signed finetune eighth-semitones/96); advisory bound, confirmed against PCM where audible"
+        },
+        "amiga_resampler_enabled": {
+          "type": "boolean"
+        },
+        "amiga_resampler_type_control": {
+          "const": "a500"
+        },
+        "resampler_profile": {
+          "type": "string",
+          "pattern": "^(amiga-a500|libopenmpt-filter-(1|2|4|8)-tap)$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "const": "amiga-a500"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "pattern": "^libopenmpt-filter-(1|2|4|8)-tap$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "wav": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channels",
+        "sample_width_bytes",
+        "sample_rate",
+        "frames",
+        "duration_seconds",
+        "sha256"
+      ],
+      "properties": {
+        "channels": {
+          "const": 2
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_module_file",
+        "probe_module_path",
+        "probe_module_sha256",
+        "wav_file",
+        "wav_path",
+        "wav_sha256",
+        "trigger_midi_note",
+        "note_on_seconds",
+        "note_off_seconds",
+        "note_cut_time_seconds",
+        "expected_sample_end_seconds",
+        "analysis_end_seconds",
+        "analysis_guard_seconds",
+        "end_seconds",
+        "render_conditions",
+        "wav"
+      ],
+      "properties": {
+        "probe_module_file": {
+          "$ref": "#/$defs/basename"
+        },
+        "probe_module_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wav_file": {
+          "$ref": "#/$defs/basename"
+        },
+        "wav_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trigger_midi_note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "note_on_seconds": {
+          "const": 0.0
+        },
+        "note_off_seconds": {
+          "type": "number",
+          "minimum": 0.61,
+          "maximum": 0.9230769230769231
+        },
+        "end_seconds": {
+          "const": 1.0
+        },
+        "render_conditions": {
+          "$ref": "#/$defs/renderConditions"
+        },
+        "wav": {
+          "$ref": "#/$defs/wav"
+        },
+        "probe_module_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note_cut_time_seconds": {
+          "const": 0.9230769230769231
+        },
+        "expected_sample_end_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "analysis_end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "analysis_guard_seconds": {
+          "const": 0.04
+        }
+      }
+    }
+  }
+}

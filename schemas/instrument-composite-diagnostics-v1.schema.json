@@ -1,0 +1,1281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-composite-diagnostics-v1.schema.json",
+  "title": "Cross-trigger tonal component and identifiability diagnostics",
+  "description": "Describes measured spectral model comparisons for isolated probes. `supported` means the reported component model passes exposed checks; it is not a probability or universal chord/function claim. Single-tone missing-fundamental alternatives remain explicit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "input",
+    "analysis_settings",
+    "status",
+    "reason",
+    "probes",
+    "model",
+    "components",
+    "confidence_heuristic",
+    "quality",
+    "inversion_or_voicing",
+    "quality_alternatives"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-composite-diagnostics/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_summary",
+        "probes_sha256",
+        "source_sample_sha256",
+        "source_identity_kind",
+        "source_identity_sha256"
+      ],
+      "properties": {
+        "probe_summary": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/fileRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "probes_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_sample_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_identity_kind": {
+          "enum": [
+            "sample_bytes",
+            "controlled_recipe"
+          ]
+        },
+        "source_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_identity_kind": {
+                "const": "sample_bytes"
+              }
+            },
+            "required": [
+              "source_identity_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source_sample_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_identity_kind": {
+                "const": "controlled_recipe"
+              }
+            },
+            "required": [
+              "source_identity_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source_sample_sha256": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "analysis_settings": {
+      "$ref": "#/$defs/analysisSettings"
+    },
+    "status": {
+      "enum": [
+        "supported",
+        "tentative",
+        "abstain"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/probe"
+      }
+    },
+    "model": {
+      "$ref": "#/$defs/model"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "confidence_heuristic": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Deterministic heuristic, not a calibrated probability."
+    },
+    "quality": {
+      "enum": [
+        "major",
+        "minor",
+        "sus2",
+        "sus4",
+        "other",
+        "unknown"
+      ]
+    },
+    "inversion_or_voicing": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quality_alternatives": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/qualityAlternative"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "supported"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "null"
+          },
+          "components": {
+            "minItems": 1
+          },
+          "model": {
+            "properties": {
+              "ambiguity": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "tentative",
+              "abstain"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "tentative"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "components": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "model": {
+            "properties": {
+              "competing_three_note_fit": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "competing_three_note_fit"
+            ]
+          }
+        },
+        "required": [
+          "model"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "abstain"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "properties": {
+              "ambiguity": {
+                "contains": {
+                  "const": "observed third root yields a comparably fitting common triad"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality": {
+            "enum": [
+              "major",
+              "minor",
+              "sus2",
+              "sus4"
+            ]
+          }
+        },
+        "required": [
+          "quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "quality_alternatives": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality": {
+            "enum": [
+              "other",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "quality_alternatives": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "eventBoundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_on",
+        "note_off",
+        "end"
+      ],
+      "properties": {
+        "note_on": {
+          "type": "number",
+          "minimum": 0
+        },
+        "note_off": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "end": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "analysisSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fft_size",
+        "target_sample_rate",
+        "peak_limit",
+        "cents_tolerance",
+        "model_penalty"
+      ],
+      "properties": {
+        "fft_size": {
+          "const": 32768
+        },
+        "target_sample_rate": {
+          "const": 22050
+        },
+        "peak_limit": {
+          "const": 72
+        },
+        "cents_tolerance": {
+          "const": 12.0
+        },
+        "model_penalty": {
+          "const": 0.09
+        }
+      }
+    },
+    "probeQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_rate_original",
+        "sample_rate_analysis",
+        "channels",
+        "fft_size",
+        "sustain_start_seconds",
+        "sustain_end_seconds",
+        "rms_pcm16_normalized",
+        "spectral_flatness",
+        "peak_count",
+        "clipped_sample_count",
+        "analysis_issue"
+      ],
+      "properties": {
+        "sample_rate_original": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "sample_rate_analysis": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 22050
+        },
+        "channels": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "fft_size": {
+          "const": 32768
+        },
+        "sustain_start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sustain_end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rms_pcm16_normalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "spectral_flatness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "peak_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 72
+        },
+        "clipped_sample_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "analysis_issue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "peak": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frequency_hz",
+        "relative_db"
+      ],
+      "properties": {
+        "frequency_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "relative_db": {
+          "type": "number",
+          "minimum": -50,
+          "maximum": 0
+        }
+      }
+    },
+    "singleModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_midi",
+        "root_offset",
+        "cost",
+        "explained_fraction"
+      ],
+      "properties": {
+        "root_midi": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -1,
+          "maximum": 128
+        },
+        "root_offset": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -24,
+          "maximum": 24
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "explained_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "multiModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_midi_notes",
+        "offsets",
+        "cost",
+        "explained_fraction",
+        "root_levels"
+      ],
+      "properties": {
+        "root_midi_notes": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 128
+          }
+        },
+        "offsets": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -24,
+            "maximum": 24
+          }
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "explained_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "root_levels": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "harmonicPeakResidual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "harmonic",
+        "peak_frequency_hz",
+        "residual_cents",
+        "relative_db"
+      ],
+      "properties": {
+        "harmonic": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        },
+        "peak_frequency_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "residual_cents": {
+          "type": "number",
+          "minimum": -25,
+          "maximum": 25
+        },
+        "relative_db": {
+          "type": "number",
+          "minimum": -50,
+          "maximum": 0
+        }
+      }
+    },
+    "missingFundamentalAlternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_midi",
+        "cost",
+        "lowest_observed_harmonic",
+        "observed_harmonics",
+        "harmonic_peak_residuals",
+        "weighted_rms_residual_cents",
+        "note"
+      ],
+      "properties": {
+        "root_midi": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 128
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lowest_observed_harmonic": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        },
+        "observed_harmonics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10
+          }
+        },
+        "harmonic_peak_residuals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/harmonicPeakResidual"
+          }
+        },
+        "weighted_rms_residual_cents": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 25
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semitone_offset",
+        "residual_cents",
+        "relative_level_db",
+        "confidence"
+      ],
+      "properties": {
+        "semitone_offset": {
+          "type": "integer",
+          "minimum": -24,
+          "maximum": 24
+        },
+        "residual_cents": {
+          "type": "number",
+          "minimum": -35,
+          "maximum": 35
+        },
+        "relative_level_db": {
+          "type": "number",
+          "maximum": 0
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wav",
+        "trigger_midi_note",
+        "event_boundaries_seconds",
+        "analysis_end_seconds",
+        "render_conditions",
+        "quality",
+        "peaks",
+        "single",
+        "multi",
+        "single_missing_fundamental_alternative",
+        "competing_three_note_fit"
+      ],
+      "properties": {
+        "wav": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "sample_rate",
+            "channels",
+            "frames"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "sample_rate": {
+              "type": "integer",
+              "minimum": 8000,
+              "maximum": 192000
+            },
+            "channels": {
+              "enum": [
+                1,
+                2
+              ]
+            },
+            "frames": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "trigger_midi_note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "event_boundaries_seconds": {
+          "$ref": "#/$defs/eventBoundaries"
+        },
+        "analysis_end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "render_conditions": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/renderConditions"
+            },
+            {
+              "$ref": "#/$defs/directIdentityConditions"
+            }
+          ]
+        },
+        "quality": {
+          "$ref": "#/$defs/probeQuality"
+        },
+        "peaks": {
+          "type": "array",
+          "maxItems": 72,
+          "items": {
+            "$ref": "#/$defs/peak"
+          }
+        },
+        "single": {
+          "$ref": "#/$defs/singleModel"
+        },
+        "multi": {
+          "$ref": "#/$defs/multiModel"
+        },
+        "single_missing_fundamental_alternative": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/missingFundamentalAlternative"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "competing_three_note_fit": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/competingThreeNotePerProbe"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_cost",
+        "multi_cost",
+        "relative_improvement",
+        "cross_trigger_max_deviation_cents",
+        "ambiguity",
+        "single_missing_fundamental_alternative",
+        "competing_three_note_fit"
+      ],
+      "properties": {
+        "single_cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "multi_cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "relative_improvement": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cross_trigger_max_deviation_cents": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "ambiguity": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "single_missing_fundamental_alternative": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/missingFundamentalAlternative"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "competing_three_note_fit": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/competingThreeNoteFit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "renderConditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bpm",
+        "channels",
+        "dither",
+        "duration_seconds_requested",
+        "filter_taps",
+        "gain_db",
+        "nominal_sample_rate_hz",
+        "note_cut",
+        "openmpt123_version",
+        "period_basis",
+        "period_raw_protracker_12bit",
+        "ramping",
+        "repeat_count",
+        "sample_offset_bytes",
+        "sample_offset_effect_units",
+        "sample_rate",
+        "sample_width_bytes",
+        "selected_source_sample_header_and_data",
+        "source_song_patterns_and_effects",
+        "speed_ticks_per_row",
+        "stereo_separation_percent",
+        "source_sample_sha256",
+        "sample_finetune_signed_eighth_semitones",
+        "finetune_rate_factor",
+        "sample_rate_after_finetune_hz",
+        "sample_length_bytes",
+        "expected_sample_end_seconds",
+        "analysis_end_seconds",
+        "analysis_guard_seconds",
+        "audible_end_basis",
+        "sample_end_estimation_method",
+        "amiga_resampler_enabled",
+        "amiga_resampler_type_control",
+        "resampler_profile"
+      ],
+      "properties": {
+        "bpm": {
+          "const": 130
+        },
+        "channels": {
+          "const": 2
+        },
+        "dither": {
+          "const": 0
+        },
+        "duration_seconds_requested": {
+          "const": 1.0
+        },
+        "filter_taps": {
+          "enum": [
+            1,
+            2,
+            4,
+            8
+          ]
+        },
+        "gain_db": {
+          "const": 0
+        },
+        "nominal_sample_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "note_cut": {
+          "$ref": "#/$defs/eventCut"
+        },
+        "openmpt123_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_basis": {
+          "const": "explicit caller-supplied tracker period; nominal sample rate = 7093789.2/(2*period) Hz; no note-to-period inference"
+        },
+        "period_raw_protracker_12bit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4095
+        },
+        "ramping": {
+          "const": 0
+        },
+        "repeat_count": {
+          "const": 0
+        },
+        "sample_offset_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65280,
+          "multipleOf": 256
+        },
+        "sample_offset_effect_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "selected_source_sample_header_and_data": {
+          "const": "preserved verbatim in probe MOD"
+        },
+        "source_song_patterns_and_effects": {
+          "const": "replaced by a single selected-sample probe pattern"
+        },
+        "speed_ticks_per_row": {
+          "const": 6
+        },
+        "stereo_separation_percent": {
+          "const": 100
+        },
+        "source_sample_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_finetune_signed_eighth_semitones": {
+          "type": "integer",
+          "minimum": -8,
+          "maximum": 7
+        },
+        "finetune_rate_factor": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sample_rate_after_finetune_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sample_length_bytes": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 131070
+        },
+        "expected_sample_end_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "analysis_end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "analysis_guard_seconds": {
+          "const": 0.04
+        },
+        "audible_end_basis": {
+          "const": "min(pattern note-cut time, expected one-shot sample exhaustion); loops end at pattern note cut"
+        },
+        "sample_end_estimation_method": {
+          "const": "remaining sample bytes divided by PAL clock/(2*period) and 2^(signed finetune eighth-semitones/96); advisory bound, confirmed against PCM where audible"
+        },
+        "amiga_resampler_enabled": {
+          "type": "boolean"
+        },
+        "amiga_resampler_type_control": {
+          "const": "a500"
+        },
+        "resampler_profile": {
+          "type": "string",
+          "pattern": "^(amiga-a500|libopenmpt-filter-(1|2|4|8)-tap)$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "const": "amiga-a500"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "amiga_resampler_enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "amiga_resampler_enabled"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resampler_profile": {
+                "pattern": "^libopenmpt-filter-(1|2|4|8)-tap$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "eventCut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extended_effect",
+        "row",
+        "time_seconds"
+      ],
+      "properties": {
+        "extended_effect": {
+          "const": "EC0"
+        },
+        "row": {
+          "const": 8
+        },
+        "time_seconds": {
+          "const": 0.9230769230769231
+        }
+      }
+    },
+    "directIdentityConditions": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "source_identity_kind",
+        "source_identity_sha256"
+      ],
+      "properties": {
+        "source_identity_kind": {
+          "enum": [
+            "sample_bytes",
+            "controlled_recipe"
+          ]
+        },
+        "source_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_sample_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_identity_kind": {
+                "const": "sample_bytes"
+              }
+            },
+            "required": [
+              "source_identity_kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_sample_sha256"
+            ],
+            "properties": {
+              "source_sample_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_identity_kind": {
+                "const": "controlled_recipe"
+              }
+            },
+            "required": [
+              "source_identity_kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "source_sample_sha256"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "competingThreeNotePerProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offsets",
+        "quality",
+        "dyad_cost",
+        "three_note_cost",
+        "third_fundamental_relative_db"
+      ],
+      "properties": {
+        "offsets": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": -24,
+            "maximum": 24
+          }
+        },
+        "quality": {
+          "enum": [
+            "major",
+            "minor",
+            "sus2",
+            "sus4"
+          ]
+        },
+        "dyad_cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "three_note_cost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "third_fundamental_relative_db": {
+          "type": "number",
+          "minimum": -19,
+          "maximum": 0
+        }
+      }
+    },
+    "competingThreeNoteFit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offsets",
+        "quality",
+        "per_probe"
+      ],
+      "properties": {
+        "offsets": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": -24,
+            "maximum": 24
+          }
+        },
+        "quality": {
+          "enum": [
+            "major",
+            "minor",
+            "sus2",
+            "sus4"
+          ]
+        },
+        "per_probe": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/competingThreeNotePerProbe"
+          }
+        }
+      }
+    },
+    "qualityAlternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_pc_relative_trigger",
+        "quality",
+        "inversion_or_voicing"
+      ],
+      "properties": {
+        "root_pc_relative_trigger": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "quality": {
+          "enum": [
+            "major",
+            "minor",
+            "sus2",
+            "sus4"
+          ]
+        },
+        "inversion_or_voicing": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -93,3 +93,8 @@ Rendering instructions and remaining native-engine work are in
 The [deterministic ranking baseline](../../docs/instrument-ranking.md) now includes
 a neutral-query pilot runner. Its measured development results must remain
 separate from same-bank controls and future held-out-game validation.
+
+[Baked-chord analysis](../../docs/instrument-composites.md) now emits canonical
+component offsets and explicit harmonic alternatives. Its original tracker and
+independent-control results are reported separately in the
+[composite validation record](../../docs/instrument-composite-validation.md).
