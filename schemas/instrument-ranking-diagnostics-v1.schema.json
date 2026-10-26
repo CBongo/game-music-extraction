@@ -1,0 +1,1274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-ranking-diagnostics-v1.schema.json",
+  "title": "Deterministic GM audio ranking diagnostics",
+  "description": "Hash-bound scores and explicit abstentions. Distances and confidence_heuristic are ranking heuristics, not probabilities.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "query",
+    "index",
+    "settings",
+    "excluded_counts",
+    "consensus",
+    "functional",
+    "status",
+    "reason",
+    "candidates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-ranking-diagnostics/v1"
+    },
+    "query": {
+      "$ref": "#/$defs/query"
+    },
+    "index": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "settings": {
+      "$ref": "#/$defs/settings"
+    },
+    "excluded_counts": {
+      "$ref": "#/$defs/excludedCounts"
+    },
+    "consensus": {
+      "$ref": "#/$defs/consensus"
+    },
+    "functional": {
+      "$ref": "#/$defs/functional"
+    },
+    "status": {
+      "enum": [
+        "ranked",
+        "abstain",
+        "handoff"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ranked"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "candidates"
+        ],
+        "properties": {
+          "reason": {
+            "type": "null"
+          },
+          "candidates": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "abstain"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "handoff"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "candidates": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "rawPitch": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "keycode_raw_ym2151"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_s_dsp"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16383
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "const": "pitch_register_raw_spu"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16383
+            }
+          }
+        }
+      ]
+    },
+    "nativeQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_record_id",
+        "native_manifest",
+        "native_wav",
+        "native_receipt",
+        "pitch_calibration",
+        "raw_pitch",
+        "calibrated_midi_note",
+        "feature_schema_version",
+        "event_boundaries_seconds",
+        "alignment_uncertainty_seconds",
+        "classification",
+        "source_facts"
+      ],
+      "properties": {
+        "kind": {
+          "const": "native"
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_manifest": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "native_wav": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "native_receipt": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "pitch_calibration": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "raw_pitch": {
+          "$ref": "#/$defs/rawPitch"
+        },
+        "calibrated_midi_note": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127
+        },
+        "feature_schema_version": {
+          "const": "instrument-audio-features/v1"
+        },
+        "event_boundaries_seconds": {
+          "$ref": "#/$defs/eventBoundaries"
+        },
+        "alignment_uncertainty_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "classification": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/classification"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_facts": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nativeSourceFactsRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "classification"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source_facts": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "wavCalibration": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/acousticWavCalibration"
+        },
+        {
+          "$ref": "#/$defs/verifiedDriverCalibration"
+        }
+      ]
+    },
+    "wavQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_record_id",
+        "wav",
+        "calibration",
+        "feature_schema_version",
+        "event_boundaries_seconds",
+        "alignment_uncertainty_seconds",
+        "classification",
+        "source_facts"
+      ],
+      "properties": {
+        "kind": {
+          "const": "wav"
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/path"
+            },
+            "sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "calibration": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/wavCalibration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feature_schema_version": {
+          "const": "instrument-audio-features/v1"
+        },
+        "event_boundaries_seconds": {
+          "$ref": "#/$defs/eventBoundaries"
+        },
+        "alignment_uncertainty_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "classification": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/classification"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_facts": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/suppliedSourceFactsRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "classification"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source_facts": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "query": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nativeQuery"
+        },
+        {
+          "$ref": "#/$defs/wavQuery"
+        }
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "top_k",
+        "distance_threshold",
+        "margin_threshold",
+        "pitch_tolerance_cents"
+      ],
+      "properties": {
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "distance_threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "margin_threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "pitch_tolerance_cents": {
+          "const": 25.0
+        }
+      }
+    },
+    "excludedCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pitch",
+        "route",
+        "invalid_features",
+        "phase"
+      ],
+      "properties": {
+        "pitch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "route": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalid_features": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phase": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "consensus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distinct_soundfont_count",
+        "note"
+      ],
+      "properties": {
+        "distinct_soundfont_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "functional": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "status": {
+              "const": "not_scored"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "note_histogram",
+            "scores",
+            "blend_weight",
+            "note"
+          ],
+          "properties": {
+            "status": {
+              "const": "coverage_only"
+            },
+            "note_histogram": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "note",
+                  "occurrences"
+                ],
+                "properties": {
+                  "note": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 127
+                  },
+                  "occurrences": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            },
+            "scores": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "route",
+                  "bank",
+                  "indexed_probe_note_coverage"
+                ],
+                "properties": {
+                  "route": {
+                    "$ref": "#/$defs/route"
+                  },
+                  "bank": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16383
+                  },
+                  "indexed_probe_note_coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            },
+            "blend_weight": {
+              "const": 0.0
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "route": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "program_0based",
+            "program_1based"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gm_program"
+            },
+            "program_0based": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            },
+            "program_1based": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "note"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gm_percussion"
+            },
+            "note": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        }
+      ]
+    },
+    "distanceComponents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spectral_cosine_distance",
+        "envelope_cosine_distance",
+        "centroid_distance",
+        "rolloff_distance",
+        "flatness_distance",
+        "zero_crossing_distance",
+        "weighted_distance"
+      ],
+      "properties": {
+        "spectral_cosine_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "envelope_cosine_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "centroid_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rolloff_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flatness_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "zero_crossing_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "weighted_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attack": {
+          "$ref": "#/$defs/distanceComponents"
+        },
+        "sustain": {
+          "$ref": "#/$defs/distanceComponents"
+        },
+        "release": {
+          "$ref": "#/$defs/distanceComponents"
+        }
+      },
+      "minProperties": 1
+    },
+    "fontDistance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "soundfont_sha256",
+        "distance"
+      ],
+      "properties": {
+        "soundfont_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distance",
+        "best_probe_distance",
+        "route",
+        "bank",
+        "soundfont_sha256",
+        "probe_id",
+        "note",
+        "velocity",
+        "components",
+        "distinct_soundfont_count",
+        "font_distances",
+        "rank",
+        "margin_to_next",
+        "confidence_heuristic",
+        "variant_count",
+        "variant_selection_note"
+      ],
+      "properties": {
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "best_probe_distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "route": {
+          "$ref": "#/$defs/route"
+        },
+        "bank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383
+        },
+        "soundfont_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "probe_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "components": {
+          "$ref": "#/$defs/components"
+        },
+        "distinct_soundfont_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "font_distances": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/fontDistance"
+          }
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "margin_to_next": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "confidence_heuristic": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A deterministic ranking heuristic, not a calibrated probability."
+        },
+        "variant_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variant_selection_note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "eventBoundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_on",
+        "note_off",
+        "end"
+      ],
+      "properties": {
+        "note_on": {
+          "type": "number",
+          "minimum": 0
+        },
+        "note_off": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "end": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "kind",
+        "evidence",
+        "provenance"
+      ],
+      "properties": {
+        "basis": {
+          "enum": [
+            "source_fact",
+            "hardware_fact"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "gm_percussion_trigger",
+            "sfx",
+            "composite"
+          ]
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gm_channel_0based": {
+          "const": 9
+        },
+        "provenance": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "source_file_path",
+                "source_file_sha256"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_file_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_file_sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "location",
+                "parameters"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "location": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "parameters": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "midi_sha256",
+                    "gm_manifest_sha256"
+                  ],
+                  "properties": {
+                    "midi_sha256": {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    "gm_manifest_sha256": {
+                      "$ref": "#/$defs/sha256"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "gm_percussion_trigger"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "gm_channel_0based"
+            ]
+          }
+        }
+      ]
+    },
+    "nativeSourceFactsRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "source_record_id",
+        "native_manifest_sha256",
+        "wav_sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "suppliedSourceFactsRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "sha256",
+        "source_record_id",
+        "wav_sha256"
+      ],
+      "properties": {
+        "origin": {
+          "const": "supplied_argument"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "acousticWavCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "basis",
+        "status",
+        "source_record_id",
+        "wav_path",
+        "wav_sha256",
+        "event_boundaries_seconds",
+        "sounding_midi_note",
+        "f0_hz",
+        "confidence",
+        "evidence",
+        "method",
+        "window_estimates",
+        "median_absolute_deviation_cents"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "instrument-query-pitch-calibration/v1"
+        },
+        "basis": {
+          "const": "acoustic_measurement"
+        },
+        "status": {
+          "enum": [
+            "calibrated",
+            "abstain"
+          ]
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_boundaries_seconds": {
+          "$ref": "#/$defs/eventBoundaries"
+        },
+        "sounding_midi_note": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127
+        },
+        "f0_hz": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "window_estimates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start_seconds",
+              "end_seconds",
+              "f0_hz",
+              "confidence",
+              "periodicity",
+              "ambiguity",
+              "envelope_modulation"
+            ],
+            "properties": {
+              "start_seconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "end_seconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "f0_hz": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "exclusiveMinimum": 0
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "periodicity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "ambiguity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "envelope_modulation": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "median_absolute_deviation_cents": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "verifiedDriverCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "basis",
+        "status",
+        "source_record_id",
+        "wav_path",
+        "wav_sha256",
+        "event_boundaries_seconds",
+        "sounding_midi_note",
+        "confidence",
+        "evidence",
+        "provenance"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "instrument-query-pitch-calibration/v1"
+        },
+        "basis": {
+          "const": "verified_driver_reference"
+        },
+        "status": {
+          "const": "calibrated"
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wav_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_boundaries_seconds": {
+          "$ref": "#/$defs/eventBoundaries"
+        },
+        "sounding_midi_note": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "locator",
+            "source_file_path",
+            "source_file_sha256"
+          ],
+          "properties": {
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "locator": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_file_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_file_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    }
+  }
+}

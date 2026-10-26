@@ -129,7 +129,7 @@ class NativeRenderingTests(unittest.TestCase):
             self.assertEqual(kwargs["cwd"], Path(kwargs["cwd"]))
             self.assertIn("-wavwrite", argv)
             self.assertIn("-samplerate", argv)
-            self.assertNotIn("-sound", argv)
+            self.assertEqual(argv[argv.index("-sound") + 1], "none")
             self.assertEqual(kwargs["env"]["GME_G3_KEYCODE"], "66")
             self.assertEqual(kwargs["env"]["GME_G3_PATCH"], str(patch_num))
 

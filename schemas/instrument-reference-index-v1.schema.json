@@ -1,0 +1,570 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-reference-index-v1.schema.json",
+  "title": "Hash-bound General MIDI audio reference index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generator",
+    "manifests",
+    "references"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-gm-reference-index/v1"
+    },
+    "generator": {
+      "$ref": "#/$defs/generator"
+    },
+    "manifests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/manifest"
+      }
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "feature_schema_version",
+        "feature_code_sha256"
+      ],
+      "properties": {
+        "name": {
+          "const": "instrument_analysis.ranking"
+        },
+        "feature_schema_version": {
+          "const": "instrument-audio-features/v1"
+        },
+        "feature_code_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "soundfont": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "preset_count"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "preset_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "gmConditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_rate",
+        "duration_seconds",
+        "tail_seconds",
+        "dry",
+        "reverb",
+        "chorus",
+        "midi_bank_select",
+        "midi_format",
+        "midi_ticks_per_second"
+      ],
+      "properties": {
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tail_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "dry": {
+          "type": "boolean"
+        },
+        "reverb": {
+          "type": "boolean"
+        },
+        "chorus": {
+          "type": "boolean"
+        },
+        "midi_bank_select": {
+          "const": "mma"
+        },
+        "midi_format": {
+          "const": 0
+        },
+        "midi_ticks_per_second": {
+          "const": 1000
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "soundfont",
+        "conditions"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "soundfont": {
+          "$ref": "#/$defs/soundfont"
+        },
+        "conditions": {
+          "$ref": "#/$defs/gmConditions"
+        }
+      }
+    },
+    "route": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "program_0based",
+            "program_1based"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gm_program"
+            },
+            "program_0based": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            },
+            "program_1based": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "note"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gm_percussion"
+            },
+            "note": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        }
+      ]
+    },
+    "wav": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "sample_rate",
+        "channels",
+        "sample_width_bytes",
+        "frames"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 192000
+        },
+        "channels": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "sample_width_bytes": {
+          "const": 2
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_seconds",
+        "end_seconds",
+        "window_count",
+        "silent",
+        "log_spectral_bands_l2",
+        "envelope_shape",
+        "spectral_centroid_hz",
+        "spectral_centroid_normalized",
+        "spectral_rolloff_hz",
+        "spectral_rolloff_normalized",
+        "spectral_flatness",
+        "zero_crossing_rate",
+        "rms_dbfs",
+        "peak_dbfs",
+        "clipped_sample_count"
+      ],
+      "properties": {
+        "start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "window_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "silent": {
+          "type": "boolean"
+        },
+        "log_spectral_bands_l2": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 64,
+          "items": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          }
+        },
+        "envelope_shape": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 256,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "spectral_centroid_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spectral_centroid_normalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "spectral_rolloff_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spectral_rolloff_normalized": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "spectral_flatness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "zero_crossing_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rms_dbfs": {
+          "type": "number",
+          "maximum": 0
+        },
+        "peak_dbfs": {
+          "type": "number",
+          "maximum": 0
+        },
+        "clipped_sample_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "wav_path",
+        "sample_rate_original",
+        "sample_rate_analysis",
+        "channels",
+        "frames_original",
+        "duration_seconds",
+        "event_boundaries_seconds",
+        "analysis",
+        "valid",
+        "silent",
+        "phases",
+        "event_clipped_sample_count",
+        "event_rms_dbfs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "instrument-audio-features/v1"
+        },
+        "wav_path": {
+          "$ref": "#/$defs/path"
+        },
+        "sample_rate_original": {
+          "type": "integer",
+          "minimum": 8000
+        },
+        "sample_rate_analysis": {
+          "type": "number",
+          "minimum": 8000,
+          "maximum": 48000
+        },
+        "channels": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "frames_original": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "event_boundaries_seconds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "note_on",
+            "note_off",
+            "end"
+          ],
+          "properties": {
+            "note_on": {
+              "type": "number",
+              "minimum": 0
+            },
+            "note_off": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "end": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "analysis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fft_size",
+            "hop_size",
+            "band_count",
+            "envelope_bins",
+            "attack_seconds",
+            "downsample_method"
+          ],
+          "properties": {
+            "fft_size": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 8192
+            },
+            "hop_size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8192
+            },
+            "band_count": {
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 64
+            },
+            "envelope_bins": {
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 256
+            },
+            "attack_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "downsample_method": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "valid": {
+          "const": true
+        },
+        "silent": {
+          "type": "boolean"
+        },
+        "phases": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attack",
+            "sustain",
+            "release"
+          ],
+          "properties": {
+            "attack": {
+              "$ref": "#/$defs/phase"
+            },
+            "sustain": {
+              "$ref": "#/$defs/phase"
+            },
+            "release": {
+              "$ref": "#/$defs/phase"
+            }
+          }
+        },
+        "event_clipped_sample_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_rms_dbfs": {
+          "type": "number",
+          "maximum": 0
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_id",
+        "manifest_sha256",
+        "wav",
+        "soundfont_sha256",
+        "route",
+        "bank",
+        "note",
+        "velocity",
+        "preset_name",
+        "features",
+        "conditions"
+      ],
+      "properties": {
+        "probe_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wav": {
+          "$ref": "#/$defs/wav"
+        },
+        "soundfont_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "route": {
+          "$ref": "#/$defs/route"
+        },
+        "bank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383
+        },
+        "note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "preset_name": {
+          "type": "string"
+        },
+        "features": {
+          "$ref": "#/$defs/features"
+        },
+        "conditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hold_seconds",
+            "tail_seconds",
+            "sample_rate"
+          ],
+          "properties": {
+            "hold_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "tail_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "sample_rate": {
+              "type": "integer",
+              "minimum": 8000,
+              "maximum": 192000
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -141,7 +141,7 @@ class SnesRenderingTests(unittest.TestCase):
             self.assertIn("-cart", argv)
             self.assertIn("-video", argv)
             self.assertIn("-wavwrite", argv)
-            self.assertNotIn("-sound", argv)
+            self.assertEqual(argv[argv.index("-sound") + 1], "none")
             self.assertTrue(Path(argv[argv.index("-cart") + 1]).name.endswith(".sfc"))
 
     def test_bad_signature_brr_bounds_loop_and_directory_io_are_rejected(self):

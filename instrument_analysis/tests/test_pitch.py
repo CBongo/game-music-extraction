@@ -8,7 +8,7 @@ import unittest
 import wave
 from pathlib import Path
 
-from instrument_analysis.pitch import calibrate_manifest_pitch
+from instrument_analysis.pitch import calibrate_manifest_pitch, calibrate_wav_pitch
 
 
 class PitchCalibrationTests(unittest.TestCase):
@@ -73,6 +73,48 @@ class PitchCalibrationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "WAV hash"):
                 calibrate_manifest_pitch(manifest_path)
 
+    def test_plain_query_matches_shared_native_measurement_and_binds_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest_path = self.make_capture(root, lambda t: 9000 * math.sin(2 * math.pi * 330.0 * t))
+            native = calibrate_manifest_pitch(manifest_path)
+            wav_path = root / "tone.wav"
+            query = calibrate_wav_pitch(wav_path, source_record_id="neutral-pitch-probe-01",
+                                        note_on_seconds=0.02, note_off_seconds=0.95, end_seconds=1.0)
+            self.assertEqual(query["schema_version"], "instrument-query-pitch-calibration/v1")
+            self.assertEqual(query["basis"], "acoustic_measurement")
+            self.assertEqual(query["source_record_id"], "neutral-pitch-probe-01")
+            self.assertEqual(query["wav_sha256"], hashlib.sha256(wav_path.read_bytes()).hexdigest())
+            self.assertEqual(query["event_boundaries_seconds"], {"note_on": 0.02, "note_off": 0.95, "end": 1.0})
+            self.assertEqual(query["status"], native["status"])
+            self.assertEqual(query["f0_hz"], native["f0_hz"])
+            self.assertEqual(query["window_estimates"], native["window_estimates"])
+            self.assertNotIn("native_manifest_sha256", query)
+            saved = root / "query.json"
+            calibrate_wav_pitch(wav_path, source_record_id="neutral-pitch-probe-01",
+                                note_on_seconds=0.02, note_off_seconds=0.95, end_seconds=1.0,
+                                output_path=saved)
+            with self.assertRaises(FileExistsError):
+                calibrate_wav_pitch(wav_path, source_record_id="neutral-pitch-probe-01",
+                                    note_on_seconds=0.02, note_off_seconds=0.95, end_seconds=1.0,
+                                    output_path=saved)
+
+    def test_plain_query_silence_noise_and_invalid_event_bounds(self):
+        rng = random.Random(31)
+        for signal in (lambda _t: 0, lambda _t: rng.randint(-12000, 12000)):
+            with self.subTest(signal=signal), tempfile.TemporaryDirectory() as tmp:
+                self.make_capture(Path(tmp), signal)
+                wav = Path(tmp) / "tone.wav"
+                result = calibrate_wav_pitch(wav, source_record_id="neutral-noise-probe",
+                                             note_on_seconds=0.02, note_off_seconds=0.95, end_seconds=1.0)
+                self.assertEqual(result["status"], "abstain")
+                self.assertIsNone(result["sounding_midi_note"])
+        with tempfile.TemporaryDirectory() as tmp:
+            self.make_capture(Path(tmp), lambda t: 10000 * math.sin(2 * math.pi * 440 * t))
+            wav = Path(tmp) / "tone.wav"
+            with self.assertRaisesRegex(ValueError, "end_seconds exceeds"):
+                calibrate_wav_pitch(wav, source_record_id="bad-boundary", note_on_seconds=0.02,
+                                    note_off_seconds=0.95, end_seconds=1.2)
     def test_trim_clock_is_aligned_to_wav_and_invalid_bounds_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -128,35 +128,20 @@ def _raw_pitch(manifest: dict[str, Any]) -> tuple[str, int]:
     raise ValueError("manifest does not expose a supported raw pitch register/keycode")
 
 
-def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Path | None = None) -> dict[str, Any]:
-    """Measure isolated capture F0 and bind the result to manifest and WAV hashes."""
-    manifest_path = Path(manifest_path).resolve()
-    manifest_bytes = manifest_path.read_bytes()
-    manifest = json.loads(manifest_bytes)
-    source = manifest.get("source", {})
-    wav_meta = manifest.get("wav", {})
-    wav_path = (manifest_path.parent / wav_meta.get("file", "")).resolve()
-    if not wav_path.is_file():
-        raise ValueError("manifest WAV file is missing")
-    wav_hash = _sha256(wav_path)
-    if wav_hash != wav_meta.get("sha256"):
-        raise ValueError("WAV hash does not match source manifest")
-    raw_field, raw_value = _raw_pitch(manifest)
-    conditions = manifest.get("conditions", {})
-    note_on = conditions.get("note_on_time_seconds")
-    note_off = conditions.get("note_off_time_seconds")
-    if not isinstance(note_on, (int, float)) or not isinstance(note_off, (int, float)) or note_off <= note_on:
-        raise ValueError("manifest lacks valid note-on/off times for isolated sustain analysis")
+def _measure_pitch(wav_path: Path, note_on: float, note_off: float, *, trim_start: float = 0.0) -> dict[str, Any]:
+    """Shared sustain-window acoustic estimator for manifest and plain WAV inputs."""
+    for name, value in (("note_on_seconds", note_on), ("note_off_seconds", note_off), ("trim_start_seconds", trim_start)):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+            raise ValueError(f"{name} must be finite")
+    if note_on < 0 or note_off <= note_on or trim_start < 0:
+        raise ValueError("pitch event times are invalid")
     rate, pcm = _decode_pcm(wav_path)
     reduced, reduced_rate = _resample_average(pcm, rate)
-    # Event timestamps may use the emulator clock origin; align them to the WAV.
-    alignment = conditions.get("wav_alignment", {})
-    trim_start = alignment.get("actual_trim_start_seconds", 0.0) if isinstance(alignment, dict) else 0.0
     first = float(note_on) - float(trim_start) + 0.14
     last = float(note_off) - float(trim_start) - 0.07
     wav_duration = len(pcm) / rate
     if first < 0 or last > wav_duration + 1.0 / rate:
-        raise ValueError("manifest event times do not align with WAV trim bounds")
+        raise ValueError("event times do not align with WAV trim bounds")
     window_seconds, hop_seconds = 0.18, 0.08
     windows = []
     t = first
@@ -171,12 +156,7 @@ def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Pa
                         "envelope_modulation": round(envelope_modulation, 5)})
         t += hop_seconds
     valid = [w for w in windows if w["f0_hz"] is not None]
-    reason = None
-    status = "abstain"
-    f0_median = None
-    midi = None
-    confidence = 0.0
-    mad_cents = None
+    status, reason, f0_median, midi, confidence, mad_cents = "abstain", None, None, None, 0.0, None
     if len(valid) < 2:
         reason = "fewer than two periodic sustain windows"
     else:
@@ -199,10 +179,38 @@ def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Pa
             status = "calibrated"
             midi = 69.0 + 12.0 * math.log2(f0_median / 440.0)
             reason = "stable monophonic acoustic fundamental measured across sustain windows"
+    return {"status": status, "f0_hz": round(f0_median, 5) if f0_median is not None else None,
+            "sounding_midi_note": round(midi, 5) if midi is not None else None,
+            "confidence": round(confidence, 5), "evidence": reason,
+            "window_estimates": windows,
+            "median_absolute_deviation_cents": round(mad_cents, 5) if mad_cents is not None else None}
+
+def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Path | None = None) -> dict[str, Any]:
+    """Measure isolated capture F0 and bind the result to manifest and WAV hashes."""
+    manifest_path = Path(manifest_path).resolve()
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    source = manifest.get("source", {})
+    wav_meta = manifest.get("wav", {})
+    wav_path = (manifest_path.parent / wav_meta.get("file", "")).resolve()
+    if not wav_path.is_file():
+        raise ValueError("manifest WAV file is missing")
+    wav_hash = _sha256(wav_path)
+    if wav_hash != wav_meta.get("sha256"):
+        raise ValueError("WAV hash does not match source manifest")
+    raw_field, raw_value = _raw_pitch(manifest)
+    conditions = manifest.get("conditions", {})
+    note_on = conditions.get("note_on_time_seconds")
+    note_off = conditions.get("note_off_time_seconds")
+    if not isinstance(note_on, (int, float)) or isinstance(note_on, bool) or not isinstance(note_off, (int, float)) or isinstance(note_off, bool) or note_off <= note_on:
+        raise ValueError("manifest lacks valid note-on/off times for isolated sustain analysis")
+    alignment = conditions.get("wav_alignment", {})
+    trim_start = alignment.get("actual_trim_start_seconds", 0.0) if isinstance(alignment, dict) else 0.0
+    measurement = _measure_pitch(wav_path, note_on, note_off, trim_start=trim_start)
     result = {
         "schema_version": "instrument-pitch-calibration/v1",
         "basis": "acoustic_measurement",
-        "status": status,
+        "status": measurement["status"],
         "source_record_id": manifest.get("source_record_id"),
         "native_manifest_path": str(manifest_path),
         "native_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
@@ -210,13 +218,13 @@ def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Pa
         "native_wav_sha256": wav_hash,
         "engine": manifest.get("engine"),
         "native_raw_pitch": {"key": raw_field, "value": raw_value},
-        "sounding_midi_note": round(midi, 5) if midi is not None else None,
-        "f0_hz": round(f0_median, 5) if f0_median is not None else None,
-        "confidence": round(confidence, 5),
-        "evidence": reason,
+        "sounding_midi_note": measurement["sounding_midi_note"],
+        "f0_hz": measurement["f0_hz"],
+        "confidence": measurement["confidence"],
+        "evidence": measurement["evidence"],
         "method": "mean-removed normalized autocorrelation across fixed sustain windows; 55-1500 Hz search; no raw-register-to-MIDI mapping",
-        "window_estimates": windows,
-        "median_absolute_deviation_cents": round(mad_cents, 5) if mad_cents is not None else None,
+        "window_estimates": measurement["window_estimates"],
+        "median_absolute_deviation_cents": measurement["median_absolute_deviation_cents"],
     }
     if output_path is not None:
         out = Path(output_path)
@@ -226,6 +234,50 @@ def calibrate_manifest_pitch(manifest_path: str | Path, *, output_path: str | Pa
             stream.write("\n")
     return result
 
+
+def calibrate_wav_pitch(wav_path: str | Path, *, source_record_id: str,
+                        note_on_seconds: float, note_off_seconds: float,
+                        end_seconds: float, output_path: str | Path | None = None) -> dict[str, Any]:
+    """Measure and hash-bind an ordinary isolated WAV query, without renderer metadata."""
+    path = Path(wav_path).resolve()
+    if not path.is_file():
+        raise ValueError("query WAV file is missing")
+    if not isinstance(source_record_id, str) or not source_record_id.strip():
+        raise ValueError("source_record_id must be a nonempty string")
+    for name, value in (("note_on_seconds", note_on_seconds), ("note_off_seconds", note_off_seconds), ("end_seconds", end_seconds)):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+            raise ValueError(f"{name} must be finite")
+    if note_on_seconds < 0 or note_off_seconds <= note_on_seconds or end_seconds <= note_off_seconds:
+        raise ValueError("event boundaries must satisfy 0 <= note_on < note_off < end")
+    with wave.open(str(path), "rb") as wav:
+        duration = wav.getnframes() / wav.getframerate()
+        rate = wav.getframerate()
+    if end_seconds > duration + 1 / rate:
+        raise ValueError("end_seconds exceeds WAV duration")
+    measurement = _measure_pitch(path, note_on_seconds, note_off_seconds)
+    result = {
+        "schema_version": "instrument-query-pitch-calibration/v1",
+        "basis": "acoustic_measurement",
+        "status": measurement["status"],
+        "source_record_id": source_record_id,
+        "wav_path": str(path),
+        "wav_sha256": _sha256(path),
+        "event_boundaries_seconds": {"note_on": note_on_seconds, "note_off": note_off_seconds, "end": end_seconds},
+        "sounding_midi_note": measurement["sounding_midi_note"],
+        "f0_hz": measurement["f0_hz"],
+        "confidence": measurement["confidence"],
+        "evidence": measurement["evidence"],
+        "method": "mean-removed normalized autocorrelation across fixed sustain windows; 55-1500 Hz search; MIDI derived only from measured acoustic F0",
+        "window_estimates": measurement["window_estimates"],
+        "median_absolute_deviation_cents": measurement["median_absolute_deviation_cents"],
+    }
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("x", encoding="utf-8", newline="") as stream:
+            json.dump(result, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+    return result
 
 def main(argv: list[str] | None = None) -> int:
     import argparse

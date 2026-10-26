@@ -283,7 +283,7 @@ def render_snes_spc_probe(
             "-snapshot_directory", str(isolated["snapshots"]), "-diff_directory", str(isolated["diff"]),
             "-comment_directory", str(isolated["comments"]), "-cart", str(cart),
             "-autoboot_script", str(_SCRIPT), "-autoboot_delay", "0", "-video", "none",
-            "-samplerate", str(sample_rate), "-wavwrite", str(capture),
+            "-samplerate", str(sample_rate), "-sound", "none", "-wavwrite", str(capture),
         ]
         timeout_seconds = max(60, math.ceil((hold_frames + tail_frames + 300) / 50) + 15)
         try:

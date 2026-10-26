@@ -268,7 +268,7 @@ def render_gradius3_probe(
             "-diff_directory", str(output_dirs["diff"]),
             "-comment_directory", str(output_dirs["comments"]),
             "-autoboot_script", str(_SCRIPT), "-autoboot_delay", "0",
-            "-video", "none", "-samplerate", str(sample_rate),
+            "-video", "none", "-sound", "none", "-samplerate", str(sample_rate),
             "-wavwrite", str(captured_wav),
         ]
         timeout_seconds = max(60, math.ceil((hold_frames+tail_frames+300)/50)+15)

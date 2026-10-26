@@ -89,3 +89,7 @@ this pilot to a perceptual leaderboard merely because contract tests pass.
 
 Rendering instructions and remaining native-engine work are in
 [`docs/instrument-rendering.md`](../../docs/instrument-rendering.md).
+
+The [deterministic ranking baseline](../../docs/instrument-ranking.md) now includes
+a neutral-query pilot runner. Its measured development results must remain
+separate from same-bank controls and future held-out-game validation.

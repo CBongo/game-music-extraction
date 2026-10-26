@@ -243,7 +243,7 @@ def render_akao_spu_probe(
             "-diff_directory", str(dirs["diff"]),
             "-comment_directory", str(dirs["comments"]),
             "-autoboot_script", str(_SCRIPT), "-autoboot_delay", "0",
-            "-video", "none", "-seconds_to_run", str(max(5, math.ceil((hold_frames + tail_frames + 120) / 55))),
+            "-video", "none", "-sound", "none", "-seconds_to_run", str(max(5, math.ceil((hold_frames + tail_frames + 120) / 55))),
             "-samplerate", str(sample_rate),
             "-wavwrite", str(captured_wav),
         ]

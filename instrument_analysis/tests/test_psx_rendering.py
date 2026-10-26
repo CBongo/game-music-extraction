@@ -41,6 +41,7 @@ def _mock_run(argv, **kwargs):
     assert argv[1] == "konamigv"
     assert "-autoboot_script" in argv
     assert "-wavwrite" in argv
+    assert argv[argv.index("-sound") + 1] == "none"
     env = kwargs["env"]
     payload = Path(env["GME_PSX_PAYLOAD"]).read_bytes()
     dest = int(env["GME_PSX_DEST"])

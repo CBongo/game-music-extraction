@@ -87,6 +87,9 @@ receipt. Startup timeout fails instead of proceeding with uncertain state. The
 wrapper checks patch bytes against the supplied audio ROM, validates timing and
 PCM capture, trims boot audio, and records hashes and the exact run arguments.
 The receipt/WAV/manifest are staged and published only after validation.
+Native MAME runs use `-sound none` to suppress host speaker playback while
+retaining chip emulation and WAV capture. A quiet SPU rerun produced byte-identical
+PCM to the earlier audible capture; global audio settings are untouched.
 MAME scratch runs on the local temp volume; output-local publication stages use
 inherited permissions and same-volume renames. Python's restrictive temporary
 file/directory modes denied access on this SMB workspace, so publication avoids
