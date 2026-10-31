@@ -1,0 +1,191 @@
+{
+  "catalog_version": 1,
+  "status": "research_seed_not_runtime_mapping",
+  "observed_on": "2026-10-31",
+  "attribution": "VGM Resources community; retain the linked sheets' per-game researcher credits.",
+  "sources": [
+    {
+      "key": "newer-vgm-sound-sources",
+      "title": "NEWER VGM Sound Sources",
+      "spreadsheet_id": "1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o",
+      "url": "https://docs.google.com/spreadsheets/d/1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o/edit",
+      "rules_sheet_id": 2047725819,
+      "main_project_tab": {
+        "title": "Square-Enix",
+        "sheet_id": 1747501736
+      },
+      "credit": "VGM Resources community",
+      "inspection_scope": "Rules and Info; selected game sections and cells, not a complete workbook snapshot"
+    },
+    {
+      "key": "final-fantasy-detailed",
+      "title": "Final Fantasy Sound Sources (Detailed)",
+      "spreadsheet_id": "1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4",
+      "url": "https://docs.google.com/spreadsheets/d/1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4/edit",
+      "discovered_at": "Rules & Info!A22 in the main source",
+      "credit": "Created by Mudstep and OKayDoKay; maintained by Mudstep, Aged String, Seshpai and others. Preserve per-game credits.",
+      "inspection_scope": "Final Fantasy IV A1:H48; Final Fantasy VI A1:G83; Final Fantasy VIII A1:G55 and bounded targeted searches"
+    }
+  ],
+  "pilot_claims": [
+    {
+      "lead_key": "ff4-flute-07",
+      "source_key": "final-fantasy-detailed",
+      "game_title": "Final Fantasy IV",
+      "platform_scope": "SNES",
+      "sheet_id": 2072026963,
+      "range": "A17:H17",
+      "game_section": "Section 1: SNES",
+      "raw_cells": [
+        "Flute",
+        "$07",
+        "Roland - U-220",
+        "Tone",
+        "F-092: Flute 1 [B5]",
+        "",
+        "Theme of Love",
+        ""
+      ],
+      "external_report_state": "reported",
+      "local_binding_state": "unbound",
+      "inspection_note": "Main sheet Square-Enix row 142 says the U-Series variant matches better than L-CD1; demo hyperlink present, not auditioned.",
+      "credits": "NEWER VGM Sound Sources sheet, Mudstep, OKayDoKay, AquaMIDI",
+      "selection_sha256": "70c1ed20b70d6bd4f0758dcfd54677fd72a0c03328442373b725979b014724a2",
+      "supporting_observation": {
+        "source_key": "newer-vgm-sound-sources",
+        "sheet_id": 1747501736,
+        "range": "A142:G142",
+        "cell_note": {
+          "E142": "While this flute also exists in L-CD1, the U Series variant matches better"
+        },
+        "demo_url": "https://cdn.discordapp.com/attachments/334910359578214401/1126792109630951504/flute.wav",
+        "demo_status": "link observed; audio not downloaded or auditioned"
+      }
+    },
+    {
+      "lead_key": "ff6-flute-07",
+      "source_key": "final-fantasy-detailed",
+      "game_title": "Final Fantasy VI",
+      "platform_scope": "SNES",
+      "sheet_id": 1266952582,
+      "range": "A17:G17",
+      "game_section": "Section 1: SNES",
+      "raw_cells": [
+        "Flute",
+        "$07",
+        "Roland - L-CD1 ",
+        "Flute & Piccolo JP",
+        "P1 Flute V-sw [B5]",
+        "",
+        ""
+      ],
+      "external_report_state": "reported",
+      "local_binding_state": "unbound",
+      "credits": "NEWER VGM Sound Sources sheet, Mudstep",
+      "selection_sha256": "e46e48c702a2697a42f1ba9c2de3776b61693d4824c8c3fdc61d2df78ddc32b8"
+    },
+    {
+      "lead_key": "ff6-timpani-16",
+      "source_key": "final-fantasy-detailed",
+      "game_title": "Final Fantasy VI",
+      "platform_scope": "SNES",
+      "sheet_id": 1266952582,
+      "range": "A32:G32",
+      "game_section": "Section 1: SNES",
+      "raw_cells": [
+        "Timpani",
+        "$16",
+        "Roland - L-CD1 ",
+        "Orchestral Percussions #2",
+        "P9 Timpani [A5]",
+        "May be something else (Roland or E-MU)",
+        ""
+      ],
+      "external_report_state": "qualified",
+      "local_binding_state": "unbound",
+      "credits": "NEWER VGM Sound Sources sheet, Mudstep",
+      "selection_sha256": "aa7f44f401dc39c96d87980e0a75ab2ae463ddc7f9cace919bfbbb1e63a01585"
+    },
+    {
+      "lead_key": "ff6-whistle-1f",
+      "source_key": "final-fantasy-detailed",
+      "game_title": "Final Fantasy VI",
+      "platform_scope": "SNES",
+      "sheet_id": 1266952582,
+      "range": "A41:G41",
+      "game_section": "Section 1: SNES",
+      "raw_cells": [
+        "Whistle",
+        "$1F",
+        "Fairlight - CMI III",
+        "Keyboards",
+        "Martenot11",
+        "Probably not it",
+        ""
+      ],
+      "external_report_state": "doubted",
+      "local_binding_state": "unbound",
+      "credits": "NEWER VGM Sound Sources sheet, Mudstep",
+      "selection_sha256": "375d3e4e1ab3ebe70754e6188204c29c78a5474d510713c6878a12049eb70d6e"
+    },
+    {
+      "lead_key": "ff6-claves-30",
+      "source_key": "final-fantasy-detailed",
+      "game_title": "Final Fantasy VI",
+      "platform_scope": "SNES",
+      "sheet_id": 1266952582,
+      "range": "A58:G58",
+      "game_section": "Section 1: SNES",
+      "raw_cells": [
+        "Claves",
+        "$30",
+        "Roland - L-CD1 ",
+        "Latin Percussion #2",
+        "P1 Latin Perc 2 [D#4]",
+        "Pitched up 6.5 semitones, first part of sample cut, also in FFV",
+        ""
+      ],
+      "external_report_state": "reported_transform",
+      "local_binding_state": "unbound",
+      "credits": "NEWER VGM Sound Sources sheet, Mudstep",
+      "selection_sha256": "d31a40f6601b10db87b67d288a8346deec61a120188af35c86a36f555425252d"
+    }
+  ],
+  "game_scoped_leads": [
+    {
+      "source_key": "newer-vgm-sound-sources",
+      "sheet_id": 1747501736,
+      "range": "A353:G353",
+      "game_title": "Final Fantasy VIII",
+      "origin_product": "Roland JV-1080",
+      "bank_raw": "Patch -> PR-D (GM)",
+      "program_raw": "076 Pan Flute",
+      "example_raw": "Fisherman's Horizon",
+      "local_binding_state": "unbound",
+      "note": "Main-sheet game-level lead; no binding to the existing FF8 set-0x0a/articulation-76 capture."
+    },
+    {
+      "source_key": "newer-vgm-sound-sources",
+      "sheet_id": 1747501736,
+      "range": "A1907:G1907",
+      "game_title": "Chrono Cross",
+      "origin_product": "Roland JV-2080",
+      "bank_raw": "Patch -> PR-D (GM)",
+      "program_raw": "076 Pan Flute",
+      "example_raw": "Chronomatique",
+      "local_binding_state": "unbound",
+      "note": "Source GM-map identifier is separate from the eventual target-bank audition decision."
+    }
+  ],
+  "interpretation_rules": [
+    "Preserve raw names, sampled-key brackets, notes and hypotheses; normalize into additional fields only.",
+    "A row's sample number, product program number and local extractor instrument ID are different namespaces until linked.",
+    "Stars describe coverage categories, not per-row confidence.",
+    "A documented original sampled key is not automatically game unity, sounding MIDI pitch or transpose.",
+    "Unknown or Stuff to Find is an unlabeled origin, not evidence for an SFX route or a negative GM class.",
+    "Imported documentary origins, local sample bindings and reviewer-accepted GM replacements are separate evidence layers.",
+    "No automatic code path consumes this catalog. No source identity or GM route has been verified by this research seed."
+  ],
+  "hash_scope": "pilot selection_sha256 hashes canonical ASCII JSON of spreadsheet_id,sheet_id,game_title,game_section,raw_cells. Locators and our assessment are excluded. These are selected-cell fingerprints, not whole-sheet or workbook revision hashes.",
+  "comments_inspected": false
+}

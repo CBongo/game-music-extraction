@@ -107,3 +107,9 @@ source facts. Playback is opt-in.
 [Sequence recipe rendering and correction revisions](../../docs/instrument-sequence-review.md)
 are available for explicitly grounded event recipes. Revised preferences require
 fresh audio-hash acknowledgment and remain outside the isolated-probe benchmark.
+
+[Documentary sample origins](../../docs/instrument-source-identifications.md)
+provide an attributed research source and a proposed documentation-led candidate
+branch. The accompanying research seed catalog is not a benchmark label set or
+runtime mapping table; exact local sample bindings and target-GM review remain
+separate steps.
