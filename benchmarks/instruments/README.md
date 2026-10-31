@@ -78,8 +78,9 @@ That is an example record shape, not a saved human judgment. Unblinded entries a
 ignored, unknown case IDs are errors, and no human agreement is reported until
 judgments exist. Reviewers should audition matched source/candidates in randomized
 order without patch names, retain source/render manifest hashes with judgments,
-and allow ambiguous/no-good-match outcomes. The later review workflow will own
-richer correction/provenance capture.
+and allow ambiguous/no-good-match outcomes. The [local review workflow](../../docs/instrument-review.md) now captures
+corrections and hash-bound provenance for isolated probes. Sequence and effect
+previews remain follow-up work.
 
 For an acoustic benchmark expansion, split by game or platform before tuning any
 ranker. Keep shared sample hashes out of opposite folds. Render and hash exact
@@ -98,3 +99,7 @@ separate from same-bank controls and future held-out-game validation.
 component offsets and explicit harmonic alternatives. Its original tracker and
 independent-control results are reported separately in the
 [composite validation record](../../docs/instrument-composite-validation.md).
+
+[Local review packages](../../docs/instrument-review.md) provide manual audition,
+blinded preference export, and proposed octave/chord corrections without changing
+source facts. Playback is opt-in.

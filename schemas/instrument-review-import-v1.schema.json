@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-review-import-v1.schema.json",
+  "title": "Validated stored instrument review judgment",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "judgment", "package_id", "source_record_id", "case_id", "blind", "preferred_route", "audition_status", "scope", "judgment_id"],
+  "properties": {
+    "schema_version": {"const": "instrument-review-import/v1"},
+    "judgment": {"$ref": "instrument-review-judgment-v1.schema.json"},
+    "package_id": {"$ref": "#/$defs/sha256"},
+    "source_record_id": {"type": "string", "minLength": 1},
+    "case_id": {"type": "string", "minLength": 1},
+    "blind": {"type": "boolean"},
+    "preferred_route": {"type": ["object", "null"]},
+    "audition_status": {"enum": ["unchanged_probe", "requires_rerender"]},
+    "scope": {"type": "string", "minLength": 1},
+    "judgment_id": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-from instrument_analysis.benchmark import evaluate_benchmark
+from instrument_analysis.benchmark import evaluate_benchmark, load_review_preferences
 
 
 def gm(program, percussion=False):
@@ -50,6 +50,23 @@ def case(identifier, labels=None, split="test"):
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_review_export_jsonl_and_array_give_same_preferences(self):
+        reviews = [{"case_id": "a", "blinded": True, "preferred_route": gm(8)}]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name, text in (("prefs.json", json.dumps(reviews)),
+                               ("prefs.jsonl", json.dumps(reviews[0]) + "\n\n")):
+                path = root / name
+                path.write_text(text, encoding="utf-8")
+                loaded = load_review_preferences(path)
+                report = evaluate_benchmark(manifest(case("a")),
+                    bundle(record("a", [candidate(1, gm(8))])), reviews=loaded)
+                self.assertEqual(loaded, reviews)
+                self.assertEqual(report["metrics"]["human_blinded_preference_agreement"]["value"], 1)
+            (root / "bad.json").write_text("{}")
+            with self.assertRaises(ValueError):
+                load_review_preferences(root / "bad.json")
+
     def test_rank_order_acceptable_routes_and_gm_family(self):
         labels = {"routes": [gm(8), {"kind": "composite", "description": "triad"}],
                   "gm_families": [1]}

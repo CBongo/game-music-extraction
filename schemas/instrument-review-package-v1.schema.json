@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-review-package-v1.schema.json",
+  "title": "Immutable, hash-bound isolated instrument review package manifest",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "source_record_id", "case_id", "blind", "ordering_seed", "evidence", "facts", "candidates", "context", "artifacts", "package_id"],
+  "properties": {
+    "schema_version": {"const": "instrument-review-package/v1"},
+    "source_record_id": {"type": "string", "minLength": 1}, "case_id": {"type": "string", "minLength": 1}, "blind": {"type": "boolean"}, "ordering_seed": {"type": "integer"},
+    "evidence": {"$ref": "#/$defs/evidence"},
+    "facts": {"type": "object", "required": ["source", "analysis", "diagnostics"], "properties": {"source": {"type": "object"}, "analysis": {"type": "object"}, "diagnostics": {"type": "object"}}, "additionalProperties": true},
+    "candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate"}},
+    "context": {"type": "string", "minLength": 1}, "artifacts": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/sha256"}}, "package_id": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence": {"type": "object", "additionalProperties": false, "required": ["source", "analysis", "diagnostics"], "properties": {"source": {"type": "string", "minLength": 1}, "analysis": {"type": "string", "minLength": 1}, "diagnostics": {"type": "string", "minLength": 1}}},
+    "candidate": {"type": "object", "additionalProperties": false, "required": ["candidate_id", "source_audio", "candidate_audio", "original_source_audio", "original_candidate_audio", "route", "render_provenance", "gain_matching", "evidence"], "properties": {"candidate_id": {"type": "string", "minLength": 1}, "source_audio": {"type": "string", "minLength": 1}, "candidate_audio": {"type": "string", "minLength": 1}, "original_source_audio": {"type": "string", "minLength": 1}, "original_candidate_audio": {"type": "string", "minLength": 1}, "comparison": {"type": "string", "minLength": 1}, "route": {"type": "object"}, "render_provenance": {"type": "object"}, "gain_matching": {"type": "object", "required": ["method", "gains", "source_rms"], "properties": {"method": {"type": "string"}, "gains": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "exclusiveMinimum": 0}}, "source_rms": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "exclusiveMinimum": 0}}}, "additionalProperties": false}, "evidence": {"type": "object"}}}
+  }
+}

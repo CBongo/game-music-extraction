@@ -333,6 +333,17 @@ def evaluate_benchmark(manifest: dict, predictions_bundle: dict, *,
     }
 
 
+def load_review_preferences(path: Path) -> list[dict]:
+    """Read an explicit JSON array or the review workflow's preference JSONL."""
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".jsonl":
+        return [json.loads(line) for line in text.splitlines() if line.strip()]
+    value = json.loads(text)
+    if not isinstance(value, list):
+        raise ValueError("review preferences must be a JSON array or JSONL records")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
@@ -342,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     predictions = json.loads(args.predictions.read_text(encoding="utf-8"))
-    reviews = json.loads(args.reviews.read_text(encoding="utf-8")) if args.reviews else None
+    reviews = load_review_preferences(args.reviews) if args.reviews else None
     report = evaluate_benchmark(manifest, predictions, reviews=reviews)
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
