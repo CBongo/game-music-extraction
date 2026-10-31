@@ -103,3 +103,7 @@ independent-control results are reported separately in the
 [Local review packages](../../docs/instrument-review.md) provide manual audition,
 blinded preference export, and proposed octave/chord corrections without changing
 source facts. Playback is opt-in.
+
+[Sequence recipe rendering and correction revisions](../../docs/instrument-sequence-review.md)
+are available for explicitly grounded event recipes. Revised preferences require
+fresh audio-hash acknowledgment and remain outside the isolated-probe benchmark.

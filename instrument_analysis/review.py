@@ -167,12 +167,14 @@ def build_review_package(spec_path, output_dir):
                 provenance = entry.get('render_provenance', {})
                 provenance_path, provenance_file = bind(entry.get('render_manifest'), spec_path.parent)
                 render_manifest = _read_json(provenance_path, 'render provenance')
-                if render_manifest.get('schema_version') != 'instrument-composite-preview/v1':
+                if render_manifest.get('schema_version') not in ('instrument-composite-preview/v1', 'instrument-sequence-preview/v1'):
                     raise ValueError('unsupported paired render manifest')
                 if render_manifest.get('schema_version') == 'instrument-composite-preview/v1':
                     for key in ('analysis','diagnostics'):
                         if render_manifest.get('input',{}).get(key,{}).get('sha256') != spec[key]['sha256']:
                             raise ValueError('composite render ' + key + ' hash mismatch')
+                if render_manifest.get('schema_version') == 'instrument-sequence-preview/v1' and not spec.get('revision'):
+                    raise ValueError('sequence preview requires explicit review revision provenance')
                 for key in ('wav', 'midi'):
                     meta = render_manifest.get(key, {})
                     artifact = _local_file(provenance_path, meta.get('file'), 'composite ' + key)
@@ -182,6 +184,8 @@ def build_review_package(spec_path, output_dir):
                         raise ValueError('candidate WAV differs from declared composite WAV')
                     copy(artifact)
                 references(render_manifest.get('input', {}), provenance_path.parent)
+                for key in ('source','recipe'):
+                    if key in render_manifest: references(render_manifest[key], provenance_path.parent)
                 if 'soundfont' in render_manifest:
                     references(render_manifest['soundfont'], provenance_path.parent)
                 if not _belongs(render_manifest, source_id):
@@ -216,6 +220,10 @@ def build_review_package(spec_path, output_dir):
             row['gain_matching'] = levels
         random.Random(spec.get('ordering_seed', 0)).shuffle(candidates)
         manifest = {'schema_version': VERSION, 'source_record_id': source_id, 'case_id': spec.get('case_id', source_id), 'blind': spec.get('blind', False), 'ordering_seed': spec.get('ordering_seed', 0), 'evidence': evidence, 'facts': facts, 'candidates': candidates, 'context': 'Isolated probe contexts only; no full sequence/effect rendering. Corrections require rerender and were not auditioned.', 'artifacts': inventory}
+        if spec.get('revision'):
+            manifest['revision'] = spec['revision']
+            references(spec['revision'], spec_path.parent)
+            manifest['context'] = 'Corrected candidate rerender; rendered_pending_review. Scope and source context are explicitly bound in revision recipe; fresh audition acknowledgment required.'
         # Bind the UI too. Blindness is presentation masking, not cryptographic concealment.
         (stage / 'index.html').write_text(_html(manifest), encoding='utf-8')
         inventory['index.html'] = _hash(stage / 'index.html')
@@ -241,6 +249,16 @@ def verify_package(package_dir):
             raise ValueError('package artifact hash mismatch')
     return manifest
 
+def resolve_ref(package_dir, ref):
+    """Resolve archived provenance by hash first, then a still-valid original path."""
+    manifest = verify_package(package_dir)
+    if not isinstance(ref, dict) or not isinstance(ref.get('sha256'), str):
+        raise ValueError('artifact reference requires sha256')
+    for name, digest in manifest['artifacts'].items():
+        if digest == ref['sha256']:
+            return (Path(package_dir) / name).resolve()
+    return _bound(ref, Path(package_dir))
+
 def import_judgment(package_dir, judgment_path, store_dir):
     manifest = verify_package(package_dir)
     judgment = _read_json(Path(judgment_path), 'judgment')
@@ -257,15 +275,27 @@ def import_judgment(package_dir, judgment_path, store_dir):
         raise ValueError('invalid candidate selection')
     if decision in ('no_match', 'ambiguous') and cid is not None:
         raise ValueError('abstention cannot select a candidate')
+    requested = judgment.get('correction_requested', False)
+    if type(requested) is not bool:
+        raise ValueError('correction_requested must be boolean')
     octave = judgment.get('octave_correction', 0)
     offsets = judgment.get('chord_offsets_correction')
     if type(octave) is not int or not -4 <= octave <= 4:
         raise ValueError('invalid octave correction')
     if offsets is not None and (not isinstance(offsets, list) or not offsets or len(offsets) > 16 or any(type(n) is not int or not -48 <= n <= 48 for n in offsets)):
         raise ValueError('invalid chord offsets')
-    if (octave or offsets is not None) and cid is None:
+    if (requested or octave or offsets is not None) and cid is None:
         raise ValueError('correction requires candidate')
-    result = {'schema_version': 'instrument-review-import/v1', 'judgment': judgment, 'package_id': manifest['package_id'], 'source_record_id': manifest['source_record_id'], 'case_id': manifest['case_id'], 'blind': manifest['blind'], 'preferred_route': candidates[cid]['route'] if cid else None, 'audition_status': 'requires_rerender' if octave or offsets is not None else 'unchanged_probe', 'scope': 'Reviewer preference for bound isolated probe evidence; not ground truth.'}
+    acknowledged = False
+    if manifest.get('revision'):
+        selected = candidates.get(cid) or (manifest['candidates'][0] if cid is None and len(candidates) == 1 else None)
+        if selected is None or judgment.get('audition_acknowledged') is not True:
+            raise ValueError('revision requires selected candidate and explicit fresh audition acknowledgment')
+        for field, audio in (('source_audio_sha256','source_audio'),('candidate_audio_sha256','candidate_audio')):
+            if judgment.get(field) != manifest['artifacts'][selected[audio]]:
+                raise ValueError('revision audition audio hash mismatch')
+        acknowledged = True
+    result = {'schema_version': 'instrument-review-import/v1', 'judgment': judgment, 'package_id': manifest['package_id'], 'source_record_id': manifest['source_record_id'], 'case_id': manifest['case_id'], 'blind': manifest['blind'], 'preferred_route': candidates[cid]['route'] if cid else None, 'audition_status': 'requires_rerender' if requested or octave or offsets is not None else ('reviewer_reported_audition' if acknowledged else 'unchanged_probe'), 'scope': 'Reviewer preference for bound isolated probe evidence; not ground truth.'}
     result['judgment_id'] = _digest(result)
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
@@ -299,24 +329,27 @@ def export_judgments(store_dir, output_path):
 def _html(manifest):
     # Details are inserted only after reveal: labels and ranks are absent from the initial DOM.
     data = json.dumps(manifest).replace('<', '\\u003c')
-    return '''<!doctype html><meta charset="utf-8"><title>Isolated probe review</title>
+    page = '''<!doctype html><meta charset="utf-8"><title>Isolated probe review</title>
 <style>body{font:16px system-ui;max-width:980px;margin:2rem auto;padding:0 1rem;background:#f5f7fa;color:#182434}label{display:block;margin:1rem 0}button,select,input{font:inherit;padding:.4rem}audio{vertical-align:middle;max-width:90%}#audio>div{background:white;border:1px solid #bcc6d3;border-radius:8px;padding:1rem;margin:1rem 0}pre{white-space:pre-wrap;max-height:24rem;overflow:auto}details{margin:1rem 0}</style><h1>Isolated probe review</h1><p>No full sequence/effect rendering. Audio uses manual controls only. Source and candidate controls use RMS matched, peak limited presentation WAVs. Original PCM remains in bound artifacts. Corrections require rerender and have not been auditioned.</p>
 <p>Blind mode masks labels in the interface; evidence files remain inspectable. Record any external inspection by revealing before submitting.</p>
 <button id="reveal">Reveal evidence and ranks</button><details><summary>Revealed evidence, ranks and uncertainty</summary><pre id="facts"></pre></details><div id="audio"></div>
 <label>Reviewer <input id="reviewer"></label><label>Decision <select id="decision"><option>accepted</option><option>rejected</option><option>alternate_candidate</option><option>no_match</option><option>ambiguous</option></select></label>
 <label>Candidate <select id="candidate"><option value="">None</option></select></label>
-<label>Octave correction <input id="octave" type="number" min="-4" max="4" value="0"></label>
-<label>Chord offsets correction (comma separated semitones; blank means unchanged)<input id="offsets"></label>
-<button id="download">Download judgment JSON</button><p id="status"></p>
+<label><input id="request-correction" type="checkbox">Request rerender with these absolute corrections</label><label>Octave correction (absolute from original source recipe) <input id="octave" type="number" min="-4" max="4" value="0"></label>
+<label>Chord offsets correction (absolute from original source recipe; comma separated semitones; blank means unchanged)<input id="offsets"></label>
+<label><input id="acknowledged" type="checkbox">I auditioned the selected source and candidate audio for this package</label><button id="download">Download judgment JSON</button><p id="status"></p>
 <script>const M=DATA; let revealed=!M.blind;
 const el=id=>document.getElementById(id);
 function details(){el('facts').textContent=JSON.stringify({context:M.context,facts:M.facts,candidates:M.candidates},null,2);}
 M.candidates.forEach((c,i)=>{let o=document.createElement('option');o.value=c.candidate_id;o.textContent='Candidate '+(i+1);el('candidate').append(o);let d=document.createElement('div');d.append('Candidate '+(i+1)+' ');for(const [k,label] of [['source_audio','Source'],['candidate_audio','Candidate'],['ab_audio','Gain matched A/B']]){if(!c[k])continue;let p=document.createElement('p');p.append(label+' ');let a=document.createElement('audio');a.controls=true;a.preload='none';a.src=c[k];p.append(a);d.append(p);}el('audio').append(d);});
 if(revealed)details();el('reveal').onclick=()=>{revealed=true;details();};
-el('download').onclick=()=>{if(!el('reviewer').value.trim())throw Error('Reviewer is required');const decision=el('decision').value;const selected=el('candidate').value;if(['accepted','rejected','alternate_candidate'].includes(decision)!==Boolean(selected))throw Error('Choose a candidate for accepted/rejected/alternate; choose None for no_match/ambiguous');const correction=el('offsets').value.trim();const j={schema_version:'instrument-review-judgment/v1',package_id:PACKAGE_ID,source_record_id:M.source_record_id,reviewer_id:el('reviewer').value,decision:el('decision').value,candidate_id:el('candidate').value||null,revealed,octave_correction:Number(el('octave').value)};if(correction)j.chord_offsets_correction=correction.split(',').map(Number);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,2)],{type:'application/json'}));a.download='judgment.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);el('status').textContent='Import with CLI to validate. Corrections require rerender.';};
+el('download').onclick=()=>{if(!el('reviewer').value.trim())throw Error('Reviewer is required');const decision=el('decision').value;const selected=el('candidate').value;if(['accepted','rejected','alternate_candidate'].includes(decision)!==Boolean(selected))throw Error('Choose a candidate for accepted/rejected/alternate; choose None for no_match/ambiguous');const correction=el('offsets').value.trim();const j={schema_version:'instrument-review-judgment/v1',package_id:PACKAGE_ID,source_record_id:M.source_record_id,reviewer_id:el('reviewer').value,decision:el('decision').value,candidate_id:el('candidate').value||null,revealed,octave_correction:Number(el('octave').value)};if(el('request-correction').checked){if(!j.candidate_id)throw Error('Correction request requires a selected candidate');j.correction_requested=true;}if(M.revision){const c=M.candidates.find(c=>c.candidate_id===j.candidate_id)||(M.candidates.length===1?M.candidates[0]:null);if(!c||!el('acknowledged').checked)throw Error('Fresh revision audition acknowledgment required');j.audition_acknowledged=true;j.source_audio_sha256=M.artifacts[c.source_audio];j.candidate_audio_sha256=M.artifacts[c.candidate_audio];}if(correction)j.chord_offsets_correction=correction.split(',').map(Number);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,2)],{type:'application/json'}));a.download='judgment.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);el('status').textContent='Import with CLI to validate. Corrections require rerender.';};
 // Manifest is local and fetched only on explicit download because its ID binds this HTML.
 el('status').textContent='Downloading asks you to select this package manifest.json to bind the judgment.';const download=el('download').onclick;el('download').onclick=async()=>{try{const handle=await new Promise(resolve=>{let input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=()=>resolve(input.files[0]);input.click();});const m=JSON.parse(await handle.text());const comparable=v=>{let c=JSON.parse(JSON.stringify(v));delete c.package_id;delete c.artifacts['index.html'];return c;};const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);if(stable(comparable(m))!==stable(comparable(M)))throw Error('Wrong manifest for this review page');PACKAGE_ID=m.package_id;download();}catch(e){el('status').textContent=String(e);}};let PACKAGE_ID=null;
 </script>'''.replace('DATA', data)
+    if manifest.get('revision'):
+        page = page.replace('No full sequence/effect rendering.', 'Correction rerender against explicitly bound source context; see revealed recipe for supported timing and effects.')
+    return page
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)

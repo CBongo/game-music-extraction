@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-sequence-recipe-v1.schema.json",
+  "title": "Explicit, provenance-bound instrument sequence rendering recipe",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "source",
+    "provenance",
+    "events",
+    "end_seconds"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-sequence-recipe/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "end_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "correction": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context",
+        "basis",
+        "timing_basis",
+        "pitch_basis",
+        "effects_complete"
+      ],
+      "properties": {
+        "context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timing_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pitch_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effects_complete": {
+          "const": true
+        },
+        "source_sequence_audio": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "source_context": {
+          "type": "object"
+        },
+        "release_guard_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Explicit release-tail budget before channel reuse; lingering tails are cut by CC120. Omit to reserve channels until recipe end."
+        }
+      }
+    },
+    "pitchPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_seconds",
+        "cents"
+      ],
+      "properties": {
+        "time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cents": {
+          "type": "number"
+        }
+      }
+    },
+    "expressionPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_seconds",
+        "value_0_127"
+      ],
+      "properties": {
+        "time_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "value_0_127": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "midi_note",
+        "start_seconds",
+        "duration_seconds",
+        "velocity",
+        "residual_cents",
+        "relative_level_db"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "midi_note": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "residual_cents": {
+          "type": "number"
+        },
+        "relative_level_db": {
+          "type": "number"
+        },
+        "pitch_curve": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pitchPoint"
+          }
+        },
+        "expression_curve": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expressionPoint"
+          }
+        }
+      }
+    }
+  }
+}

@@ -4,31 +4,168 @@
   "title": "Inputs for an immutable isolated instrument review package",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "source_record_id", "source", "analysis", "diagnostics", "candidates"],
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "source",
+    "analysis",
+    "diagnostics",
+    "candidates"
+  ],
   "properties": {
-    "schema_version": {"const": "instrument-review-spec/v1"},
-    "source_record_id": {"type": "string", "minLength": 1},
-    "case_id": {"type": "string", "minLength": 1},
-    "source": {"$ref": "#/$defs/fileRef"},
-    "analysis": {"$ref": "#/$defs/fileRef"},
-    "diagnostics": {"$ref": "#/$defs/fileRef"},
-    "blind": {"type": "boolean", "default": false},
-    "ordering_seed": {"type": "integer", "default": 0},
-    "candidates": {"type": "array", "minItems": 1, "items": {"oneOf": [{"$ref": "#/$defs/comparisonCandidate"}, {"$ref": "#/$defs/pairedWavsCandidate"}]}}
+    "schema_version": {
+      "const": "instrument-review-spec/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "analysis": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "blind": {
+      "type": "boolean",
+      "default": false
+    },
+    "ordering_seed": {
+      "type": "integer",
+      "default": 0
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/comparisonCandidate"
+          },
+          {
+            "$ref": "#/$defs/pairedWavsCandidate"
+          }
+        ]
+      }
+    },
+    "revision": {
+      "$ref": "instrument-review-revision-v1.schema.json"
+    }
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "fileRef": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
-    "comparisonCandidate": {"type": "object", "additionalProperties": false, "required": ["candidate_id", "comparison"], "properties": {"candidate_id": {"type": "string", "minLength": 1}, "comparison": {"$ref": "#/$defs/fileRef"}, "evidence": {"type": "object"}}},
-    "pairedWavsCandidate": {
-      "type": "object", "additionalProperties": false, "required": ["candidate_id", "source_record_id", "paired_wavs", "render_manifest", "render_provenance", "route"],
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
       "properties": {
-        "candidate_id": {"type": "string", "minLength": 1},
-        "source_record_id": {"type": "string", "minLength": 1},
-        "paired_wavs": {"type": "object", "additionalProperties": false, "required": ["source", "candidate"], "properties": {"source": {"$ref": "#/$defs/fileRef"}, "candidate": {"$ref": "#/$defs/fileRef"}}},
-        "render_manifest": {"$ref": "#/$defs/fileRef"},
-        "render_provenance": {"type": "object", "required": ["context", "gain_matching"], "properties": {"context": {"type": "string", "minLength": 1}, "gain_matching": {"enum": ["already_matched", "raw_inputs_normalized_by_review"]}}, "additionalProperties": true},
-        "route": {"type": "object"}, "evidence": {"type": "object"}
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "comparisonCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "comparison"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "comparison": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "evidence": {
+          "type": "object"
+        }
+      }
+    },
+    "pairedWavsCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "source_record_id",
+        "paired_wavs",
+        "render_manifest",
+        "render_provenance",
+        "route"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paired_wavs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "candidate"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/fileRef"
+            },
+            "candidate": {
+              "$ref": "#/$defs/fileRef"
+            }
+          }
+        },
+        "render_manifest": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "render_provenance": {
+          "type": "object",
+          "required": [
+            "context",
+            "gain_matching"
+          ],
+          "properties": {
+            "context": {
+              "type": "string",
+              "minLength": 1
+            },
+            "gain_matching": {
+              "enum": [
+                "already_matched",
+                "raw_inputs_normalized_by_review"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "route": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "object"
+        }
       }
     }
   }

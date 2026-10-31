@@ -51,6 +51,7 @@ def _make_ff3_rom(path: Path) -> tuple[int, int]:
     op_lengths[0xD9 - 0xC4] = 1  # transpose-set operand
     op_lengths[0xDA - 0xC4] = 1  # transpose-change operand
     op_lengths[0xDC - 0xC4] = 1  # patch command operand
+    op_lengths[0xF0 - 0xC4] = 1  # tempo operand
     data[spcbase + 0x18F9:spcbase + 0x18F9 + 60] = op_lengths
     data[spcbase + 0x17D1:spcbase + 0x17D1 + 14] = bytes(range(4, 18))
 
@@ -67,6 +68,7 @@ def _make_ff3_rom(path: Path) -> tuple[int, int]:
         0xD9, 0x7F,             # set state to +127
         0xDA, 0x01,             # wrap signed state to -128
         0x1C,                   # D at octave 4, duration index 0
+        0xF0, 120,              # conductor tempo retained in sidecar provenance
         0xEB,                   # halt
     ])
     # Seven notes make this voice longer than voice 0, forcing the decoder's redo.
@@ -147,6 +149,16 @@ class FF3UsageIntegrationTests(unittest.TestCase):
             self.assertEqual([-2, -3, -128], [n["track_transpose_semitones"] for n in track0])
             self.assertTrue(all(n["pitch_context_complete"] for n in track0))
             self.assertEqual(18, track0[0]["duration"])
+            render = track0[0]["provenance"]["parameters"]["render_context"]
+            self.assertEqual(14, render["gate_duration_ticks"])
+            self.assertEqual(100, render["velocity_0_127"])
+            self.assertFalse(render["effects_complete"])
+            context = usage["provenance"]["parameters"]["sequence_render_contexts"][0]
+            self.assertEqual(1, context["sequence_id"])
+            self.assertEqual(96, context["ticks_per_quarter"])
+            self.assertEqual(500000, context["default_microseconds_per_quarter"])
+            self.assertFalse(context["effects_complete"])
+            self.assertEqual([{"tick": 52, "microseconds_per_quarter": 499200}], context["tempo_events"])
             self.assertEqual(30, track0[1]["time"]["value"])
             self.assertEqual(44, track0[2]["time"]["value"])
 

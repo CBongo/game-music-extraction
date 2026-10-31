@@ -273,6 +273,8 @@ VOICE:
           }
         }
         if ($note < 12) {
+          my $notedur = (($slurring || $rolling) || $dur < 4) ?
+                 $dur : $dur - 4;
           # Raw sequence pitch excludes curated patch octave offsets and driver transpose.
           $usage_collector->note(
             sequence_id => $i,
@@ -283,11 +285,12 @@ VOICE:
             pitch_context_complete => $pitch_context_complete ? 1 : 0,
             time => $totaltime,
             duration => $dur,
+            render_gate_duration => $notedur,
+            render_velocity => $velocity,
+            render_context_basis => 'legacy_ff3_midi_conversion',
             event_index => $current_event_index,
             offset => $source_offset,
           ) if $usage_collector;
-          my $notedur = (($slurring || $rolling) || $dur < 4) ?
-                 $dur : $dur - 4;
           if ($oldpwheel && $portdtime != $totaltime) {
             push @$e, ['pitch_wheel_change', $totaltime, $channel, 0];
             $oldpwheel = 0;
@@ -646,6 +649,24 @@ VOICE:
     push @{$opus->tracks_r}, $track;
   } # for voice
 #print STDERR "vol min=$minvol max=$maxvol\n";
+  if ($usage_collector) {
+    $usage_collector->set_sequence_render_context(
+      sequence_id => $i,
+      context => {
+        basis => 'legacy_ff3_midi_conversion',
+        ticks_per_quarter => 96,
+        default_microseconds_per_quarter => 500000,
+        tempo_events => [map { { tick => $_->[1], microseconds_per_quarter => $_->[2] } }
+                         grep { $_->[0] eq 'set_tempo' } @$cevents],
+        effects_complete => JSON::PP::false,
+        limitations => [
+          'Tempo fade follows legacy conductor approximation; driver timing unverified.',
+          'Gate and velocity describe converter output, not measured native envelope or loudness.',
+          'Raw effects remain separately recorded; several effect paths are approximated or absent.',
+        ],
+      },
+    );
+  }
   $ctrack->events_r(MIDI::Score::score_r_to_events_r($cevents));
   #$opus->dump({dump_tracks => 1});
   $opus->write_to_file(sprintf "mid/%02X - %s.mid", $i, $songtitle[$i]);

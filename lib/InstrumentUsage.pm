@@ -14,6 +14,14 @@ sub new {
     return bless { source => $args{source}, timebase => $timebase, tracks => {} }, $class;
 }
 sub _key { JSON::PP->new->canonical->encode([@_]) }
+# Converter timing remains distinct from source/hardware timing and effect fidelity.
+sub set_sequence_render_context {
+    my ($self, %a) = @_;
+    die 'render context is required' unless ref($a{context}) eq 'HASH';
+    $self->{sequence_render_contexts}{_key($a{sequence_id})} = _json_copy({
+        sequence_id => $a{sequence_id}, %{$a{context}},
+    });
+}
 sub begin_track {
     my ($self, %a) = @_;
     $self->{tracks}{_key($a{sequence_id}, $a{track_id})} = {
@@ -77,6 +85,15 @@ sub note {
     $n{duration_unit} = 'midi_tick' if exists $n{duration};
     $n{provenance} = $self->_provenance($a{offset});
     $n{provenance}{parameters} = { patch_selection => $track->{patch_provenance} };
+    if (exists $a{render_gate_duration} || exists $a{render_velocity}) {
+        $n{provenance}{parameters}{render_context} = {
+            basis => $a{render_context_basis} // 'decoder_conversion',
+            effects_complete => JSON::PP::false,
+            map { exists $a{$_->[0]} ? ($_->[1] => $a{$_->[0]}) : () }
+                ([render_gate_duration => 'gate_duration_ticks'],
+                 [render_velocity => 'velocity_0_127']),
+        };
+    }
     if (@{$track->{effect_context_order}}) {
         $n{provenance}{parameters}{effect_context} = _json_copy([
             map { $track->{effect_context}{$_} } @{$track->{effect_context_order}}
@@ -92,6 +109,9 @@ sub tie {
     my $track = $self->_track(\%a);
     if ($track->{last_note}) {
         $track->{last_note}{occurrence}{duration} += $a{duration};
+        my $render = $track->{last_note}{occurrence}{provenance}{parameters}{render_context};
+        $render->{gate_duration_ticks} += $a{duration}
+            if $render && exists $render->{gate_duration_ticks};
         # A tie can extend an earlier onset across intervening pitch controls.
         $track->{last_note}{occurrence}{pitch_context_complete} = JSON::PP::false
             if $track->{pitch_context_changed};
@@ -169,6 +189,12 @@ sub records {
         my $usage = $r->{observation}{usage};
         $usage->{sequences} = [map { $seqs->{$_} } sort keys %$seqs];
         $usage->{sequence_count} = scalar @{$usage->{sequences}};
+        my @render_contexts = map {
+            my $ctx = $self->{sequence_render_contexts}{_key($_->{sequence_id})};
+            $ctx ? _json_copy($ctx) : ()
+        } @{$usage->{sequences}};
+        $usage->{provenance}{parameters}{sequence_render_contexts} = \@render_contexts
+            if @render_contexts;
         my (@raw, @sounding);
         for my $seq (@{$usage->{sequences}}) {
             @{$seq->{raw_sequence_notes}} = sort { $a <=> $b } @{$seq->{raw_sequence_notes}};

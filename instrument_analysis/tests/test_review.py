@@ -49,7 +49,7 @@ class ReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.build()
     def test_invalid_selection_and_corrections(self):
         m=self.build()
-        for change in ({'candidate_id':'bad'},{'decision':'no_match'},{'octave_correction':True},{'chord_offsets_correction':[1.5]}):
+        for change in ({'candidate_id':'bad'},{'decision':'no_match'},{'octave_correction':True},{'chord_offsets_correction':[1.5]},{'correction_requested':1},{'decision':'no_match','candidate_id':None,'correction_requested':True}):
             with self.assertRaises(ValueError):import_judgment(self.root/'package',self.judgment(m,**change),self.root/'store')
         row=import_judgment(self.root/'package',self.judgment(m,octave_correction=1),self.root/'store')
         self.assertEqual(row['audition_status'],'requires_rerender')

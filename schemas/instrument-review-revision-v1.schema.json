@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-review-revision-v1.schema.json",
+  "title": "Provenance block linking a corrected audio review package to its parent judgment",
+  "description": "This schema validates the revision object embedded in an instrument-review-spec/v1 and copied into its package manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "parent_package_id",
+    "parent_judgment_id",
+    "audition_status",
+    "parent_manifest",
+    "imported_judgment",
+    "base_recipe",
+    "corrected_recipe",
+    "render_manifest"
+  ],
+  "properties": {
+    "parent_package_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "parent_judgment_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "audition_status": {
+      "const": "rendered_pending_review"
+    },
+    "parent_manifest": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "imported_judgment": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "base_recipe": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "corrected_recipe": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "render_manifest": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "original_render_manifest": {
+      "$ref": "#/$defs/fileRef"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

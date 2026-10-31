@@ -109,3 +109,8 @@ Schema, artifact-hash, nonclipping and common-RMS checks. Temporary automated
 judgments exercise import, export and the benchmark adapter; no human labels
 were added. Generated JavaScript passes a syntax check. Browser visual testing
 was unavailable because the browser tool blocks local file URLs.
+
+[Sequence candidate previews and correction rerenders](instrument-sequence-review.md)
+now preserve explicit note timing, bend/expression curves, and revision ancestry.
+Corrections can produce fresh manual review packages. Real source-native sequence
+validation remains tracked under `gme-0r4.9.2.1`.
