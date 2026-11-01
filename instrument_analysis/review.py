@@ -135,6 +135,8 @@ def build_review_package(spec_path, output_dir):
             if not _belongs(facts[key], source_id):
                 raise ValueError(key + ' does not identify source_record_id')
             # Original evidence JSON is preserved verbatim; comparison inputs bind audition provenance.
+        if facts['diagnostics'].get('schema_version') == 'instrument-documentary-review-report/v1' and not spec.get('origin_binding'):
+            raise ValueError('documentary branch review requires its origin binding and evaluation context')
         candidates = []
         seen = set()
         for entry in spec.get('candidates', []):
@@ -220,6 +222,14 @@ def build_review_package(spec_path, output_dir):
             row['gain_matching'] = levels
         random.Random(spec.get('ordering_seed', 0)).shuffle(candidates)
         manifest = {'schema_version': VERSION, 'source_record_id': source_id, 'case_id': spec.get('case_id', source_id), 'blind': spec.get('blind', False), 'ordering_seed': spec.get('ordering_seed', 0), 'evidence': evidence, 'facts': facts, 'candidates': candidates, 'context': 'Isolated probe contexts only; no full sequence/effect rendering. Corrections require rerender and were not auditioned.', 'artifacts': inventory}
+        if spec.get('origin_binding'):
+            origin_path, origin_file = bind(spec['origin_binding'], spec_path.parent)
+            origin_binding = _read_json(origin_path, 'documentary origin binding')
+            if (origin_binding.get('record_id') != source_id or origin_binding.get('status') != 'bound'
+                    or origin_binding.get('origin', {}).get('authority') != 'preferred_documentary'):
+                raise ValueError('documentary origin binding source/status mismatch')
+            manifest['origin_review'] = {'binding_sha256': _hash(origin_path), 'artifact': origin_file}
+            manifest['method_context'] = 'documentary_assisted'
         if spec.get('revision'):
             manifest['revision'] = spec['revision']
             references(spec['revision'], spec_path.parent)
@@ -234,7 +244,10 @@ def build_review_package(spec_path, output_dir):
         stage.rename(output)
         return manifest
     finally:
-        if stage.exists(): shutil.rmtree(stage)
+        if stage.exists():
+            if stage.resolve().parent != output.parent or not stage.name.startswith('.review-'):
+                raise RuntimeError('unsafe review staging cleanup')
+            shutil.rmtree(stage)
 
 def verify_package(package_dir):
     root = Path(package_dir)
@@ -286,6 +299,14 @@ def import_judgment(package_dir, judgment_path, store_dir):
         raise ValueError('invalid chord offsets')
     if (requested or octave or offsets is not None) and cid is None:
         raise ValueError('correction requires candidate')
+    origin_assessment = judgment.get('origin_assessment')
+    if origin_assessment is not None:
+        expected = manifest.get('origin_review', {}).get('binding_sha256')
+        if (not isinstance(origin_assessment, dict) or set(origin_assessment) != {'binding_sha256', 'decision', 'note'}
+                or not expected or origin_assessment['binding_sha256'] != expected
+                or origin_assessment['decision'] not in ('retain_preferred_documentary', 'dispute', 'uncertain', 'not_reviewed')
+                or not isinstance(origin_assessment['note'], str)):
+            raise ValueError('origin assessment is not bound to this documentary evidence')
     acknowledged = False
     if manifest.get('revision'):
         selected = candidates.get(cid) or (manifest['candidates'][0] if cid is None and len(candidates) == 1 else None)
@@ -296,6 +317,7 @@ def import_judgment(package_dir, judgment_path, store_dir):
                 raise ValueError('revision audition audio hash mismatch')
         acknowledged = True
     result = {'schema_version': 'instrument-review-import/v1', 'judgment': judgment, 'package_id': manifest['package_id'], 'source_record_id': manifest['source_record_id'], 'case_id': manifest['case_id'], 'blind': manifest['blind'], 'preferred_route': candidates[cid]['route'] if cid else None, 'audition_status': 'requires_rerender' if requested or octave or offsets is not None else ('reviewer_reported_audition' if acknowledged else 'unchanged_probe'), 'scope': 'Reviewer preference for bound isolated probe evidence; not ground truth.'}
+    result['method_context'] = manifest.get('method_context', 'isolated_probe')
     result['judgment_id'] = _digest(result)
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
@@ -315,7 +337,7 @@ def export_judgments(store_dir, output_path):
             raise ValueError('stored judgment hash mismatch')
         all_rows.append(row)
         judgment = row['judgment']
-        if row['blind'] and not judgment['revealed'] and judgment['decision'] in ('accepted', 'alternate_candidate') and row['audition_status'] == 'unchanged_probe':
+        if row.get('method_context', 'isolated_probe') == 'isolated_probe' and row['blind'] and not judgment['revealed'] and judgment['decision'] in ('accepted', 'alternate_candidate') and row['audition_status'] == 'unchanged_probe':
             rows.append({'case_id': row['case_id'], 'blinded': True, 'preferred_route': ({'kind': 'gm_program', 'program_0based': row['preferred_route']['program_0based'], 'program_1based': row['preferred_route']['program_0based'] + 1} if row['preferred_route']['kind'] == 'gm_program' else {'kind': 'gm_percussion', 'note': row['preferred_route']['note']}), 'judgment_id': identity, 'package_id': row['package_id']})
             key = json.dumps(row['preferred_route'], sort_keys=True)
             counts[key] = counts.get(key, 0) + 1
@@ -332,18 +354,18 @@ def _html(manifest):
     page = '''<!doctype html><meta charset="utf-8"><title>Isolated probe review</title>
 <style>body{font:16px system-ui;max-width:980px;margin:2rem auto;padding:0 1rem;background:#f5f7fa;color:#182434}label{display:block;margin:1rem 0}button,select,input{font:inherit;padding:.4rem}audio{vertical-align:middle;max-width:90%}#audio>div{background:white;border:1px solid #bcc6d3;border-radius:8px;padding:1rem;margin:1rem 0}pre{white-space:pre-wrap;max-height:24rem;overflow:auto}details{margin:1rem 0}</style><h1>Isolated probe review</h1><p>No full sequence/effect rendering. Audio uses manual controls only. Source and candidate controls use RMS matched, peak limited presentation WAVs. Original PCM remains in bound artifacts. Corrections require rerender and have not been auditioned.</p>
 <p>Blind mode masks labels in the interface; evidence files remain inspectable. Record any external inspection by revealing before submitting.</p>
-<button id="reveal">Reveal evidence and ranks</button><details><summary>Revealed evidence, ranks and uncertainty</summary><pre id="facts"></pre></details><div id="audio"></div>
-<label>Reviewer <input id="reviewer"></label><label>Decision <select id="decision"><option>accepted</option><option>rejected</option><option>alternate_candidate</option><option>no_match</option><option>ambiguous</option></select></label>
+<button id="reveal">Reveal evidence and ranks</button><p id="origin-summary" hidden></p><p id="rank-status" hidden></p><details><summary>Revealed evidence, ranks and uncertainty</summary><pre id="facts"></pre></details><div id="audio"></div>
+<label>Reviewer <input id="reviewer"></label><label>Replacement decision <select id="decision"><option>accepted</option><option>rejected</option><option>alternate_candidate</option><option>no_match</option><option>ambiguous</option></select></label>
 <label>Candidate <select id="candidate"><option value="">None</option></select></label>
 <label><input id="request-correction" type="checkbox">Request rerender with these absolute corrections</label><label>Octave correction (absolute from original source recipe) <input id="octave" type="number" min="-4" max="4" value="0"></label>
 <label>Chord offsets correction (absolute from original source recipe; comma separated semitones; blank means unchanged)<input id="offsets"></label>
-<label><input id="acknowledged" type="checkbox">I auditioned the selected source and candidate audio for this package</label><button id="download">Download judgment JSON</button><p id="status"></p>
+<label><input id="acknowledged" type="checkbox">I auditioned the selected source and candidate audio for this package</label><div id="origin-assessment" hidden><label>Documentary origin assessment <select id="origin-decision"><option>not_reviewed</option><option>retain_preferred_documentary</option><option>dispute</option><option>uncertain</option></select></label><label>Origin assessment note <input id="origin-note"></label><p>This assesses source identity separately from the GM replacement. The credited research remains the preferred documentary evidence.</p></div><button id="download">Download judgment JSON</button><p id="status"></p>
 <script>const M=DATA; let revealed=!M.blind;
 const el=id=>document.getElementById(id);
-function details(){el('facts').textContent=JSON.stringify({context:M.context,facts:M.facts,candidates:M.candidates},null,2);}
-M.candidates.forEach((c,i)=>{let o=document.createElement('option');o.value=c.candidate_id;o.textContent='Candidate '+(i+1);el('candidate').append(o);let d=document.createElement('div');d.append('Candidate '+(i+1)+' ');for(const [k,label] of [['source_audio','Source'],['candidate_audio','Candidate'],['ab_audio','Gain matched A/B']]){if(!c[k])continue;let p=document.createElement('p');p.append(label+' ');let a=document.createElement('audio');a.controls=true;a.preload='none';a.src=c[k];p.append(a);d.append(p);}el('audio').append(d);});
-if(revealed)details();el('reveal').onclick=()=>{revealed=true;details();};
-el('download').onclick=()=>{if(!el('reviewer').value.trim())throw Error('Reviewer is required');const decision=el('decision').value;const selected=el('candidate').value;if(['accepted','rejected','alternate_candidate'].includes(decision)!==Boolean(selected))throw Error('Choose a candidate for accepted/rejected/alternate; choose None for no_match/ambiguous');const correction=el('offsets').value.trim();const j={schema_version:'instrument-review-judgment/v1',package_id:PACKAGE_ID,source_record_id:M.source_record_id,reviewer_id:el('reviewer').value,decision:el('decision').value,candidate_id:el('candidate').value||null,revealed,octave_correction:Number(el('octave').value)};if(el('request-correction').checked){if(!j.candidate_id)throw Error('Correction request requires a selected candidate');j.correction_requested=true;}if(M.revision){const c=M.candidates.find(c=>c.candidate_id===j.candidate_id)||(M.candidates.length===1?M.candidates[0]:null);if(!c||!el('acknowledged').checked)throw Error('Fresh revision audition acknowledgment required');j.audition_acknowledged=true;j.source_audio_sha256=M.artifacts[c.source_audio];j.candidate_audio_sha256=M.artifacts[c.candidate_audio];}if(correction)j.chord_offsets_correction=correction.split(',').map(Number);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,2)],{type:'application/json'}));a.download='judgment.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);el('status').textContent='Import with CLI to validate. Corrections require rerender.';};
+function details(){el('facts').textContent=JSON.stringify({context:M.context,facts:M.facts,candidates:M.candidates},null,2);const d=M.facts.diagnostics||{};const origin=d.origin||(d.documentary_binding||{}).origin;const cells=origin&&origin.claim&&origin.claim.raw_cells;if(cells){el('origin-summary').hidden=false;el('origin-summary').textContent='Preferred documentary identification: '+cells.slice(2,5).filter(Boolean).join(' / ')+'; source report: '+origin.external_report_state;}const baseline=d.independent_audio_baseline||(d.schema_version==='instrument-ranking-diagnostics/v1'?d:null);if(baseline){el('rank-status').hidden=false;el('rank-status').textContent='Independent audio result: '+baseline.status+(baseline.reason?' — '+baseline.reason:'');}M.candidates.forEach((c,i)=>{const e=c.evidence||{},a=e.acoustic||{},f=e.functional||{},r=c.route||{};let parts=[r.preset_name||(r.kind==='gm_percussion'?'GM drum '+r.note:'GM program '+(r.program_1based!=null?r.program_1based:r.program_0based+1))];if(e.membership)parts.push('Branches: '+e.membership.join(', '));if(e.documentary_priority!=null)parts.push('Documentary priority '+e.documentary_priority);if(a.rank!=null)parts.push('Acoustic rank '+a.rank);if(typeof a.distance==='number')parts.push('Distance '+a.distance.toFixed(6));if(f.status)parts.push('Reference-grid coverage: '+f.status);const summary=el('candidate-summary-'+i);summary.hidden=false;summary.textContent=parts.join(' · ');});}
+M.candidates.forEach((c,i)=>{let o=document.createElement('option');o.value=c.candidate_id;o.textContent='Candidate '+(i+1);el('candidate').append(o);let d=document.createElement('div');d.append('Candidate '+(i+1)+' ');let summary=document.createElement('p');summary.id='candidate-summary-'+i;summary.hidden=true;d.append(summary);for(const [k,label] of [['source_audio','Source'],['candidate_audio','Candidate'],['ab_audio','Gain matched A/B']]){if(!c[k])continue;let p=document.createElement('p');p.append(label+' ');let a=document.createElement('audio');a.controls=true;a.preload='none';a.src=c[k];p.append(a);d.append(p);}el('audio').append(d);});
+if(M.origin_review)el('origin-assessment').hidden=false;if(revealed)details();el('reveal').onclick=()=>{revealed=true;details();};
+el('download').onclick=()=>{if(!el('reviewer').value.trim())throw Error('Reviewer is required');const decision=el('decision').value;const selected=el('candidate').value;if(['accepted','rejected','alternate_candidate'].includes(decision)!==Boolean(selected))throw Error('Choose a candidate for accepted/rejected/alternate; choose None for no_match/ambiguous');const correction=el('offsets').value.trim();const j={schema_version:'instrument-review-judgment/v1',package_id:PACKAGE_ID,source_record_id:M.source_record_id,reviewer_id:el('reviewer').value,decision:el('decision').value,candidate_id:el('candidate').value||null,revealed,octave_correction:Number(el('octave').value)};if(M.origin_review)j.origin_assessment={binding_sha256:M.origin_review.binding_sha256,decision:el('origin-decision').value,note:el('origin-note').value};if(el('request-correction').checked){if(!j.candidate_id)throw Error('Correction request requires a selected candidate');j.correction_requested=true;}if(M.revision){const c=M.candidates.find(c=>c.candidate_id===j.candidate_id)||(M.candidates.length===1?M.candidates[0]:null);if(!c||!el('acknowledged').checked)throw Error('Fresh revision audition acknowledgment required');j.audition_acknowledged=true;j.source_audio_sha256=M.artifacts[c.source_audio];j.candidate_audio_sha256=M.artifacts[c.candidate_audio];}if(correction)j.chord_offsets_correction=correction.split(',').map(Number);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,2)],{type:'application/json'}));a.download='judgment.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);el('status').textContent='Import with CLI to validate. Corrections require rerender.';};
 // Manifest is local and fetched only on explicit download because its ID binds this HTML.
 el('status').textContent='Downloading asks you to select this package manifest.json to bind the judgment.';const download=el('download').onclick;el('download').onclick=async()=>{try{const handle=await new Promise(resolve=>{let input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=()=>resolve(input.files[0]);input.click();});const m=JSON.parse(await handle.text());const comparable=v=>{let c=JSON.parse(JSON.stringify(v));delete c.package_id;delete c.artifacts['index.html'];return c;};const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);if(stable(comparable(m))!==stable(comparable(M)))throw Error('Wrong manifest for this review page');PACKAGE_ID=m.package_id;download();}catch(e){el('status').textContent=String(e);}};let PACKAGE_ID=null;
 </script>'''.replace('DATA', data)

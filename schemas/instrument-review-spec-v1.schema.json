@@ -57,6 +57,9 @@
     },
     "revision": {
       "$ref": "instrument-review-revision-v1.schema.json"
+    },
+    "origin_binding": {
+      "$ref": "#/$defs/fileRef"
     }
   },
   "$defs": {

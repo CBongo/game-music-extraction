@@ -75,6 +75,16 @@
     "correction_requested": {
       "type": "boolean",
       "description": "Explicit request also permits resetting an absolute octave override to zero."
+    },
+    "origin_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_sha256", "decision", "note"],
+      "properties": {
+        "binding_sha256": {"$ref": "#/$defs/sha256"},
+        "decision": {"enum": ["retain_preferred_documentary", "dispute", "uncertain", "not_reviewed"]},
+        "note": {"type": "string"}
+      }
     }
   },
   "$defs": {

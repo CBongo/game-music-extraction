@@ -86,13 +86,24 @@ python -m instrument_analysis.review export --store review-store --output judgme
 The command also writes `judgments.jsonl.benchmark.jsonl`, a narrower adapter for
 the existing benchmark preference metric. It includes only blinded,
 unrevealed, accepted or alternate-candidate decisions with no pitch/chord
-correction that requires rerender. Each adapter row has `case_id`,
+correction that requires rerender, from `method_context: "isolated_probe"`
+packages. Documentary-assisted reviews remain in the full JSONL log and are
+excluded from this blind audio-only adapter. Each adapter row has `case_id`,
 `blinded: true`, and `preferred_route`, with package and judgment IDs retained
 for traceability. Point the benchmark's `--reviews` argument at this adapter
 file; the full JSONL import log is not accepted as benchmark reviews. This
 adapter expresses one preferred route per review case, so it cannot represent
 multiple acceptable alternatives, inter-reviewer agreement, free-form
 rationales, or correction-based accuracy.
+
+If a spec includes the optional `origin_binding` file reference, the package
+copies and binds that exact preferred-documentary evidence and sets
+`method_context: "documentary_assisted"`. The review page then offers a
+separate origin assessment: retain the preferred documentary identification,
+dispute it, mark it uncertain, or leave it unreviewed. The judgment binds its
+decision and note to the origin binding SHA-256. This origin assessment does
+not select or change the GM replacement decision. Accepting a replacement never
+automatically accepts the named source product or patch.
 
 Keep human review results separate from authored synthetic controls,
 same-bank sanity checks, historical labels, and held-out game/platform cohorts.

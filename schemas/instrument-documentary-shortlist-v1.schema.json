@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-documentary-shortlist-v1.schema.json",
+  "title": "Independent documentary proposals with optional hash-verified audio comparisons",
+  "description": "A documentary proposal and an audio-only baseline remain separate. No fused winner or accepted route is emitted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_record_id", "inputs", "origin", "rule", "audition_gate", "candidates", "independent_audio", "no_fused_winner", "generator"],
+  "properties": {
+    "schema_version": {"const": "instrument-documentary-shortlist/v1"},
+    "source_record_id": {"type": "string", "minLength": 1},
+    "inputs": {"type": "object", "additionalProperties": false, "required": ["bindings", "catalog", "index", "source_rom", "source_brr"], "properties": {"bindings": {"$ref": "#/$defs/fileRef"}, "catalog": {"$ref": "#/$defs/fileRef"}, "index": {"$ref": "#/$defs/fileRef"}, "audio_diagnostics": {"$ref": "#/$defs/fileRef"}, "source_rom": {"$ref": "#/$defs/fileRef"}, "source_brr": {"$ref": "#/$defs/fileRef"}}},
+    "origin": {"$ref": "#/$defs/origin"},
+    "rule": {"type": "object", "additionalProperties": false, "required": ["rule_id", "status", "reason", "predeclared_programs"], "properties": {"rule_id": {"type": "string", "minLength": 1}, "status": {"enum": ["proposed", "abstain"]}, "reason": {"type": "string", "minLength": 1}, "predeclared_programs": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 127}}}},
+    "audition_gate": {"type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": {"status": {"enum": ["eligible", "metadata_only"]}, "reason": {"type": "string", "minLength": 1}, "calibrated_midi_note": {"type": "number", "minimum": 0, "maximum": 127}}},
+    "candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+    "independent_audio": {"type": "object", "additionalProperties": false, "required": ["status", "functional"], "properties": {"status": {"enum": ["not_supplied", "ranked", "abstain", "handoff"]}, "functional": {"oneOf": [{"type": "null"}, {"$ref": "instrument-ranking-diagnostics-v1.schema.json#/$defs/functional"}]}}},
+    "no_fused_winner": {"const": true},
+    "generator": {"type": "object", "additionalProperties": false, "required": ["module", "module_sha256"], "properties": {"module": {"const": "instrument_analysis.documentary_shortlist"}, "module_sha256": {"$ref": "#/$defs/sha256"}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileRef": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "origin": {"type": "object", "additionalProperties": false, "required": ["authority", "external_report_state", "claim", "source"], "properties": {"authority": {"const": "preferred_documentary"}, "external_report_state": {"enum": ["reported", "qualified", "doubted", "reported_transform"]}, "claim": {"type": "object"}, "source": {"type": "object"}, "gm_reference": {"$ref": "#/$defs/gmReference"}}},
+    "gmReference": {"type": "object", "additionalProperties": false, "required": ["map_kind", "numbering_convention", "program_1based", "evidence"], "properties": {"map_kind": {"const": "GM"}, "numbering_convention": {"const": "one_based_gm_1_to_128"}, "program_1based": {"type": "integer", "minimum": 1, "maximum": 128}, "evidence": {"type": "object", "additionalProperties": false, "required": ["selection_sha256", "bank_raw", "program_raw", "numbering_basis"], "properties": {"selection_sha256": {"$ref": "#/$defs/sha256"}, "bank_raw": {"enum": ["GM", "PR-D (GM)", "Patch -> PR-D (GM)"]}, "program_raw": {"type": "string", "pattern": "^([0-9]{1,3})(?:\\s|$).*"}, "numbering_basis": {"const": "verified_one_based_gm_bank"}}}}},
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_id", "documentary_priority", "route", "basis", "review_status", "rule_id", "reference_variants", "acoustic"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "documentary_priority": {"type": "integer", "minimum": 1},
+        "route": {"$ref": "instrument-analysis-v1.schema.json#/$defs/route"},
+        "basis": {"const": "curated"},
+        "review_status": {"const": "proposed_unreviewed"},
+        "rule_id": {"type": "string", "minLength": 1},
+        "reference_variants": {"type": "array", "items": {"$ref": "instrument-reference-index-v1.schema.json#/$defs/reference"}},
+        "acoustic": {"oneOf": [
+          {"type": "null"},
+          {"type": "object", "additionalProperties": false, "required": ["rank", "distance", "functional"], "properties": {
+            "rank": {"type": "integer", "minimum": 1},
+            "distance": {"type": "number", "minimum": 0},
+            "functional": {"$ref": "instrument-ranking-diagnostics-v1.schema.json#/$defs/functional"}
+          }}
+        ]}
+      }
+    }
+  }
+}

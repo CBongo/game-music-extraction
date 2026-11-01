@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-documentary-review-v1.schema.json",
+  "title": "Documentary and acoustic review package manifest",
+  "description": "Binds a source-grounded shortlist, independent acoustic report, and optional matched human review package. The branches remain separate; no fused winner or human label is emitted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_record_id", "status", "inputs", "generator", "audio_top_k", "candidate_count", "human_label_count", "no_fused_winner", "report", "review"],
+  "properties": {
+    "schema_version": {"const": "instrument-documentary-review/v1"},
+    "source_record_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["playable", "metadata_only"]},
+    "inputs": {"type": "object", "additionalProperties": {"$ref": "#/$defs/fileRef"}, "required": ["shortlist", "bindings", "catalog", "index", "source_rom", "source_brr"], "properties": {"shortlist": {"$ref": "#/$defs/fileRef"}, "bindings": {"$ref": "#/$defs/fileRef"}, "catalog": {"$ref": "#/$defs/fileRef"}, "index": {"$ref": "#/$defs/fileRef"}, "audio_diagnostics": {"$ref": "#/$defs/fileRef"}, "source_rom": {"$ref": "#/$defs/fileRef"}, "source_brr": {"$ref": "#/$defs/fileRef"}}, "minProperties": 6},
+    "generator": {"type": "object", "additionalProperties": false, "required": ["module", "module_sha256"], "properties": {"module": {"const": "instrument_analysis.documentary_review"}, "module_sha256": {"$ref": "#/$defs/sha256"}}},
+    "audio_top_k": {"type": "integer", "minimum": 1, "maximum": 128},
+    "candidate_count": {"type": "integer", "minimum": 0},
+    "human_label_count": {"const": 0},
+    "no_fused_winner": {"const": true},
+    "report": {"$ref": "#/$defs/relativeRef"},
+    "review": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "package_id"], "properties": {"path": {"const": "review/manifest.json"}, "sha256": {"$ref": "#/$defs/sha256"}, "package_id": {"$ref": "#/$defs/sha256"}}}]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileRef": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "relativeRef": {"$ref": "#/$defs/fileRef", "properties": {"path": {"const": "report.json"}}}
+  }
+}

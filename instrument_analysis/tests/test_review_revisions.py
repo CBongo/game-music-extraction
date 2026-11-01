@@ -36,6 +36,18 @@ class RevisionTests(unittest.TestCase):
         manifest={'schema_version':'instrument-sequence-preview/v1','source_record_id':'source-1','recipe':{'path':str(recipe_path),'sha256':_hash(Path(recipe_path))},'source':recipe['source'],
             'wav':{'file':'sequence.wav','sha256':_hash(out/'sequence.wav')},'midi':{'file':'sequence.mid','sha256':_hash(out/'sequence.mid')},'conditions':{},'correction':recipe['correction']}
         (out/'manifest.json').write_text(json.dumps(manifest));return manifest
+    def test_documentary_origin_survives_correction_revision(self):
+        binding = self.root / 'origin.json'
+        binding.write_text(json.dumps({'record_id': 'source-1', 'status': 'bound',
+            'origin': {'authority': 'preferred_documentary'}}))
+        self.spec['origin_binding'] = {'path': str(binding), 'sha256': _hash(binding)}
+        parent, judgment, recipe = self.revision_fixture()
+        with patch('instrument_analysis.sequence_rendering.render_sequence_preview', side_effect=self.fake_render):
+            revision = build_review_revision(self.root / 'package', judgment, recipe,
+                soundfont_path='unused', fluidsynth_path='unused', output_dir=self.root / 'revision')
+        self.assertEqual(revision['method_context'], 'documentary_assisted')
+        self.assertEqual(revision['origin_review']['binding_sha256'], parent['origin_review']['binding_sha256'])
+
     def test_revision_requires_fresh_audio_acknowledgment(self):
         parent,j,p=self.revision_fixture()
         with patch('instrument_analysis.sequence_rendering.render_sequence_preview',side_effect=self.fake_render) as render:

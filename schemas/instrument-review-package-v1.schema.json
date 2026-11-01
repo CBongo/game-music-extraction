@@ -17,6 +17,10 @@
     "artifacts",
     "package_id"
   ],
+  "allOf": [
+    {"if": {"properties": {"method_context": {"const": "documentary_assisted"}}, "required": ["method_context"]}, "then": {"required": ["origin_review"]}},
+    {"if": {"required": ["origin_review"]}, "then": {"properties": {"method_context": {"const": "documentary_assisted"}}}}
+  ],
   "properties": {
     "schema_version": {
       "const": "instrument-review-package/v1"
@@ -81,6 +85,18 @@
     },
     "revision": {
       "$ref": "instrument-review-revision-v1.schema.json"
+    },
+    "origin_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_sha256", "artifact"],
+      "properties": {
+        "binding_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact": {"type": "string", "minLength": 1}
+      }
+    },
+    "method_context": {
+      "enum": ["isolated_probe", "documentary_assisted"]
     }
   },
   "$defs": {

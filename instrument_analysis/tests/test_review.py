@@ -108,6 +108,38 @@ class ReviewTests(unittest.TestCase):
         result=export_judgments(self.root/'store',self.root/'export.jsonl')
         self.assertEqual(result['exported'],3);self.assertEqual(result['benchmark_exported'],1)
 
+    def test_documentary_identity_judgment_is_separate_and_not_benchmark_label(self):
+        binding = self.root / 'origin.json'
+        binding.write_text(json.dumps({'record_id': 'source-1', 'status': 'bound',
+            'origin': {'authority': 'preferred_documentary', 'claim': {'raw_cells': ['Flute']}}}))
+        self.spec['origin_binding'] = {'path': str(binding), 'sha256': _hash(binding)}
+        m = self.build()
+        assessment = {'binding_sha256': _hash(binding), 'decision': 'uncertain', 'note': 'Source identity review pending.'}
+        row = import_judgment(self.root / 'package', self.judgment(m, origin_assessment=assessment), self.root / 'store')
+        self.assertEqual(row['judgment']['decision'], 'accepted')
+        self.assertEqual(row['judgment']['origin_assessment']['decision'], 'uncertain')
+        self.assertEqual(row['method_context'], 'documentary_assisted')
+        self.assertEqual(export_judgments(self.root / 'store', self.root / 'assisted.jsonl')['benchmark_exported'], 0)
+        self.assertIn('Documentary origin assessment', (self.root / 'package/index.html').read_text())
+        bad = dict(assessment, binding_sha256='0' * 64)
+        with self.assertRaises(ValueError):
+            import_judgment(self.root / 'package', self.judgment(m, origin_assessment=bad), self.root / 'store')
+
+    def test_documentary_report_cannot_lose_its_method_context(self):
+        diagnostics = self.root / 'diagnostics.json'
+        diagnostics.write_text(json.dumps({'schema_version': 'instrument-documentary-review-report/v1',
+                                          'source_record_id': 'source-1'}))
+        self.spec['diagnostics']['sha256'] = _hash(diagnostics)
+        with self.assertRaisesRegex(ValueError, 'requires its origin binding'):
+            self.build()
+
+    def test_origin_binding_must_match_source_record(self):
+        binding = self.root / 'origin.json'
+        binding.write_text(json.dumps({'record_id': 'other', 'status': 'bound',
+                                      'origin': {'authority': 'preferred_documentary'}}))
+        self.spec['origin_binding'] = {'path': str(binding), 'sha256': _hash(binding)}
+        with self.assertRaises(ValueError): self.build()
+
     def test_manifest_tamper_and_path_traversal(self):
         from instrument_analysis.review import _digest
         m=self.build();m['artifacts']['../source.json']=_hash(self.root/'source.json')

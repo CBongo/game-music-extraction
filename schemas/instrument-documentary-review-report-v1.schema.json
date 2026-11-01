@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-documentary-review-report-v1.schema.json",
+  "title": "Auditable documentary and acoustic candidate union report",
+  "description": "Embeds the source-bound documentary shortlist and independent audio baseline, with hash-bound matched auditions. Membership, documentary priority, and acoustic rank are separate; no fused winner or accuracy label is asserted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "status",
+    "inputs",
+    "origin",
+    "documentary_rule",
+    "audition_gate",
+    "independent_audio_baseline",
+    "documentary_shortlist",
+    "candidates",
+    "no_fused_winner",
+    "evaluation_scope",
+    "human_label_count",
+    "functional"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-documentary-review-report/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "playable",
+        "metadata_only"
+      ]
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/fileRef"
+      },
+      "required": [
+        "shortlist",
+        "bindings",
+        "catalog",
+        "index",
+        "source_rom",
+        "source_brr"
+      ],
+      "properties": {
+        "shortlist": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "bindings": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "catalog": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "index": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "audio_diagnostics": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "source_rom": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "source_brr": {
+          "$ref": "#/$defs/fileRef"
+        }
+      },
+      "minProperties": 6
+    },
+    "origin": {
+      "$ref": "instrument-documentary-shortlist-v1.schema.json#/$defs/origin"
+    },
+    "documentary_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "status",
+        "reason",
+        "predeclared_programs"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "proposed",
+            "abstain"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "predeclared_programs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        }
+      }
+    },
+    "audition_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "eligible",
+            "metadata_only"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "calibrated_midi_note": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 127
+        }
+      }
+    },
+    "independent_audio_baseline": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "instrument-ranking-diagnostics-v1.schema.json"
+        }
+      ]
+    },
+    "documentary_shortlist": {
+      "$ref": "instrument-documentary-shortlist-v1.schema.json"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "no_fused_winner": {
+      "const": true
+    },
+    "evaluation_scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "human_label_count": {
+      "const": 0
+    },
+    "functional": {
+      "$ref": "instrument-ranking-diagnostics-v1.schema.json#/$defs/functional"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "route",
+        "reference",
+        "comparison",
+        "evidence"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route": {
+          "$ref": "instrument-analysis-v1.schema.json#/$defs/route"
+        },
+        "reference": {
+          "$ref": "instrument-reference-index-v1.schema.json#/$defs/reference"
+        },
+        "comparison": {
+          "$ref": "#/$defs/comparisonRef"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "comparisonRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^comparisons/[^/]+/[^/]+\\.comparison\\.json$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "membership",
+        "documentary_priority",
+        "acoustic",
+        "functional",
+        "review_status",
+        "no_fused_winner"
+      ],
+      "properties": {
+        "membership": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "documentary",
+              "audio_only"
+            ]
+          }
+        },
+        "documentary_priority": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "acoustic": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rank",
+                "distance"
+              ],
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "distance": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "functional": {
+          "$ref": "instrument-ranking-diagnostics-v1.schema.json#/$defs/functional"
+        },
+        "review_status": {
+          "const": "proposed_unreviewed"
+        },
+        "no_fused_winner": {
+          "const": true
+        }
+      }
+    }
+  }
+}

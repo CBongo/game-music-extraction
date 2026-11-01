@@ -104,6 +104,10 @@ independent-control results are reported separately in the
 blinded preference export, and proposed octave/chord corrections without changing
 source facts. Playback is opt-in.
 
+[Documentary source shortlists](../../docs/instrument-documentary-shortlists.md)
+keep credited source research separate from independent acoustic ranking and
+provide hash-bound combined audition packages.
+
 [Sequence recipe rendering and correction revisions](../../docs/instrument-sequence-review.md)
 are available for explicitly grounded event recipes. Revised preferences require
 fresh audio-hash acknowledgment and remain outside the isolated-probe benchmark.

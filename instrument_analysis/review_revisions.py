@@ -131,12 +131,19 @@ def build_review_revision(parent_package_dir, imported_judgment_path, recipe_pat
                 'paired_wavs':{'source':ref(source_audio),'candidate':ref(render_path.parent/render['wav']['file'])},
                 'render_provenance':{'context':'Correction rerender against explicitly bound source context; pending fresh review',
                     'gain_matching':'raw_inputs_normalized_by_review'},'route':candidate['route']}]}
+        if parent.get('origin_review'):
+            origin = parent['origin_review']
+            origin_path = resolve_ref(parent_dir, {'path': origin['artifact'], 'sha256': origin['binding_sha256']})
+            spec['origin_binding'] = ref(origin_path)
         spec_path=stage/'spec.json';spec_path.write_bytes(_canonical(spec))
         manifest=build_review_package(spec_path,stage/'review')
         (stage/'review').rename(output)
         return manifest
     finally:
-        if stage.exists(): shutil.rmtree(stage)
+        if stage.exists():
+            if stage.resolve().parent != output.parent or not stage.name.startswith('.revision-'):
+                raise RuntimeError('unsafe revision staging cleanup')
+            shutil.rmtree(stage)
 
 def main(argv=None):
     import argparse

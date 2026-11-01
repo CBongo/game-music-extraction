@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-origin-splits-v1.schema.json",
+  "title": "Audit of explicitly known source sample and lineage split relationships",
+  "description": "Validates instrument_analysis.origin_splits.validate_origin_splits output; curated family IDs denote sample lineage, not GM instrument class.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "provenance", "groups", "lineage_links", "counts"],
+  "properties": {
+    "schema_version": {"const": "instrument-origin-split-audit/v1"},
+    "status": {"const": "valid"},
+    "provenance": {"type": "object", "additionalProperties": false, "required": ["scope", "family_semantics", "threshold_fitting", "baseline_input_policy"], "properties": {"scope": {"const": "Explicit canonical source identities, known sample hashes, curated origin families and documented lineage links only; unknown sharing is not discovered."}, "family_semantics": {"const": "Source sample lineage, not GM instrument class."}, "threshold_fitting": {"const": false}, "baseline_input_policy": {"const": "Keep lineage and documentary claims outside blind audio-ranking inputs."}}},
+    "groups": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/group"}},
+    "lineage_links": {"type": "array", "items": {"$ref": "#/$defs/lineageLink"}},
+    "counts": {"type": "object", "additionalProperties": false, "required": ["cases", "groups", "development_cases", "eligible_held_out_cases", "held_out_groups"], "properties": {"cases": {"type": "integer", "minimum": 1}, "groups": {"type": "integer", "minimum": 1}, "development_cases": {"type": "integer", "minimum": 0}, "eligible_held_out_cases": {"type": "integer", "minimum": 0}, "held_out_groups": {"type": "integer", "minimum": 0}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "familyId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "not": {"enum": ["unknown", "unbound", "none"]}},
+    "group": {"type": "object", "additionalProperties": false, "required": ["case_ids", "record_ids", "sample_sha256s", "origin_family_ids", "splits"], "properties": {"case_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}, "record_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}, "sample_sha256s": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/sha256"}}, "origin_family_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/familyId"}}, "splits": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"enum": ["development", "held_out"]}}}},
+    "lineageLink": {"type": "object", "additionalProperties": false, "required": ["left_family_id", "right_family_id", "evidence"], "properties": {"left_family_id": {"$ref": "#/$defs/familyId"}, "right_family_id": {"$ref": "#/$defs/familyId"}, "evidence": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}, {"type": "object", "additionalProperties": false, "required": ["url", "locator", "reason"], "properties": {"url": {"type": "string", "format": "uri"}, "locator": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}}}]}}}
+  }
+}
