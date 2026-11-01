@@ -113,3 +113,8 @@ provide an attributed research source and a proposed documentation-led candidate
 branch. The accompanying research seed catalog is not a benchmark label set or
 runtime mapping table; exact local sample bindings and target-GM review remain
 separate steps.
+
+The [documentary source binding pilot](../../docs/instrument-origin-pilot.md) now
+binds the FF4/FF6 flute leads and three qualifier controls to exact ROM sample
+bytes. The two proposed GM flute auditions remain unreviewed and are not new
+benchmark labels.

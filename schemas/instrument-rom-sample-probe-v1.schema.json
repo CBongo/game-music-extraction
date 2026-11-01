@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-rom-sample-probe-v1.schema.json",
+  "title": "Constructed isolated SPC input from a hash-bound ROM sample",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_record_id", "generator", "scope", "input", "source_sample", "conditions", "spc"],
+  "properties": {
+    "schema_version": {"const": "instrument-rom-sample-probe/v1"},
+    "source_record_id": {"type": "string", "minLength": 1},
+    "generator": {"type": "object", "additionalProperties": false, "required": ["name", "label"], "properties": {"name": {"const": "instrument_analysis.origin_probes"}, "label": {"const": "constructed_isolated_rom_sample_probe"}}},
+    "scope": {"const": "constructed_isolated_rom_sample_probe_not_original_game_performance"},
+    "input": {"type": "object", "additionalProperties": false, "required": ["sample_metadata", "rom"], "properties": {"sample_metadata": {"$ref": "#/$defs/fileRef"}, "rom": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "payload_sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "payload_sha256": {"$ref": "#/$defs/sha256"}}}}},
+    "source_sample": {"type": "object", "additionalProperties": false, "required": ["brr_sha256", "rom_file_offset", "length_bytes", "descriptor_sha256", "global_sample_id"], "properties": {"brr_sha256": {"$ref": "#/$defs/sha256"}, "rom_file_offset": {"type": "integer", "minimum": 0}, "length_bytes": {"type": "integer", "minimum": 9, "multipleOf": 9}, "descriptor_sha256": {"$ref": "#/$defs/sha256"}, "global_sample_id": {"type": "integer", "minimum": 1, "maximum": 63}}},
+    "conditions": {"type": "object", "additionalProperties": false, "required": ["aram_initialization", "spc_file_size", "spc_header_bytes", "aram_bytes", "dsp_bytes", "initial_pc", "voice", "srcn", "directory_base", "directory_entry_address", "sample_start_address", "loop_address", "loop_relative_bytes", "sample_looping", "pitch_register", "pitch_basis", "adsr1", "adsr2", "gain", "adsr_origin", "voice_volume_left", "voice_volume_right", "master_volume_left", "master_volume_right", "echo_enable", "noise_enable", "pitch_mod_enable", "echo_volume_left", "echo_volume_right", "flg", "clock_test"], "properties": {"aram_initialization": {"const": "zero-filled; only BRR payload and selected directory entry populated"}, "spc_file_size": {"const": 66048}, "spc_header_bytes": {"const": 256}, "aram_bytes": {"const": 65536}, "dsp_bytes": {"const": 128}, "initial_pc": {"const": 512}, "voice": {"const": 0}, "srcn": {"const": 64}, "directory_base": {"const": 7680}, "directory_entry_address": {"type": "integer", "minimum": 0}, "sample_start_address": {"const": 12288}, "loop_address": {"type": "integer", "minimum": 0}, "loop_relative_bytes": {"type": "integer", "minimum": 0}, "sample_looping": {"type": "boolean"}, "pitch_register": {"type": "integer", "minimum": 1, "maximum": 16383}, "pitch_basis": {"const": "explicit raw hardware register; no sounding-note or source sampled-note inference"}, "adsr1": {"type": "integer", "minimum": 0, "maximum": 255}, "adsr2": {"type": "integer", "minimum": 0, "maximum": 255}, "gain": {"const": 0}, "adsr_origin": {"$ref": "instrument-rom-sample-v1.schema.json#/$defs/entry"}, "voice_volume_left": {"const": 127}, "voice_volume_right": {"const": 127}, "master_volume_left": {"const": 127}, "master_volume_right": {"const": 127}, "echo_enable": {"const": 0}, "noise_enable": {"const": 0}, "pitch_mod_enable": {"const": 0}, "echo_volume_left": {"const": 0}, "echo_volume_right": {"const": 0}, "flg": {"const": 32}, "clock_test": {"type": "string", "minLength": 1}}},
+    "spc": {"type": "object", "additionalProperties": false, "required": ["file", "sha256"], "properties": {"file": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileRef": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}
+  }
+}

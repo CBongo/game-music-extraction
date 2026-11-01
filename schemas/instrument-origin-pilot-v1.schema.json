@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-origin-pilot-v1.schema.json",
+  "title": "Hash-bound documentary origin leads and local ROM sample bindings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalog", "bindings", "records_file", "notes"],
+  "properties": {
+    "schema_version": {"const": "instrument-origin-pilot/v1"},
+    "catalog": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "hash_scope"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "hash_scope": {"type": "string", "minLength": 1}}},
+    "bindings": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"$ref": "#/$defs/binding"}},
+    "records_file": {"const": "records.json"},
+    "notes": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "catalogSource": {"type": "object", "additionalProperties": false, "required": ["key", "title", "spreadsheet_id", "url", "credit", "inspection_scope"], "properties": {"key": {"type": "string", "minLength": 1}, "title": {"type": "string", "minLength": 1}, "spreadsheet_id": {"type": "string", "minLength": 1}, "url": {"type": "string", "format": "uri"}, "credit": {"type": "string", "minLength": 1}, "inspection_scope": {"type": "string", "minLength": 1}, "discovered_at": {"type": "string"}, "rules_sheet_id": {"type": "integer"}, "main_project_tab": {"type": "object"}}},
+    "claim": {"type": "object", "additionalProperties": false, "required": ["lead_key", "source_key", "game_title", "platform_scope", "sheet_id", "range", "game_section", "raw_cells", "external_report_state", "local_binding_state", "credits", "selection_sha256"], "properties": {"lead_key": {"type": "string", "minLength": 1}, "source_key": {"type": "string", "minLength": 1}, "game_title": {"type": "string", "minLength": 1}, "platform_scope": {"const": "SNES"}, "sheet_id": {"type": "integer"}, "range": {"type": "string", "minLength": 1}, "game_section": {"type": "string", "minLength": 1}, "raw_cells": {"type": "array", "minItems": 7, "items": {"type": "string"}}, "external_report_state": {"enum": ["reported", "qualified", "doubted", "reported_transform"]}, "local_binding_state": {"const": "unbound"}, "inspection_note": {"type": "string"}, "credits": {"type": "string", "minLength": 1}, "selection_sha256": {"$ref": "#/$defs/sha256"}, "supporting_observation": {"type": "object"}}},
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["lead_key", "record_id", "status", "binding_scope", "physical_dsp_srcn", "source_patch_command", "song_local_slot", "catalog", "origin", "sample", "artifact", "tuning"],
+      "properties": {
+        "lead_key": {"type": "string", "minLength": 1}, "record_id": {"type": "string", "minLength": 1}, "status": {"const": "bound"},
+        "binding_scope": {"type": "string", "minLength": 1}, "physical_dsp_srcn": {"type": ["integer", "null"], "minimum": 0, "maximum": 255},
+        "source_patch_command": {"type": ["integer", "string", "null"]}, "song_local_slot": {"type": ["integer", "string", "null"]},
+        "catalog": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "selection_sha256", "hash_scope"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "selection_sha256": {"$ref": "#/$defs/sha256"}, "hash_scope": {"type": "string", "minLength": 1}}},
+        "origin": {"type": "object", "additionalProperties": false, "required": ["authority", "external_report_state", "claim", "source"], "properties": {"authority": {"const": "preferred_documentary"}, "external_report_state": {"enum": ["reported", "qualified", "doubted", "reported_transform"]}, "claim": {"$ref": "#/$defs/claim"}, "source": {"$ref": "#/$defs/catalogSource"}}},
+        "sample": {"$ref": "instrument-rom-sample-v1.schema.json"},
+        "artifact": {"type": "object", "additionalProperties": false, "required": ["file", "sha256"], "properties": {"file": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+        "tuning": {"type": "object", "additionalProperties": false, "required": ["game_unity_key", "observed_pitch_offset", "reason"], "properties": {"game_unity_key": {"type": ["number", "null"], "minimum": 0, "maximum": 127}, "observed_pitch_offset": {"type": ["object", "null"]}, "reason": {"type": "string", "minLength": 1}}},
+        "candidate_replacement": {"type": "object", "additionalProperties": false, "required": ["status", "route", "basis", "method"], "properties": {"status": {"const": "proposed_unreviewed"}, "route": {"$ref": "instrument-analysis-v1.schema.json#/$defs/route"}, "basis": {"const": "curated"}, "method": {"type": "string", "minLength": 1}}}
+      }
+    }
+  }
+}

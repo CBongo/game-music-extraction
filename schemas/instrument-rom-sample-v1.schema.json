@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-rom-sample-v1.schema.json",
+  "title": "Version- and byte-pinned extracted SNES BRR sample metadata",
+  "description": "FFIV and FFVI records have intentionally distinct descriptor layouts and ROM identity checks.",
+  "oneOf": [{"$ref": "#/$defs/ff4"}, {"$ref": "#/$defs/ff6"}],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hex": {"type": "string", "pattern": "^(?:[0-9a-f]{2})+$"},
+    "entry": {"type": "object", "additionalProperties": false, "required": ["offset", "length", "bytes_hex"], "properties": {"offset": {"type": "integer", "minimum": 0}, "length": {"type": "integer", "minimum": 1}, "bytes_hex": {"$ref": "#/$defs/hex"}}},
+    "brr": {"type": "object", "additionalProperties": false, "required": ["file_offset", "length_bytes", "sha256", "frame_count", "decoded_sample_count", "loop_relative_bytes", "looping", "end_header"], "properties": {"file_offset": {"type": "integer", "minimum": 0}, "length_bytes": {"type": "integer", "minimum": 9, "multipleOf": 9}, "sha256": {"$ref": "#/$defs/sha256"}, "frame_count": {"type": "integer", "minimum": 1}, "decoded_sample_count": {"type": "integer", "minimum": 16}, "loop_relative_bytes": {"type": "integer", "minimum": 0}, "looping": {"type": "boolean"}, "end_header": {"type": "integer", "minimum": 0, "maximum": 255}}},
+    "ff4": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "game", "source_aliases", "platform", "region", "driver", "record_id", "rom", "instrument", "brr", "evidence", "identity_scope"],
+      "properties": {
+        "schema_version": {"const": "instrument-rom-sample/v1"}, "game": {"const": "Final Fantasy IV"}, "source_aliases": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "platform": {"const": "Super Nintendo"}, "region": {"const": "US"}, "driver": {"const": "FF2 SPC700 custom driver"}, "record_id": {"type": "string", "pattern": "^snes:ff4-us:global-sample-[0-9a-f]{2}$"},
+        "rom": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "payload_sha256", "size", "header_bytes", "title", "map_mode", "region_code", "revision", "checksum", "checksum_complement", "variant_verified"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "payload_sha256": {"$ref": "#/$defs/sha256"}, "size": {"enum": [1048576, 1049088]}, "header_bytes": {"enum": [0, 512]}, "title": {"type": "string"}, "map_mode": {"type": "integer", "minimum": 0, "maximum": 255}, "region_code": {"type": "integer", "minimum": 0, "maximum": 255}, "revision": {"type": "integer", "minimum": 0, "maximum": 255}, "checksum": {"type": "integer", "minimum": 0, "maximum": 65535}, "checksum_complement": {"type": "integer", "minimum": 0, "maximum": 65535}, "variant_verified": {"const": true}}},
+        "instrument": {"type": "object", "additionalProperties": false, "required": ["global_sample_id", "table_index", "pointer_entry", "length_field", "directory_entry", "driver_flag", "descriptor_sha256", "descriptor_hash_recipe"], "properties": {"global_sample_id": {"type": "integer", "minimum": 0, "maximum": 22}, "table_index": {"type": "integer", "minimum": 0, "maximum": 22}, "pointer_entry": {"$ref": "#/$defs/entry"}, "length_field": {"$ref": "#/$defs/entry"}, "directory_entry": {"$ref": "#/$defs/entry"}, "driver_flag": {"$ref": "#/$defs/entry"}, "descriptor_sha256": {"$ref": "#/$defs/sha256"}, "descriptor_hash_recipe": {"type": "string", "minLength": 1}}},
+        "brr": {"$ref": "#/$defs/brr"}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "lines", "role"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "lines": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}}}}, "identity_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "ff6": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "game", "platform", "region", "driver", "record_id", "rom", "instrument", "brr", "evidence"],
+      "properties": {
+        "schema_version": {"const": "instrument-rom-sample/v1"}, "game": {"const": "Final Fantasy VI"}, "platform": {"const": "SNES"}, "region": {"const": "US"}, "driver": {"const": "FF6/FF3 US SPC700"}, "record_id": {"type": "string", "pattern": "^snes:ff6-us:global-sample-[0-9a-f]{2}$"},
+        "rom": {"type": "object", "additionalProperties": false, "required": ["sha256", "payload_sha256", "size", "header_bytes", "version_approved", "path", "verified_title", "verified_map_mode", "verified_region_code", "verified_revision", "verified_checksum", "verified_checksum_complement", "checksum_method"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "payload_sha256": {"$ref": "#/$defs/sha256"}, "size": {"enum": [3145728, 3146240]}, "header_bytes": {"enum": [0, 512]}, "version_approved": {"const": true}, "verified_title": {"type": "string"}, "verified_map_mode": {"type": "integer", "minimum": 0, "maximum": 255}, "verified_region_code": {"type": "integer", "minimum": 0, "maximum": 255}, "verified_revision": {"type": "integer", "minimum": 0, "maximum": 255}, "verified_checksum": {"type": "integer", "minimum": 0, "maximum": 65535}, "verified_checksum_complement": {"type": "integer", "minimum": 0, "maximum": 65535}, "checksum_method": {"type": "string", "minLength": 1}}},
+        "instrument": {"type": "object", "additionalProperties": false, "required": ["global_sample_id", "table_index", "pointer_entry", "length_field", "loop_entry", "tuning_entry", "adsr_entry", "descriptor_sha256", "descriptor_hash_recipe"], "properties": {"global_sample_id": {"type": "integer", "minimum": 1, "maximum": 63}, "table_index": {"type": "integer", "minimum": 0, "maximum": 62}, "pointer_entry": {"$ref": "#/$defs/entry"}, "length_field": {"$ref": "#/$defs/entry"}, "loop_entry": {"$ref": "#/$defs/entry"}, "tuning_entry": {"$ref": "#/$defs/entry"}, "adsr_entry": {"$ref": "#/$defs/entry"}, "descriptor_sha256": {"$ref": "#/$defs/sha256"}, "descriptor_hash_recipe": {"type": "string", "minLength": 1}}},
+        "brr": {"$ref": "#/$defs/brr"}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["path", "location", "fact"], "properties": {"path": {"type": "string", "minLength": 1}, "location": {"type": "string", "minLength": 1}, "fact": {"type": "string", "minLength": 1}}}}
+      }
+    }
+  }
+}

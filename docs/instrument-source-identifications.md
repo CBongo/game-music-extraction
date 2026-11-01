@@ -7,6 +7,12 @@ checks the binding and the replacement, while still covering undocumented sounds
 This separates two useful questions: what generated the original sample, and which
 GM preset reproduces its musical role well in our target bank.
 
+The user's source-authority policy gives these research sheets priority over
+historical `.pl` instrument and voicing assignments. Those scripts primarily
+served note transcription; use them for byte/table/event mechanics, and treat
+conflicting old voicings as correction leads. Preserve uncertainty stated by the
+researchers themselves.
+
 ## References and attribution
 
 The user identified [NEWER VGM Sound Sources](https://docs.google.com/spreadsheets/d/1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o/edit#gid=2047725819),
@@ -125,3 +131,7 @@ small. Documentary origins reduce the identity search; they do not remove the
 need to ground native sequence timing, tuning and effect behavior. Existing tools
 are sufficient to start the importer and bindings; obtain original-preset captures
 only when a particular verification needs them.
+
+The [FF4/FF6 binding pilot](instrument-origin-pilot.md) is implemented. It attaches
+all five selected leads to version-verified local sample bytes and supplies
+independent, level-matched flute auditions with source provenance.
