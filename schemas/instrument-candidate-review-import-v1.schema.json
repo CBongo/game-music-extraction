@@ -1,0 +1,464 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-candidate-review-import-v1.schema.json",
+  "title": "Instrument candidate review import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reviews",
+    "normalized_reviews",
+    "corpus_ref",
+    "review_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-candidate-review-import/v1"
+    },
+    "reviews": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "corpus_sha256",
+        "reviewer_id",
+        "reviews"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "instrument-candidate-reviews/v1"
+        },
+        "corpus_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "reviewer_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviews": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "source_record_id",
+              "package_id",
+              "revealed",
+              "candidate_assessments"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_record_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "package_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revealed": {
+                "type": "boolean"
+              },
+              "candidate_assessments": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "candidate_id",
+                    "decision",
+                    "audition_acknowledged",
+                    "source_audio_sha256",
+                    "candidate_audio_sha256"
+                  ],
+                  "properties": {
+                    "candidate_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "decision": {
+                      "enum": [
+                        "acceptable",
+                        "unacceptable"
+                      ]
+                    },
+                    "audition_acknowledged": {
+                      "const": true
+                    },
+                    "source_audio_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "candidate_audio_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "metadata": {
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "correction_requested": {
+                "type": "boolean"
+              },
+              "octave_correction": {
+                "type": "integer",
+                "minimum": -10,
+                "maximum": 10
+              },
+              "chord_offsets_correction": {
+                "type": "array",
+                "minItems": 0,
+                "items": {
+                  "type": "integer",
+                  "minimum": -127,
+                  "maximum": 127
+                }
+              },
+              "metadata": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "normalized_reviews": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "source_record_id",
+          "package_id",
+          "reviewer_id",
+          "calibration_eligible",
+          "ineligibility_reasons",
+          "candidate_assessments",
+          "package_ref"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_record_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "package_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "reviewer_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "calibration_eligible": {
+            "type": "boolean"
+          },
+          "ineligibility_reasons": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "enum": [
+                "nonblind_package",
+                "revealed",
+                "documentary_assisted",
+                "revision",
+                "correction"
+              ]
+            }
+          },
+          "candidate_assessments": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidate_id",
+                "decision",
+                "audition_acknowledged",
+                "source_audio_sha256",
+                "candidate_audio_sha256",
+                "route",
+                "reference"
+              ],
+              "properties": {
+                "candidate_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "decision": {
+                  "enum": [
+                    "acceptable",
+                    "unacceptable"
+                  ]
+                },
+                "audition_acknowledged": {
+                  "const": true
+                },
+                "source_audio_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "candidate_audio_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "metadata": {
+                  "type": "object"
+                },
+                "route": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "program_0based"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "gm_program"
+                        },
+                        "program_0based": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 127
+                        },
+                        "program_1based": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 128
+                        },
+                        "bank": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16383
+                        },
+                        "gm_probe_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "preset_name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "velocity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 127
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "note"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "gm_percussion"
+                        },
+                        "note": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 127
+                        },
+                        "bank": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16383
+                        },
+                        "gm_probe_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "preset_name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "velocity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 127
+                        }
+                      }
+                    }
+                  ]
+                },
+                "reference": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "probe_id",
+                        "manifest_sha256",
+                        "soundfont_sha256",
+                        "bank",
+                        "route"
+                      ],
+                      "properties": {
+                        "probe_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "manifest_sha256": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "soundfont_sha256": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "bank": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 16383
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "route": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "program_0based"
+                              ],
+                              "properties": {
+                                "kind": {
+                                  "const": "gm_program"
+                                },
+                                "program_0based": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 127
+                                },
+                                "program_1based": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 128
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "note"
+                              ],
+                              "properties": {
+                                "kind": {
+                                  "const": "gm_percussion"
+                                },
+                                "note": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 127
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "package_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "corpus_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "review_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

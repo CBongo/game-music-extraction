@@ -1,0 +1,495 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-threshold-calibration-v1.schema.json",
+  "title": "Instrument threshold calibration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "thresholds",
+    "policy",
+    "split_audit",
+    "cases",
+    "metrics",
+    "pending_cases",
+    "scope",
+    "input_pins"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-threshold-calibration/v1"
+    },
+    "status": {
+      "enum": [
+        "awaiting_reviews",
+        "insufficient_reviewed_classes",
+        "fitted",
+        "no_feasible_operating_point"
+      ]
+    },
+    "thresholds": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "distance_threshold",
+            "margin_threshold"
+          ],
+          "properties": {
+            "distance_threshold": {
+              "type": "number",
+              "minimum": 0
+            },
+            "margin_threshold": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distance_grid",
+        "margin_grid",
+        "max_false_accept_rate",
+        "min_reviewed_development_cases",
+        "min_reviewed_development_families"
+      ],
+      "properties": {
+        "distance_grid": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "margin_grid": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "max_false_accept_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_reviewed_development_cases": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_reviewed_development_families": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "split_audit": {
+      "oneOf": [
+        {
+          "$ref": "instrument-origin-splits-v1.schema.json"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "const": "no_native_cases"
+            }
+          }
+        }
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "split",
+          "source_kind",
+          "origin_family_id",
+          "distance",
+          "margin",
+          "top1_correct",
+          "eligible_routes",
+          "reviewed_candidates"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "split": {
+            "enum": [
+              "development",
+              "held_out",
+              "control"
+            ]
+          },
+          "source_kind": {
+            "enum": [
+              "native",
+              "same_bank_control",
+              "synthetic_control"
+            ]
+          },
+          "origin_family_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "distance": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "margin": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top1_correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible_routes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reviewed_candidates": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "development",
+        "held_out",
+        "control"
+      ],
+      "properties": {
+        "development": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cases",
+            "reviewed_top1_cases",
+            "accepted_correct",
+            "accepted_incorrect",
+            "coverage",
+            "selective_accuracy",
+            "top1_reviewed_coverage",
+            "uncertainty",
+            "accepted_unreviewed"
+          ],
+          "properties": {
+            "cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reviewed_top1_cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_correct": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_incorrect": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "selective_accuracy": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "top1_reviewed_coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "uncertainty": {
+              "type": "null"
+            },
+            "accepted_unreviewed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "held_out": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cases",
+            "reviewed_top1_cases",
+            "accepted_correct",
+            "accepted_incorrect",
+            "coverage",
+            "selective_accuracy",
+            "top1_reviewed_coverage",
+            "uncertainty",
+            "accepted_unreviewed"
+          ],
+          "properties": {
+            "cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reviewed_top1_cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_correct": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_incorrect": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "selective_accuracy": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "top1_reviewed_coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "uncertainty": {
+              "type": "null"
+            },
+            "accepted_unreviewed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cases",
+            "reviewed_top1_cases",
+            "accepted_correct",
+            "accepted_incorrect",
+            "coverage",
+            "selective_accuracy",
+            "top1_reviewed_coverage",
+            "uncertainty",
+            "accepted_unreviewed"
+          ],
+          "properties": {
+            "cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reviewed_top1_cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_correct": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accepted_incorrect": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "selective_accuracy": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "top1_reviewed_coverage": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "uncertainty": {
+              "type": "null"
+            },
+            "accepted_unreviewed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "pending_cases": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_pins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "fitted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "thresholds": {
+            "type": "object"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "thresholds": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

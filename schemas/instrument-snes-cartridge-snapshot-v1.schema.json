@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-snes-cartridge-snapshot-v1.schema.json",
+  "title": "Instrument snes cartridge snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "source",
+    "request_id",
+    "frame_count",
+    "receipt",
+    "run_arguments",
+    "spc_file",
+    "files",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "snes-cartridge-snapshot/v1"
+    },
+    "source_record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rom_path",
+        "rom_sha256",
+        "copier_header_bytes",
+        "payload_bytes",
+        "payload_sha256",
+        "header_offset",
+        "header_hex",
+        "title",
+        "map_mode",
+        "declared_checksum",
+        "declared_complement",
+        "observed_payload_sum16",
+        "approval_basis",
+        "mame_executable",
+        "mame_executable_sha256",
+        "mame_version",
+        "capture_script",
+        "capture_script_sha256",
+        "ipl_source_path",
+        "ipl_source_sha256",
+        "ipl_source_offset"
+      ],
+      "properties": {
+        "rom_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rom_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "copier_header_bytes": {
+          "const": 512
+        },
+        "payload_bytes": {
+          "const": 2621440
+        },
+        "payload_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "header_offset": {
+          "const": 65472
+        },
+        "header_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "map_mode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "declared_checksum": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "declared_complement": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "observed_payload_sum16": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "approval_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mame_executable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mame_executable_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "mame_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capture_script": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capture_script_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ipl_source_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ipl_source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ipl_source_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "frame_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 36000
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "request_id",
+        "rom_payload_sha256",
+        "frames",
+        "time_seconds",
+        "device",
+        "pc",
+        "original_f2",
+        "f1_written",
+        "aram_read_bytes",
+        "dsp_read_bytes",
+        "dsp_hex",
+        "aram_path",
+        "dsp_path"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "snes-snapshot-receipt/v1"
+        },
+        "status": {
+          "const": "ok"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "rom_payload_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 36000
+        },
+        "time_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "device": {
+          "const": ":soundcpu"
+        },
+        "pc": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "original_f2": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "f1_written": {
+          "const": 0
+        },
+        "aram_read_bytes": {
+          "const": 65536
+        },
+        "dsp_read_bytes": {
+          "const": 128
+        },
+        "dsp_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{256}$"
+        },
+        "aram_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dsp_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "run_arguments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "spc_file": {
+      "const": "capture.spc"
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aram.bin",
+        "dsp.bin",
+        "capture.spc",
+        "receipt.json"
+      ],
+      "properties": {
+        "aram.bin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "const": 65536
+            }
+          }
+        },
+        "dsp.bin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "const": 128
+            }
+          }
+        },
+        "capture.spc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "const": 66048
+            }
+          }
+        },
+        "receipt.json": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

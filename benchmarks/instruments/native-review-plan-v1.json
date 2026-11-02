@@ -1,0 +1,339 @@
+{
+  "schema_version": "instrument-reviewed-corpus-plan/v1",
+  "index": {
+    "path": "..\\..\\instrument-renders\\gm-baseline-combined-index-20261026.json",
+    "sha256": "b07b80c84ab5e74049ec9fc17217c05d5144b33966f948826918efee5468f00b"
+  },
+  "policy": {
+    "distance_grid": [
+      0.05,
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5
+    ],
+    "margin_grid": [
+      0,
+      0.01,
+      0.02,
+      0.04,
+      0.06,
+      0.08,
+      0.1
+    ],
+    "max_false_accept_rate": 0,
+    "min_reviewed_development_cases": 4,
+    "min_reviewed_development_families": 3
+  },
+  "lineage_links": [],
+  "cases": [
+    {
+      "case_id": "case-001",
+      "record_id": "snes:ff4-us:global-sample-07",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff4-us",
+      "origin_family_id": "roland-u220-flute1",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\origin-flute-pilot-20261031\\native-ff4-c4\\snes-spc-snes-ff4-us-global-sample-07-v0-p042f.manifest.json",
+        "sha256": "8f33703833418a8ce824d71931f11191fc657e89766ec671a1cf236df5533b80"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\origin-flute-pilot-20261031\\native-ff4-c4\\pitch.json",
+        "sha256": "1a1282bfdad8b25f6b588af13326b337407c63be169d4100308f0a911dea273f"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\snes\\ff2\\spcs\\Rosa's Theme.spc",
+          "sha256": "83803e44eddaeec1d9d8842faab5e256827d0ff205ad0b64d8965b55674d74c6"
+        },
+        "offset": 18592,
+        "length": 387,
+        "sha256": "acc28201e53ebdbb906cb9c3c7c57d591c01f7ceba71c22f517ec7c25d550ff3",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 1071,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 59.9907,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-002",
+      "record_id": "snes:ff4-us:global-sample-06",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff4-us",
+      "origin_family_id": "roland-u220-soft-trumpet1",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\development-trumpet\\native-c4\\snes-spc-snes-ff4-us-global-sample-06-v5-p085e.manifest.json",
+        "sha256": "707f50dd4a9a975cacc5eab8343186dde53b9da0f3685b6fa8724d53e6c8d3e1"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\development-trumpet\\native-c4\\pitch.json",
+        "sha256": "5607b865eaf03f4f7e102897f2f4b2b52df2a45b260a82bb44b4830a03c5ed1c"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\snes\\ff2\\spcs\\Airship.spc",
+          "sha256": "8d52b98213d26177e818c4ef0405e07117d0a32a0140f4fe81df974903c4ed50"
+        },
+        "offset": 27376,
+        "length": 432,
+        "sha256": "350208215eb95199243e95e266cd605166bbf7e0ab380fa49eb0fbb75ce921a4",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 2142,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 59.99392,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-003",
+      "record_id": "snes:ff4-us:global-sample-09",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff4-us",
+      "origin_family_id": "kurzweil-k1200-dual-bass",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\development-bass\\native-c4\\snes-spc-snes-ff4-us-global-sample-09-v4-p25ac.manifest.json",
+        "sha256": "f4536223b0485b4ecabb278ea1284ff4b2d478e7523ec804e9f4305fce964381"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\development-bass\\native-c4\\pitch.json",
+        "sha256": "ee13159ac8d7c2cd2a0def18b5f5a89819b56472e91d83dcac81b2e7fc565907"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\snes\\ff2\\spcs\\Airship.spc",
+          "sha256": "8d52b98213d26177e818c4ef0405e07117d0a32a0140f4fe81df974903c4ed50"
+        },
+        "offset": 25864,
+        "length": 1512,
+        "sha256": "af46ea1d9e726019e3ab9b5cfc91cea18bfabd5ba8770a8d68104d69efa3a1ed",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 9644,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 60.00335,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-004",
+      "record_id": "snes:ff6-us:global-sample-03",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff6-us",
+      "origin_family_id": "roland-lcd1-pan-pipes-1",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-pan-flute-03\\native-c4\\snes-spc-snes-ff6-us-global-sample-03-v0-p0348.manifest.json",
+        "sha256": "855cf3d874e20e2d1a33cc3121a85f8517ceefa416204d0b26f122c4741952b5"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-pan-flute-03\\native-c4\\pitch.json",
+        "sha256": "9190bbdb601760e421ceb419e313dd89b0dfa5d0c72ce66f0b4916ba52f6cf14"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-pan-flute-03\\constructed-spc\\sample.spc",
+          "sha256": "b498f4ae45a38070006fc42842603e2ea9a02cde2a4919db42b659299c8c23fc"
+        },
+        "offset": 12544,
+        "length": 4401,
+        "sha256": "6e35c06d6abf1e659f955171b9c776de9c7f147b3c602500d7ad8ebdb00ab685",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 840,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 59.94661,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-005",
+      "record_id": "snes:ff6-us:global-sample-0a",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff6-us",
+      "origin_family_id": "roland-lcd1-oboe1",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-oboe-0a\\native-c4\\snes-spc-snes-ff6-us-global-sample-0a-v0-p0648.manifest.json",
+        "sha256": "25e52267f4ab85fc4c9d7f8f913f5854eee975742b078ca5e305a9284ffc1454"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-oboe-0a\\native-c4\\pitch.json",
+        "sha256": "214097655d9217d2cd3d8e36904cc9f378df74c79ab33c073ca673c0e1dd8470"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\instrument-renders\\imported-origin-bindings-20261101\\ff6-oboe-0a\\constructed-spc\\sample.spc",
+          "sha256": "e7c1a0efb49d39306060a5ac24c84317429eafae4e23dfd222992c44413c3318"
+        },
+        "offset": 12544,
+        "length": 1521,
+        "sha256": "50414bcdb043ed4f614f1f8638f15bfb5ff160c5720b0b0b03eac4b264012bdc",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 1608,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 60.0059,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-006",
+      "record_id": "psx:ff8:sample-set-000a:articulation-76",
+      "split": "development",
+      "source_kind": "native",
+      "game_id": "ff8-local",
+      "origin_family_id": "akao-ff8-bank0a-art76",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\akao-spu-matched-c4-20261025\\akao-spu-set-0010-art-0076-pitch-090d.manifest.json",
+        "sha256": "696069d44dc3fabb569b022fbee9244ae70487941093bf88f37aaa18159e77b4"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\pitch-calibration-psx-20261025\\ff8-art76-p090d.json",
+        "sha256": "4f5e23ae45508f1228f7a6d7610c279850f711a776e7d9b31325ead56044dda4"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\psx\\ff8\\ff8img_1e_1.bin",
+          "sha256": "97860f287d9c0ae853c4713b4abe5c295d40db922ea1f9e922e8c8022e7c29ba"
+        },
+        "offset": 171456,
+        "length": 76688,
+        "sha256": "51cb1f85a0fee97d89ba6938293b990c31b33412c74ffff0d091a39da26aa613",
+        "encoding": "PSX_ADPCM"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_note": "Raw SPU pitch register, with no inferred MIDI note or source-region tuning.",
+          "pitch_register_raw_spu": 2317,
+          "velocity": null
+        },
+        "measured_midi_note": 60.03333,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered."
+      }
+    },
+    {
+      "case_id": "case-007",
+      "record_id": "snes:ff5:rom-session-600:srcn-21",
+      "split": "held_out",
+      "source_kind": "native",
+      "game_id": "ff5-pinned-local",
+      "origin_family_id": "ff5-runtime-srcn-21",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-voice-0\\native-c4\\snes-spc-snes-ff5-rom-session-600-srcn-21-v0-p097b.manifest.json",
+        "sha256": "2821c7845438fe07c3c4e7bd0a3e1624d2435e154cca4f1490e0be72dc93d62b"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-voice-0\\native-c4\\pitch.json",
+        "sha256": "8f9646c5f40f7af1d0a52969d861b3e3857887847f80837adb8f856cea82b6a5"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-snapshot\\capture.spc",
+          "sha256": "35859885b05133fc8e2e3c7355637d3e0450dbe637ecce7b27e6ec51f48c68ab"
+        },
+        "offset": 19588,
+        "length": 1935,
+        "sha256": "ceb22c9087cadc3c10da2f956430f3a6a87bd818b0e35d2768b2a207f5738ca5",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 2427,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 60.00433,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered.",
+        "capture_manifest": {
+          "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-snapshot\\snapshot.manifest.json",
+          "sha256": "c313fa84fe721decca8e64bfa09af16c4a401a267262b941114837d10c8c47be"
+        }
+      }
+    },
+    {
+      "case_id": "case-008",
+      "record_id": "snes:ff5:rom-session-600:srcn-22",
+      "split": "held_out",
+      "source_kind": "native",
+      "game_id": "ff5-pinned-local",
+      "origin_family_id": "ff5-runtime-srcn-22",
+      "native_manifest": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-voice-1\\native-c4\\snes-spc-snes-ff5-rom-session-600-srcn-22-v1-p0989.manifest.json",
+        "sha256": "54fc360735f231e03eef954077ff37505593cd810ba83cdbcbbdaa8d3a276a8b"
+      },
+      "pitch_calibration": {
+        "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-voice-1\\native-c4\\pitch.json",
+        "sha256": "7c8dc3aabe8ea71e52f0f9497cf85cd300d1755a51546f67d445872b47d196af"
+      },
+      "sample": {
+        "source": {
+          "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-snapshot\\capture.spc",
+          "sha256": "35859885b05133fc8e2e3c7355637d3e0450dbe637ecce7b27e6ec51f48c68ab"
+        },
+        "offset": 21523,
+        "length": 8064,
+        "sha256": "007302c05d10a0c080304a117d6b3214c80ee0599b15916884f94ee297c311a1",
+        "encoding": "BRR"
+      },
+      "metadata": {
+        "scope": "Isolated dry byte-bound native capture; no source-unity or game-sequence-effect claim.",
+        "raw_pitch": {
+          "midi_note": null,
+          "pitch_register_raw_s_dsp": 2441,
+          "velocity": null,
+          "velocity_note": "The S-DSP probe fixes voice volume; velocity is unsupported."
+        },
+        "measured_midi_note": 59.9797,
+        "source_family_basis": "Curated known documentary lineage for development; raw runtime SRCN families for new FF5 captures. Unknown transformed sharing not discovered.",
+        "capture_manifest": {
+          "path": "..\\..\\instrument-renders\\reviewed-native-20261101\\heldout-snapshot\\snapshot.manifest.json",
+          "sha256": "c313fa84fe721decca8e64bfa09af16c4a401a267262b941114837d10c8c47be"
+        }
+      }
+    }
+  ]
+}

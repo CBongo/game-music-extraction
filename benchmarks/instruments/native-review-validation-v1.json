@@ -1,0 +1,352 @@
+{
+  "schema_version": "instrument-reviewed-native-validation/v1",
+  "cases": [
+    {
+      "case_id": "case-001",
+      "split": "development",
+      "game_id": "ff4-us",
+      "sample_sha256": "acc28201e53ebdbb906cb9c3c7c57d591c01f7ceba71c22f517ec7c25d550ff3",
+      "origin_family_id": "roland-u220-flute1",
+      "package_id": "b3f43b967f8da011c80c53ee107b0c1e3a3cd7ad2595aa020974bee25c98ce84",
+      "diagnostics_sha256": "fee5db8052bb2b0e180489a0263754b2a9c1b056e3cde87344ef73f8d62d0c71",
+      "candidates": 3,
+      "sounding_midi_note": 59.9907,
+      "rms_min": 2047.9980038106107,
+      "rms_max": 2048.0060720657825
+    },
+    {
+      "case_id": "case-002",
+      "split": "development",
+      "game_id": "ff4-us",
+      "sample_sha256": "350208215eb95199243e95e266cd605166bbf7e0ab380fa49eb0fbb75ce921a4",
+      "origin_family_id": "roland-u220-soft-trumpet1",
+      "package_id": "9688fc1c7d86b0f6811b4b56d6b357f0841a3c43ea677da2d85abf758d53dbbd",
+      "diagnostics_sha256": "c60962509238f8a8a4b7bf97f1ed292903c6d1110ab5b92873363461ee69506c",
+      "candidates": 3,
+      "sounding_midi_note": 59.99392,
+      "rms_min": 2047.997718447252,
+      "rms_max": 2048.0016619222515
+    },
+    {
+      "case_id": "case-003",
+      "split": "development",
+      "game_id": "ff4-us",
+      "sample_sha256": "af46ea1d9e726019e3ab9b5cfc91cea18bfabd5ba8770a8d68104d69efa3a1ed",
+      "origin_family_id": "kurzweil-k1200-dual-bass",
+      "package_id": "dd2f5a83b0aa98598a0ed190a6da2bd06ca17eefcfdfd740d75ac342f1f8c5e1",
+      "diagnostics_sha256": "55c92fcdaa5f89fa8703e6ce7f3854400f97db6f9aefed90df70bcadf49526a6",
+      "candidates": 3,
+      "sounding_midi_note": 60.00335,
+      "rms_min": 2047.9988062125485,
+      "rms_max": 2048.0060720657825
+    },
+    {
+      "case_id": "case-004",
+      "split": "development",
+      "game_id": "ff6-us",
+      "sample_sha256": "6e35c06d6abf1e659f955171b9c776de9c7f147b3c602500d7ad8ebdb00ab685",
+      "origin_family_id": "roland-lcd1-pan-pipes-1",
+      "package_id": "54471b6ac208b436ac2495299f02f84f00b7dcd4d9048bdf9b7fb93137012171",
+      "diagnostics_sha256": "e904fcc996def8f415887ef61e87b9bdde0683fb03fbd81ccb6641d026f38953",
+      "candidates": 3,
+      "sounding_midi_note": 59.94661,
+      "rms_min": 2047.9981861260694,
+      "rms_max": 2048.001057332472
+    },
+    {
+      "case_id": "case-005",
+      "split": "development",
+      "game_id": "ff6-us",
+      "sample_sha256": "50414bcdb043ed4f614f1f8638f15bfb5ff160c5720b0b0b03eac4b264012bdc",
+      "origin_family_id": "roland-lcd1-oboe1",
+      "package_id": "483b66b344ec258873bf3d14f0e9301a3749d7ce904974f18fa801efa98bfc3b",
+      "diagnostics_sha256": "1ce346400de210819dd0ff95781757cf195a4fc44ec2d12fd743772de817e9fa",
+      "candidates": 3,
+      "sounding_midi_note": 60.0059,
+      "rms_min": 2047.9974109172008,
+      "rms_max": 2048.0011323523854
+    },
+    {
+      "case_id": "case-006",
+      "split": "development",
+      "game_id": "ff8-local",
+      "sample_sha256": "51cb1f85a0fee97d89ba6938293b990c31b33412c74ffff0d091a39da26aa613",
+      "origin_family_id": "akao-ff8-bank0a-art76",
+      "package_id": "bfe36583d9d4b0ea11dfa488fed71e8f9fa80c99bcbbe19397d790ca8cded0db",
+      "diagnostics_sha256": "ce0825f36b6eda502829e7e36025ae8cb09c6e9fda0e407e924bdc91f8bcb23d",
+      "candidates": 3,
+      "sounding_midi_note": 60.03333,
+      "rms_min": 2047.9993824293108,
+      "rms_max": 2048.0001951464087
+    },
+    {
+      "case_id": "case-007",
+      "split": "held_out",
+      "game_id": "ff5-pinned-local",
+      "sample_sha256": "ceb22c9087cadc3c10da2f956430f3a6a87bd818b0e35d2768b2a207f5738ca5",
+      "origin_family_id": "ff5-runtime-srcn-21",
+      "package_id": "57b743bd1f7e4d625e81d71067975d729c63c28158a23655d6ac4de70da0843f",
+      "diagnostics_sha256": "b2c3f7e80f2e02ae94cb3b7a264091abba2721428b18fc5e68850323bc920274",
+      "candidates": 3,
+      "sounding_midi_note": 60.00433,
+      "rms_min": 2047.9981220576738,
+      "rms_max": 2048.0016619222515
+    },
+    {
+      "case_id": "case-008",
+      "split": "held_out",
+      "game_id": "ff5-pinned-local",
+      "sample_sha256": "007302c05d10a0c080304a117d6b3214c80ee0599b15916884f94ee297c311a1",
+      "origin_family_id": "ff5-runtime-srcn-22",
+      "package_id": "e938368ee513a1002ef5ac8da7dc7ff4eae0b74e3123bfcbb4b491959a1ecdaf",
+      "diagnostics_sha256": "45ec4368ce77796f85ad3cd4b8e15dceec384fd218e08eafb7dc9caa04363512",
+      "candidates": 3,
+      "sounding_midi_note": 59.9797,
+      "rms_min": 2047.9966749315224,
+      "rms_max": 2048.001525368187
+    }
+  ],
+  "human_labels": 0,
+  "calibration_status": "awaiting_reviews",
+  "thresholds": null,
+  "schema_definitions_checked": 39,
+  "controls_in_training": 0,
+  "heldout_labels_used_for_fitting": false,
+  "default_thresholds_changed": false,
+  "known_family_split_audit": {
+    "counts": {
+      "cases": 8,
+      "development_cases": 6,
+      "eligible_held_out_cases": 2,
+      "groups": 8,
+      "held_out_groups": 2
+    },
+    "groups": [
+      {
+        "case_ids": [
+          "case-001"
+        ],
+        "origin_family_ids": [
+          "roland-u220-flute1"
+        ],
+        "record_ids": [
+          "snes:ff4-us:global-sample-07"
+        ],
+        "sample_sha256s": [
+          "acc28201e53ebdbb906cb9c3c7c57d591c01f7ceba71c22f517ec7c25d550ff3"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-002"
+        ],
+        "origin_family_ids": [
+          "roland-u220-soft-trumpet1"
+        ],
+        "record_ids": [
+          "snes:ff4-us:global-sample-06"
+        ],
+        "sample_sha256s": [
+          "350208215eb95199243e95e266cd605166bbf7e0ab380fa49eb0fbb75ce921a4"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-003"
+        ],
+        "origin_family_ids": [
+          "kurzweil-k1200-dual-bass"
+        ],
+        "record_ids": [
+          "snes:ff4-us:global-sample-09"
+        ],
+        "sample_sha256s": [
+          "af46ea1d9e726019e3ab9b5cfc91cea18bfabd5ba8770a8d68104d69efa3a1ed"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-004"
+        ],
+        "origin_family_ids": [
+          "roland-lcd1-pan-pipes-1"
+        ],
+        "record_ids": [
+          "snes:ff6-us:global-sample-03"
+        ],
+        "sample_sha256s": [
+          "6e35c06d6abf1e659f955171b9c776de9c7f147b3c602500d7ad8ebdb00ab685"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-005"
+        ],
+        "origin_family_ids": [
+          "roland-lcd1-oboe1"
+        ],
+        "record_ids": [
+          "snes:ff6-us:global-sample-0a"
+        ],
+        "sample_sha256s": [
+          "50414bcdb043ed4f614f1f8638f15bfb5ff160c5720b0b0b03eac4b264012bdc"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-006"
+        ],
+        "origin_family_ids": [
+          "akao-ff8-bank0a-art76"
+        ],
+        "record_ids": [
+          "psx:ff8:sample-set-000a:articulation-76"
+        ],
+        "sample_sha256s": [
+          "51cb1f85a0fee97d89ba6938293b990c31b33412c74ffff0d091a39da26aa613"
+        ],
+        "splits": [
+          "development"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-007"
+        ],
+        "origin_family_ids": [
+          "ff5-runtime-srcn-21"
+        ],
+        "record_ids": [
+          "snes:ff5:rom-session-600:srcn-21"
+        ],
+        "sample_sha256s": [
+          "ceb22c9087cadc3c10da2f956430f3a6a87bd818b0e35d2768b2a207f5738ca5"
+        ],
+        "splits": [
+          "held_out"
+        ]
+      },
+      {
+        "case_ids": [
+          "case-008"
+        ],
+        "origin_family_ids": [
+          "ff5-runtime-srcn-22"
+        ],
+        "record_ids": [
+          "snes:ff5:rom-session-600:srcn-22"
+        ],
+        "sample_sha256s": [
+          "007302c05d10a0c080304a117d6b3214c80ee0599b15916884f94ee297c311a1"
+        ],
+        "splits": [
+          "held_out"
+        ]
+      }
+    ],
+    "lineage_links": [],
+    "provenance": {
+      "baseline_input_policy": "Keep lineage and documentary claims outside blind audio-ranking inputs.",
+      "family_semantics": "Source sample lineage, not GM instrument class.",
+      "scope": "Explicit canonical source identities, known sample hashes, curated origin families and documented lineage links only; unknown sharing is not discovered.",
+      "threshold_fitting": false
+    },
+    "schema_version": "instrument-origin-split-audit/v1",
+    "status": "valid"
+  },
+  "scope": "Isolated native timbral acceptability only. No global OOD, held-out accuracy, or calibrated probability claim without judgments.",
+  "live_artifacts_and_controls_checked": 71,
+  "checked_artifacts": [
+    "benchmarks\\instruments\\native-review-plan-v1.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\corpus.json",
+    "instrument-renders\\reviewed-native-20261101\\listening-batch-final\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\heldout-snapshot\\snapshot.manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\calibration-ready\\report.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\audio-only\\predictions.json",
+    "instrument-renders\\origin-flute-pilot-20261031\\native-ff4-c4\\snes-spc-snes-ff4-us-global-sample-07-v0-p042f.manifest.json",
+    "instrument-renders\\origin-flute-pilot-20261031\\native-ff4-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\review\\artifacts\\cedaba6897dbc6905d8e934fb67dd6ec44db7c6f8cf5708976a81ab21653ad79.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\review\\artifacts\\6327a8450b1c1ebf13d0a804126b455aeee9b20f1350025b5cea48e98fd43705.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-001\\review\\artifacts\\2e64fbc6b42163d5103f8a8236f0dba1b523215e0c4a36a2659b8631602b60b9.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\audio-only\\predictions.json",
+    "instrument-renders\\reviewed-native-20261101\\development-trumpet\\native-c4\\snes-spc-snes-ff4-us-global-sample-06-v5-p085e.manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\development-trumpet\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\review\\artifacts\\9e12740e8925b2715c95a4270605754929b5468eee1b634ba6e46278f7b0512f.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\review\\artifacts\\c3e83634aa628cf88b79a935c8481a164a5798ab633a207f6a3fa6b7c13281df.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-002\\review\\artifacts\\af2444b5b3c5e1d4913495b8706789b777f4f64cc24d0cefd2491f8fbc870db2.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\audio-only\\predictions.json",
+    "instrument-renders\\reviewed-native-20261101\\development-bass\\native-c4\\snes-spc-snes-ff4-us-global-sample-09-v4-p25ac.manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\development-bass\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\review\\artifacts\\92459ce82d0842c167d87be03968d3367bc07ffb68f6a8bf48cba0d01a7aa5e6.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\review\\artifacts\\40c1443d9382d0ce8f046acf102da8396226077d0b8c070cbb0de7d62340b4d6.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-003\\review\\artifacts\\c65de54e47d701517e9785d82fe7716d50964ede24a07afad5b2c631811534dc.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\audio-only\\predictions.json",
+    "instrument-renders\\imported-origin-bindings-20261101\\ff6-pan-flute-03\\native-c4\\snes-spc-snes-ff6-us-global-sample-03-v0-p0348.manifest.json",
+    "instrument-renders\\imported-origin-bindings-20261101\\ff6-pan-flute-03\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\review\\artifacts\\4f5702e7aea1260ba31dc8337f626aa7a91bce61eb8c5f5716e4aa12d42b45fa.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\review\\artifacts\\3e2d75e503b94c69cd15c7baea3d5fad88030ad2e05e6d9fa5dbdd2ac8740fb0.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-004\\review\\artifacts\\204850c0d5c089fcb1e01c9385a1e067b81b14c1e96eff9fb1c50da4b64402fb.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\audio-only\\predictions.json",
+    "instrument-renders\\imported-origin-bindings-20261101\\ff6-oboe-0a\\native-c4\\snes-spc-snes-ff6-us-global-sample-0a-v0-p0648.manifest.json",
+    "instrument-renders\\imported-origin-bindings-20261101\\ff6-oboe-0a\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\review\\artifacts\\111297f5c9b5bf162891611f510e38abb766dd8a18d380ac12e21b8b12e25ad3.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\review\\artifacts\\0af573aa5ac653b0d52d4b5e677dec11fac5f14a8d041f791a08a2764c0179d6.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-005\\review\\artifacts\\1c338aaeb191c1ea712d5a870b80b888b8aa28740e86fc66db4356459d6a57be.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\audio-only\\predictions.json",
+    "instrument-renders\\akao-spu-matched-c4-20261025\\akao-spu-set-0010-art-0076-pitch-090d.manifest.json",
+    "instrument-renders\\pitch-calibration-psx-20261025\\ff8-art76-p090d.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\review\\artifacts\\d10325120e509c298b4cb09f639fd4db6ff5c2b86f1ac70466b6e09685d7c69b.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\review\\artifacts\\3d6829c0aaa81e85cd7444aba1fa5d85ba4ab9ef7cd07b5e6acc387c90b6c3c4.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-006\\review\\artifacts\\cf2c03f291b893ba6177ad98efc25fbffbe5c1aa9b985a82b636b0e84f41b55c.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\audio-only\\predictions.json",
+    "instrument-renders\\reviewed-native-20261101\\heldout-voice-0\\native-c4\\snes-spc-snes-ff5-rom-session-600-srcn-21-v0-p097b.manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\heldout-voice-0\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\review\\artifacts\\309d93b59ba7f4bec25e51e014cb20e4ae25ed463699f302a70c5722aa3b12fc.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\review\\artifacts\\39d78d90fa500c37ad41c887a3d43ce45eebd0ecc880f964d296eada5be076e5.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-007\\review\\artifacts\\07f57a76cb17c90f7202077d11e4a38a848d3b9a768a90289c71e3795830bb6f.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\audio-only\\diagnostics.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\audio-only\\predictions.json",
+    "instrument-renders\\reviewed-native-20261101\\heldout-voice-1\\native-c4\\snes-spc-snes-ff5-rom-session-600-srcn-22-v1-p0989.manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\heldout-voice-1\\native-c4\\pitch.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\review\\manifest.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\review\\artifacts\\3dfbb6cb9c6e33881bc0138a68f9cff06dc5f292840628178f4cbb08832fcd61.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\review\\artifacts\\194b05d024046ad5e977a6dfc36eee2bda067973d2cd0b278e6f3cd61fc31ef7.json",
+    "instrument-renders\\reviewed-native-20261101\\corpus\\cases\\case-008\\review\\artifacts\\ecd2bc6ca5397f833d94e6a20c6a7fd72f1a76050d742fa2e872d3e4b85f17f0.json",
+    "temporary revealed raw control",
+    "temporary revealed imported control"
+  ],
+  "corpus_sha256": "ee3838fdab4cf47fe7ea6f1885b2e6c31e3201abbd4a0cecc8a80fb43ffe8314",
+  "batch_manifest_id": "3233f54b541c85fc8ab41e24db829d44b493268f281e9c3aee4bcc9a33534141",
+  "batch_id": "ca7234ef8ce23e2e766f592aaf138a7395f050ead8236ad64e41127bc6c3e8b8",
+  "manual_playback_only": true,
+  "temporary_revealed_controls_discarded": true
+}

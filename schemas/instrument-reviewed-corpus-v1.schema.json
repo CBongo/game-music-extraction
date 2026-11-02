@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-reviewed-corpus-v1.schema.json",
+  "title": "Instrument reviewed corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "cases",
+    "policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-reviewed-corpus/v1"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "record_id",
+          "split",
+          "source_kind",
+          "game_id",
+          "sample_sha256",
+          "origin_family_id",
+          "diagnostics",
+          "review_package"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "record_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "split": {
+            "enum": [
+              "development",
+              "held_out",
+              "control"
+            ]
+          },
+          "source_kind": {
+            "enum": [
+              "native",
+              "same_bank_control",
+              "synthetic_control"
+            ]
+          },
+          "game_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sample_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "origin_family_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "diagnostics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "review_package": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "source_kind": {
+                  "enum": [
+                    "same_bank_control",
+                    "synthetic_control"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "split": {
+                  "const": "control"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distance_grid",
+        "margin_grid",
+        "max_false_accept_rate",
+        "min_reviewed_development_cases",
+        "min_reviewed_development_families"
+      ],
+      "properties": {
+        "distance_grid": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "margin_grid": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "max_false_accept_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_reviewed_development_cases": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_reviewed_development_families": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "lineage_links": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "instrument-origin-splits-v1.schema.json#/$defs/lineageLink"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

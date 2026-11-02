@@ -126,3 +126,5 @@ benchmark labels.
 See [bounded source-claim imports](../../docs/instrument-source-claims.md) for the separate offline documentary capture workflow.
 
 See [imported documentary byte bindings](../../docs/instrument-imported-bindings.md) for explicit source-claim-to-ROM plans and independent review boundaries.
+
+[Reviewed native corpus and threshold calibration](../../docs/instrument-reviewed-calibration.md) documents immutable listening batches, explicit candidate acceptability, source-exposure exclusions, and development-only fitting. Human labels and real held-out evaluation are pending; this workflow does not turn documentary labels into acoustic ground truth.

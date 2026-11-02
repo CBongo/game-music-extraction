@@ -79,3 +79,7 @@ Artifact SHA-256 values:
 - Pilot predictions: `194a44a3d7601e3c2385945971c027cc8b5580cc374ecbfc5e1ebe0f92ffd002`
 - Pilot metric report: `21d3e2363b18e0f80c87932152b1d365645eeae356a8b0fedc5f738404fe7312`
 - Pilot run audit: `a581b186bca7dfd08f82ea60a9d6b5fbaba4f43fec79c3bb1b06b83a8b7f20a7`
+
+## Reviewed native calibration follow-up
+
+The [reviewed corpus workflow](instrument-reviewed-calibration.md) adds hash-bound native candidate auditions and development-only threshold selection. Human judgments and genuine fitted/evaluated results remain pending. An awaiting-reviews report with null thresholds is not a completed calibration, and the historical pilot counts above are not metrics for the new corpus.
