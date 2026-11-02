@@ -1,0 +1,641 @@
+{
+  "observed_on": "2026-11-01",
+  "source": {
+    "key": "newer-vgm-sound-sources",
+    "spreadsheet_id": "1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o",
+    "url": "https://docs.google.com/spreadsheets/d/1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o/edit",
+    "title": "NEWER VGM Sound Sources",
+    "credit": "VGM Resources community",
+    "attribution_evidence": [
+      {
+        "sheet_id": 2047725819,
+        "range": "A3:G3",
+        "cells": [
+          {
+            "formattedValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it.",
+            "userEnteredValue": {
+              "stringValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it."
+            },
+            "effectiveValue": {
+              "stringValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it."
+            },
+            "userEnteredFormat": {
+              "backgroundColor": {
+                "red": 0.13725491,
+                "green": 0.15686275,
+                "blue": 0.1882353
+              },
+              "textFormat": {
+                "foregroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "fontFamily": "Fira Sans",
+                "fontSize": 14,
+                "bold": true,
+                "foregroundColorStyle": {
+                  "rgbColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  }
+                }
+              }
+            },
+            "effectiveFormat": {
+              "backgroundColor": {
+                "red": 0.13725491,
+                "green": 0.15686275,
+                "blue": 0.1882353
+              },
+              "textFormat": {
+                "foregroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "fontFamily": "Fira Sans",
+                "fontSize": 14,
+                "bold": true,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false,
+                "foregroundColorStyle": {
+                  "rgbColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "column_header_evidence": {
+      "sheet_id": 2047725819,
+      "range": "A1:G1",
+      "cells": [
+        {
+          "formattedValue": "Company/Manufacturer",
+          "userEnteredValue": {
+            "stringValue": "Company/Manufacturer"
+          },
+          "effectiveValue": {
+            "stringValue": "Company/Manufacturer"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Product",
+          "userEnteredValue": {
+            "stringValue": "Product"
+          },
+          "effectiveValue": {
+            "stringValue": "Product"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Path/Bank",
+          "userEnteredValue": {
+            "stringValue": "Path/Bank"
+          },
+          "effectiveValue": {
+            "stringValue": "Path/Bank"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Program",
+          "userEnteredValue": {
+            "stringValue": "Program"
+          },
+          "effectiveValue": {
+            "stringValue": "Program"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Notes",
+          "userEnteredValue": {
+            "stringValue": "Notes"
+          },
+          "effectiveValue": {
+            "stringValue": "Notes"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Examples",
+          "userEnteredValue": {
+            "stringValue": "Examples"
+          },
+          "effectiveValue": {
+            "stringValue": "Examples"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "formattedValue": "Demo",
+          "userEnteredValue": {
+            "stringValue": "Demo"
+          },
+          "effectiveValue": {
+            "stringValue": "Demo"
+          },
+          "userEnteredFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          },
+          "effectiveFormat": {
+            "backgroundColor": {
+              "red": 0.19215687,
+              "green": 0.22352941,
+              "blue": 0.2627451
+            },
+            "textFormat": {
+              "foregroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "fontFamily": "Fira Sans",
+              "fontSize": 14,
+              "bold": true,
+              "italic": false,
+              "strikethrough": false,
+              "underline": false,
+              "foregroundColorStyle": {
+                "rgbColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "coverage_policy": "Stars and their formatting describe research coverage; no confidence score is assigned.",
+    "authority": "preferred_documentary",
+    "capture_exclusions": [
+      "threaded comments",
+      "revision history",
+      "original demonstration media"
+    ]
+  },
+  "selections": [
+    {
+      "sheet_id": 1747501736,
+      "range": "A125:G148",
+      "context": {
+        "game_title": "Final Fantasy IV",
+        "platform_scope": "SNES",
+        "edition": "original",
+        "section": "Section 2 - Final Fantasy",
+        "resolution_scope": "documented_sources"
+      },
+      "columns": {
+        "manufacturer": "A",
+        "product": "B",
+        "bank": "C",
+        "preset": "D",
+        "notes": "E",
+        "examples": "F",
+        "demo": "G"
+      },
+      "data_rows": [
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142
+      ],
+      "header_rows": [
+        125,
+        127,
+        128
+      ],
+      "identity_fields": [
+        "manufacturer",
+        "product",
+        "bank",
+        "preset"
+      ],
+      "raw_aliases": {
+        "Final Fantasy II (US)": "Final Fantasy IV",
+        "Final Fantasy III (US)": "Final Fantasy VI"
+      }
+    },
+    {
+      "sheet_id": 1747501736,
+      "range": "A125:G148",
+      "context": {
+        "game_title": "Final Fantasy IV",
+        "platform_scope": "SNES",
+        "edition": "original",
+        "section": "Section 2 - Final Fantasy",
+        "resolution_scope": "Stuff to Find"
+      },
+      "columns": {
+        "manufacturer": "A",
+        "product": "B",
+        "bank": "C",
+        "preset": "D",
+        "notes": "E",
+        "examples": "F",
+        "demo": "G"
+      },
+      "data_rows": [
+        144,
+        145,
+        146,
+        147,
+        148
+      ],
+      "header_rows": [
+        125,
+        127,
+        128,
+        143
+      ],
+      "identity_fields": [
+        "notes"
+      ],
+      "raw_aliases": {
+        "Final Fantasy II (US)": "Final Fantasy IV",
+        "Final Fantasy III (US)": "Final Fantasy VI"
+      }
+    },
+    {
+      "sheet_id": 1747501736,
+      "range": "A149:G154",
+      "context": {
+        "game_title": "Final Fantasy IV Advance",
+        "platform_scope": "GBA",
+        "edition": "Advance",
+        "section": "Section 2 - Final Fantasy",
+        "resolution_scope": "documented_sources"
+      },
+      "columns": {
+        "manufacturer": "A",
+        "product": "B",
+        "bank": "C",
+        "preset": "D",
+        "notes": "E",
+        "examples": "F",
+        "demo": "G"
+      },
+      "data_rows": [
+        150,
+        151,
+        152,
+        153,
+        154
+      ],
+      "header_rows": [
+        149
+      ],
+      "identity_fields": [
+        "manufacturer",
+        "product",
+        "bank",
+        "preset"
+      ],
+      "raw_aliases": {}
+    }
+  ]
+}

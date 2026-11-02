@@ -135,3 +135,5 @@ only when a particular verification needs them.
 The [FF4/FF6 binding pilot](instrument-origin-pilot.md) is implemented. It attaches
 all five selected leads to version-verified local sample bytes and supplies
 independent, level-matched flute auditions with source provenance.
+
+For the bounded CellData importer and comparison contract, see [source claims](instrument-source-claims.md). Imports preserve documentary claims without automatically binding sample bytes or deriving GM programs.

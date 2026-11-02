@@ -122,3 +122,5 @@ The [documentary source binding pilot](../../docs/instrument-origin-pilot.md) no
 binds the FF4/FF6 flute leads and three qualifier controls to exact ROM sample
 bytes. The two proposed GM flute auditions remain unreviewed and are not new
 benchmark labels.
+
+See [bounded source-claim imports](../../docs/instrument-source-claims.md) for the separate offline documentary capture workflow.

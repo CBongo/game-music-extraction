@@ -1,0 +1,629 @@
+{
+  "observed_on": "2026-11-01",
+  "source": {
+    "key": "final-fantasy-detailed",
+    "spreadsheet_id": "1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4",
+    "url": "https://docs.google.com/spreadsheets/d/1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4/edit",
+    "title": "Final Fantasy Sound Sources (Detailed)",
+    "credit": "Created by Mudstep and OKayDoKay; maintained by Mudstep, Aged String, Seshpai and others; retain captured per-game research credits.",
+    "attribution_evidence": [
+      {
+        "spreadsheet_id": "1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o",
+        "sheet_id": 2047725819,
+        "range": "A22:G22",
+        "cells": [
+          {
+            "formattedValue": "Final Fantasy Sound Sources (Detailed)",
+            "userEnteredValue": {
+              "stringValue": "Final Fantasy Sound Sources (Detailed)"
+            },
+            "effectiveValue": {
+              "stringValue": "Final Fantasy Sound Sources (Detailed)"
+            },
+            "userEnteredFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "fontFamily": "Fira Sans",
+                "bold": true,
+                "link": {
+                  "uri": "https://docs.google.com/spreadsheets/d/1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4/edit?usp=sharing"
+                }
+              }
+            },
+            "effectiveFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "foregroundColor": {
+                  "red": 0.06666667,
+                  "green": 0.33333334,
+                  "blue": 0.8
+                },
+                "fontFamily": "Fira Sans",
+                "fontSize": 10,
+                "bold": true,
+                "italic": false,
+                "strikethrough": false,
+                "underline": true,
+                "foregroundColorStyle": {
+                  "rgbColor": {
+                    "red": 0.06666667,
+                    "green": 0.33333334,
+                    "blue": 0.8
+                  }
+                },
+                "link": {
+                  "uri": "https://docs.google.com/spreadsheets/d/1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4/edit?usp=sharing"
+                }
+              }
+            },
+            "hyperlink": "https://docs.google.com/spreadsheets/d/1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4/edit?usp=sharing"
+          },
+          {},
+          {
+            "formattedValue": "More detailed version of the sound sources used in Final Fantasy, with specific track listings. (WIP)",
+            "userEnteredValue": {
+              "stringValue": "More detailed version of the sound sources used in Final Fantasy, with specific track listings. (WIP)"
+            },
+            "effectiveValue": {
+              "stringValue": "More detailed version of the sound sources used in Final Fantasy, with specific track listings. (WIP)"
+            },
+            "userEnteredFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "fontFamily": "Fira Sans",
+                "fontSize": 10,
+                "bold": true
+              }
+            },
+            "effectiveFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "fontFamily": "Fira Sans",
+                "fontSize": 10,
+                "bold": true,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            },
+            "textFormatRuns": [
+              {},
+              {
+                "startIndex": 97,
+                "format": {
+                  "foregroundColor": {
+                    "red": 0.92156863,
+                    "blue": 0.23137255
+                  },
+                  "foregroundColorStyle": {
+                    "rgbColor": {
+                      "red": 0.92156863,
+                      "blue": 0.23137255
+                    }
+                  }
+                }
+              },
+              {
+                "startIndex": 100
+              }
+            ]
+          },
+          {},
+          {
+            "formattedValue": "Created by Mudstep, OKayDoKay. Maintained by Mudstep, Aged String, Seshpai, and others.",
+            "userEnteredValue": {
+              "stringValue": "Created by Mudstep, OKayDoKay. Maintained by Mudstep, Aged String, Seshpai, and others."
+            },
+            "effectiveValue": {
+              "stringValue": "Created by Mudstep, OKayDoKay. Maintained by Mudstep, Aged String, Seshpai, and others."
+            },
+            "userEnteredFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "fontFamily": "Fira Sans",
+                "fontSize": 10,
+                "bold": true
+              }
+            },
+            "effectiveFormat": {
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1
+              },
+              "textFormat": {
+                "fontFamily": "Fira Sans",
+                "fontSize": 10,
+                "bold": true,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "sheet_id": 819211554,
+        "range": "A3:F3",
+        "cells": [
+          {
+            "formattedValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it. ",
+            "userEnteredValue": {
+              "stringValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it. "
+            },
+            "effectiveValue": {
+              "stringValue": "We only ask that you do not claim this information as your own. This information is freely available for anyone to share and discuss: \nFor crediting, this documentation is managed by the VGM Resources community and the various communities related to it. "
+            },
+            "userEnteredFormat": {
+              "backgroundColor": {
+                "red": 0.13725491,
+                "green": 0.15686275,
+                "blue": 0.1882353
+              },
+              "textFormat": {
+                "foregroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "fontFamily": "Fira Sans",
+                "fontSize": 14,
+                "bold": true,
+                "foregroundColorStyle": {
+                  "rgbColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  }
+                }
+              }
+            },
+            "effectiveFormat": {
+              "backgroundColor": {
+                "red": 0.13725491,
+                "green": 0.15686275,
+                "blue": 0.1882353
+              },
+              "textFormat": {
+                "foregroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "fontFamily": "Fira Sans",
+                "fontSize": 14,
+                "bold": true,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false,
+                "foregroundColorStyle": {
+                  "rgbColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "sampled_key_convention_evidence": {
+      "sheet_id": 819211554,
+      "range": "A20:F22",
+      "rows": [
+        {
+          "row": 20,
+          "cells": [
+            {
+              "formattedValue": "2. List which articulation was sampled.",
+              "userEnteredValue": {
+                "stringValue": "2. List which articulation was sampled."
+              },
+              "effectiveValue": {
+                "stringValue": "2. List which articulation was sampled."
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            },
+            {
+              "formattedValue": "Using brackets, list which articulation was sampled for an instrument next to its preset (ex. Trumpet [stac]). ",
+              "userEnteredValue": {
+                "stringValue": "Using brackets, list which articulation was sampled for an instrument next to its preset (ex. Trumpet [stac]). "
+              },
+              "effectiveValue": {
+                "stringValue": "Using brackets, list which articulation was sampled for an instrument next to its preset (ex. Trumpet [stac]). "
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            }
+          ]
+        },
+        {
+          "row": 21,
+          "cells": [
+            {
+              "formattedValue": "3. For drums, list which key was sampled.",
+              "userEnteredValue": {
+                "stringValue": "3. For drums, list which key was sampled."
+              },
+              "effectiveValue": {
+                "stringValue": "3. For drums, list which key was sampled."
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            },
+            {
+              "formattedValue": "Using brackets, list which key of a drum kit was sampled next to its preset (ex. Power Set 2 [Note D#]). ",
+              "userEnteredValue": {
+                "stringValue": "Using brackets, list which key of a drum kit was sampled next to its preset (ex. Power Set 2 [Note D#]). "
+              },
+              "effectiveValue": {
+                "stringValue": "Using brackets, list which key of a drum kit was sampled next to its preset (ex. Power Set 2 [Note D#]). "
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            }
+          ]
+        },
+        {
+          "row": 22,
+          "cells": [
+            {
+              "formattedValue": "4. Use the C-1-G9 note range.",
+              "userEnteredValue": {
+                "stringValue": "4. Use the C-1-G9 note range."
+              },
+              "effectiveValue": {
+                "stringValue": "4. Use the C-1-G9 note range."
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            },
+            {
+              "formattedValue": "Many people use FL Studio, where C0 is the bottom note. If that's the case, simply transpose each key an octave down.",
+              "userEnteredValue": {
+                "stringValue": "Many people use FL Studio, where C0 is the bottom note. If that's the case, simply transpose each key an octave down."
+              },
+              "effectiveValue": {
+                "stringValue": "Many people use FL Studio, where C0 is the bottom note. If that's the case, simply transpose each key an octave down."
+              },
+              "userEnteredFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "bold": true
+                }
+              },
+              "effectiveFormat": {
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1
+                },
+                "textFormat": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": 10,
+                  "bold": true,
+                  "italic": false,
+                  "strikethrough": false,
+                  "underline": false
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "authority": "preferred_documentary",
+    "capture_exclusions": [
+      "threaded comments",
+      "revision history",
+      "original demonstration media"
+    ]
+  },
+  "selections": [
+    {
+      "sheet_id": 2072026963,
+      "range": "A1:H32",
+      "context": {
+        "game_title": "Final Fantasy IV",
+        "platform_scope": "SNES",
+        "edition": "original",
+        "section": "Section 1: SNES"
+      },
+      "columns": {
+        "subject": "A",
+        "sample_id": "B",
+        "origin": "C",
+        "bank": "D",
+        "preset": "E",
+        "notes": "F",
+        "examples": "G",
+        "demo": "H"
+      },
+      "data_rows": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "header_rows": [
+        1,
+        2,
+        3,
+        8,
+        10
+      ],
+      "identity_fields": [
+        "sample_id"
+      ],
+      "raw_aliases": {
+        "Final Fantasy II (US)": "Final Fantasy IV",
+        "Final Fantasy III (US)": "Final Fantasy VI"
+      }
+    },
+    {
+      "sheet_id": 1266952582,
+      "range": "A1:G73",
+      "context": {
+        "game_title": "Final Fantasy VI",
+        "platform_scope": "SNES",
+        "edition": "original",
+        "section": "Section 1: SNES"
+      },
+      "columns": {
+        "subject": "A",
+        "sample_id": "B",
+        "origin": "C",
+        "bank": "D",
+        "preset": "E",
+        "notes": "F",
+        "demo": "G"
+      },
+      "data_rows": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73
+      ],
+      "header_rows": [
+        1,
+        2,
+        3,
+        8,
+        10
+      ],
+      "identity_fields": [
+        "sample_id"
+      ],
+      "raw_aliases": {
+        "Final Fantasy II (US)": "Final Fantasy IV",
+        "Final Fantasy III (US)": "Final Fantasy VI"
+      }
+    }
+  ]
+}

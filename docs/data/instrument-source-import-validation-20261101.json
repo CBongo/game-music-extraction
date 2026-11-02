@@ -1,0 +1,78 @@
+{
+  "schema_version": "instrument-source-import-validation/v1",
+  "observed_on": "2026-11-01",
+  "scope": "bounded_live_capture; no complete workbook or accuracy claim",
+  "sources": [
+    {
+      "key": "main",
+      "spreadsheet_id": "1JJBlHHDc65fhZmKUGLrDTLCm6rfUU83-kbuD8Y0zU0o",
+      "claims": 24,
+      "states": {
+        "reported": 19,
+        "unknown": 5
+      },
+      "unique_identities": 24,
+      "snapshot_sha256": "73d21182208e9d43b93eabd0bb3e805d3b151eb5c6863b74bdd6c908b352096d",
+      "source_sha256": "2ed7b8b333f1c49190b1644f7f367c42249931ffc2db3a3f4c1ee5379ba2d2c8",
+      "report_file_sha256": "d3761acfccfc2896b3e81c6a1a708673998af03d3f7a93ddd7a4f5dcf204d9ee",
+      "report_path": "instrument-renders\\source-claims-20261101\\final\\main-claims.json",
+      "inputs": [
+        {
+          "path": "instrument-renders\\source-claims-20261101\\main-snapshot.json",
+          "sha256": "f40e285988f398ec1987fc4c17903571fe36b5f9d38d7c7f40fb817791b009e3"
+        },
+        {
+          "path": "docs\\data\\instrument-source-claims-main-profile.json",
+          "sha256": "3731337137af2373d5cb00d7c48c2a138f1e0fec8e801cb80c4fb592e6504068"
+        }
+      ]
+    },
+    {
+      "key": "detail",
+      "spreadsheet_id": "1dBn9BG4zlEw1StR1uhNB57bRxRRnbo3hGP8Y-5iB-W4",
+      "claims": 85,
+      "states": {
+        "reported": 50,
+        "unknown": 23,
+        "qualified": 11,
+        "disputed": 1
+      },
+      "unique_identities": 85,
+      "snapshot_sha256": "77f8286e41f51275f8b3dad5d614300631b4a2b7fb1c1174d5ae5d6bbd5c336f",
+      "source_sha256": "3eb4a24b5274ab79cd3ba5911a0a0d59d5ac6a24abcfc67a84a478fda1d4cadb",
+      "report_file_sha256": "1270dda334a9f7a4e14cf474fb1c7ebb9de4f315cd711778925696f2c28f7aab",
+      "report_path": "instrument-renders\\source-claims-20261101\\final\\detail-claims.json",
+      "inputs": [
+        {
+          "path": "instrument-renders\\source-claims-20261101\\detail-snapshot.json",
+          "sha256": "3b95b0eeb11e6df2329848aa2440dcfe35d2fd674a8522d0a39798fda4d1f763"
+        },
+        {
+          "path": "docs\\data\\instrument-source-claims-detail-profile.json",
+          "sha256": "9ac2fc3f47c647c7494329ed587bbdf59e560d18b7cc3ca4506e5908ce04e295"
+        }
+      ]
+    }
+  ],
+  "schema_definitions_checked": 30,
+  "reports_and_authored_controls_validated": 7,
+  "controls": {
+    "row_movement": {
+      "moved": 22,
+      "content_changes": 0,
+      "scope_changes": 22
+    },
+    "cell_note_change": {
+      "changed": 1,
+      "moved": 0
+    },
+    "human_label_count": 0
+  },
+  "module": {
+    "path": "instrument_analysis/source_claims.py",
+    "sha256": "09148259d100b9bec45f8295c7f60367bd420b266312c2166a211f08d8291ccb"
+  },
+  "original_pilot_unchanged": true,
+  "new_local_sample_bindings": 0,
+  "new_gm_decisions": 0
+}

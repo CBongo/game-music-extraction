@@ -1,0 +1,298 @@
+{
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-source-claims-v1.schema.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "instrument-source-claims/v1"
+    },
+    "source": {
+      "type": "object"
+    },
+    "profile": {
+      "type": "object"
+    },
+    "scope": {
+      "const": "partial_bounded_cell_capture"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observed_on": {
+      "type": "string"
+    },
+    "requested_ranges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "selections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object"
+          },
+          "selection_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "captured_cell_count": {
+            "type": "integer"
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer"
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [
+                "row",
+                "cells"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "coverage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "selection_sha256",
+          "captured_cell_count",
+          "headers",
+          "coverage"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "input_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "source",
+    "profile",
+    "scope",
+    "snapshot_sha256",
+    "source_sha256",
+    "observed_on",
+    "requested_ranges",
+    "selections",
+    "claims",
+    "limitations"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "properties": {
+        "identity": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity_parts": {
+          "type": "object",
+          "properties": {
+            "source_key": {
+              "type": "string"
+            },
+            "spreadsheet_id": {
+              "type": "string"
+            },
+            "sheet_id": {
+              "type": "integer"
+            },
+            "context": {
+              "type": "object"
+            },
+            "identity_fields_raw": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "source_key",
+            "spreadsheet_id",
+            "sheet_id",
+            "context",
+            "identity_fields_raw"
+          ],
+          "additionalProperties": false
+        },
+        "identity_status": {
+          "enum": [
+            "unique",
+            "missing_identity_fields",
+            "ambiguous_duplicate"
+          ]
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "selection_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "locator": {
+          "type": "object",
+          "properties": {
+            "sheet_id": {
+              "type": "integer"
+            },
+            "row": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "range": {
+              "type": "string"
+            },
+            "selection_range": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sheet_id",
+            "row",
+            "range",
+            "selection_range"
+          ],
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "object"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "raw_cells": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "raw_aliases": {
+          "type": "object"
+        },
+        "source_metadata": {
+          "type": "object"
+        },
+        "external_report_state": {
+          "enum": [
+            "reported",
+            "qualified",
+            "unknown",
+            "disputed"
+          ]
+        },
+        "authority": {
+          "enum": [
+            "documentary",
+            "preferred_documentary"
+          ]
+        },
+        "evidence_kind": {
+          "const": "documentary_claim"
+        },
+        "coverage_markers_are_confidence": {
+          "const": false
+        },
+        "processing_reuse_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "identity",
+        "identity_parts",
+        "identity_status",
+        "content_sha256",
+        "selection_sha256",
+        "locator",
+        "context",
+        "fields",
+        "raw_cells",
+        "headers",
+        "raw_aliases",
+        "source_metadata",
+        "external_report_state",
+        "authority",
+        "evidence_kind",
+        "coverage_markers_are_confidence",
+        "processing_reuse_flags"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
