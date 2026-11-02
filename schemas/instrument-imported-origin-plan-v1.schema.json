@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-imported-origin-plan-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_report",
+    "bindings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-imported-origin-plan/v1"
+    },
+    "source_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "binding_key",
+          "claim_identity",
+          "claim_content_sha256",
+          "game",
+          "region",
+          "revision",
+          "namespace",
+          "sample_id",
+          "rom",
+          "origin_family_id"
+        ],
+        "properties": {
+          "binding_key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "claim_identity": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "claim_content_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "game": {
+            "enum": [
+              "ff4",
+              "ff6"
+            ]
+          },
+          "region": {
+            "const": "US"
+          },
+          "revision": {
+            "const": 0
+          },
+          "namespace": {
+            "const": "global_sample"
+          },
+          "sample_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 63
+          },
+          "rom": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "origin_family_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "game": {
+                  "const": "ff4"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "sample_id": {
+                  "maximum": 22
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

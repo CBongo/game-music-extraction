@@ -1,0 +1,99 @@
+{
+  "schema_version": "instrument-imported-origin-plan/v1",
+  "source_report": {
+    "path": "../../instrument-renders/source-claims-20261101/final/detail-claims.json",
+    "sha256": "1270dda334a9f7a4e14cf474fb1c7ebb9de4f315cd711778925696f2c28f7aab"
+  },
+  "bindings": [
+    {
+      "binding_key": "ff4-flute-07",
+      "claim_identity": "f2639816bceb26391b95d8b8c07a2c17a2a764fb2fca68e0fef85e667dc43c77",
+      "claim_content_sha256": "7d6bc3def65cb4c1ee5d7944e3e91eefb366615db3937f22d122f69c686f8e2e",
+      "game": "ff4",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 7,
+      "rom": {
+        "path": "../../snes/ff2/ff2.smc",
+        "sha256": "822728dda023b08328966012b6dae0e81d4e62abcea251c303ca610e6fcb14f1"
+      },
+      "origin_family_id": "roland-u220-flute1"
+    },
+    {
+      "binding_key": "ff6-flute-07",
+      "claim_identity": "7690556fbe7187c7ff118b28829be53b5b3b703c648cd21da5f75596d4635bee",
+      "claim_content_sha256": "01b596fceaf211eeb6889ce1e0e4904ada547a9b14e59dcf2fdaf38ecea44cf8",
+      "game": "ff6",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 7,
+      "rom": {
+        "path": "../../snes/ff3/f_fan3.fig",
+        "sha256": "a54ef52571ad0952ce2788e22102b6e155a8e38630dabc7fa8be4092f6feeaca"
+      },
+      "origin_family_id": "roland-lcd1-flute-vsw"
+    },
+    {
+      "binding_key": "ff4-harp-04",
+      "claim_identity": "1c32cfc427352211f1e20d868aa7eabb52ae2f461916b1f37467791350806093",
+      "claim_content_sha256": "178716b21d4ebe857d9f8788466b44c5e5a8b567479b233c1b8d5394d1cbe8e2",
+      "game": "ff4",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 4,
+      "rom": {
+        "path": "../../snes/ff2/ff2.smc",
+        "sha256": "822728dda023b08328966012b6dae0e81d4e62abcea251c303ca610e6fcb14f1"
+      },
+      "origin_family_id": "roland-sn-u110-05-harp1"
+    },
+    {
+      "binding_key": "ff6-pan-flute-03",
+      "claim_identity": "1bb204ea6ecebe0df3e8cd30f5660ce52637279ecbc5f2623da29d95f0b52738",
+      "claim_content_sha256": "f5efa358368da03f28eadaeace56b234939cbf07bf24c739989d837b1d2b7891",
+      "game": "ff6",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 3,
+      "rom": {
+        "path": "../../snes/ff3/f_fan3.fig",
+        "sha256": "a54ef52571ad0952ce2788e22102b6e155a8e38630dabc7fa8be4092f6feeaca"
+      },
+      "origin_family_id": "roland-lcd1-pan-pipes-1"
+    },
+    {
+      "binding_key": "ff6-oboe-0a",
+      "claim_identity": "e41e2173bc09f763e62207c0c09ce52544a6da91871d20800dbab48f8311f50e",
+      "claim_content_sha256": "2838bf018e152e4da8c435bdb20fa07fea0891d9236b582f61b7a2dc5a867d67",
+      "game": "ff6",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 10,
+      "rom": {
+        "path": "../../snes/ff3/f_fan3.fig",
+        "sha256": "a54ef52571ad0952ce2788e22102b6e155a8e38630dabc7fa8be4092f6feeaca"
+      },
+      "origin_family_id": "roland-lcd1-oboe1"
+    },
+    {
+      "binding_key": "ff6-harp-1b",
+      "claim_identity": "e211819cbc7eab3c89ed30534fa6467acbf226e1a55990679990a1fbeeab7265",
+      "claim_content_sha256": "0c61fe01cf94a25834b215c8d54d10213289c369665fcc06f9a4447309ea3810",
+      "game": "ff6",
+      "region": "US",
+      "revision": 0,
+      "namespace": "global_sample",
+      "sample_id": 27,
+      "rom": {
+        "path": "../../snes/ff3/f_fan3.fig",
+        "sha256": "a54ef52571ad0952ce2788e22102b6e155a8e38630dabc7fa8be4092f6feeaca"
+      },
+      "origin_family_id": "fairlight-cmi3-harpsolo"
+    }
+  ]
+}

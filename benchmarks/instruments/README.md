@@ -124,3 +124,5 @@ bytes. The two proposed GM flute auditions remain unreviewed and are not new
 benchmark labels.
 
 See [bounded source-claim imports](../../docs/instrument-source-claims.md) for the separate offline documentary capture workflow.
+
+See [imported documentary byte bindings](../../docs/instrument-imported-bindings.md) for explicit source-claim-to-ROM plans and independent review boundaries.

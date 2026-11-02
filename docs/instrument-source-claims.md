@@ -76,3 +76,5 @@ reported one content change. The live import contains 69 reported, 28 unknown,
 11 qualified and one disputed entry; these are wording states, not confidence
 or accuracy labels. The compact audit is committed as
 `docs/data/instrument-source-import-validation-20261101.json`.
+
+[Imported documentary byte bindings](instrument-imported-bindings.md) can explicitly bind selected captured claims to pinned ROM bytes while preserving the full claim and its qualifiers.

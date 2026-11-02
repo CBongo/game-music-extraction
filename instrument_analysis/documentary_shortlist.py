@@ -15,6 +15,13 @@ from .comparisons import _calibration, _native_key, _local_file
 
 VERSION='instrument-documentary-shortlist/v1'
 FLUTE_PROGRAMS=(73,72,74,75)
+# Semantic alternatives declared independently of acoustic baseline rankings.
+SEMANTIC_PROGRAMS={
+    'Flute':('reported-flute-family-fixed-alternatives/v1',FLUTE_PROGRAMS),
+    'Pan Flute':('reported-pan-flute-family-fixed-alternatives/v1',(75,73,72,74)),
+    'Oboe':('reported-oboe-family-fixed-alternatives/v1',(68,69,70,71)),
+    'Harp':('reported-harp-fixed-target/v1',(46,)),
+}
 
 def _hash(path):return _sha(Path(path).read_bytes())
 def _read(path):
@@ -31,6 +38,9 @@ def _bound(ref,base):
 
 def _origin(bindings_path,source_record_id):
     report=_read(bindings_path)
+    if report.get('schema_version')=='instrument-imported-origin-bindings/v1':
+        from .imported_bindings import validate_imported_binding
+        return validate_imported_binding(bindings_path,source_record_id)
     matches=[b for b in report.get('bindings',[]) if b.get('record_id')==source_record_id]
     if report.get('schema_version')!='instrument-origin-pilot/v1' or len(matches)!=1:raise ValueError('unique bound source record required')
     binding=matches[0]
@@ -67,7 +77,12 @@ def _rule(binding):
         if prefix is None or int(prefix.group(1))!=gm['program_1based']:
             raise ValueError('GM program prefix disagrees with verified one-based numbering')
         return {'rule_id':'explicit-one-based-gm-identity/v1','status':'proposed','reason':'Explicit documented GM identity; target bank remains a separate audition.','predeclared_programs':[gm['program_1based']-1]}
-    if claim['raw_cells'][0]=='Flute':return {'rule_id':'reported-flute-family-fixed-alternatives/v1','status':'proposed','reason':'Flute73 primary; Piccolo72, Recorder74 and PanFlute75 related auditions fixed before audio retrieval.','predeclared_programs':list(FLUTE_PROGRAMS)}
+    subject=claim['raw_cells'][0]
+    if subject in SEMANTIC_PROGRAMS:
+        rule_id,programs=SEMANTIC_PROGRAMS[subject]
+        reason=('Flute73 primary; Piccolo72, Recorder74 and PanFlute75 related auditions fixed before audio retrieval.'
+            if subject=='Flute' else f'{subject} semantic target and family alternatives fixed before audio retrieval; source preset ordinals are not GM numbering.')
+        return {'rule_id':rule_id,'status':'proposed','reason':reason,'predeclared_programs':list(programs)}
     return {'rule_id':'insufficient-documentary-evidence/v1','status':'abstain','reason':'No declared documentary target rule; no SFX, drum or composite class inferred.','predeclared_programs':[]}
 
 def _baseline(path,index_path,binding):
@@ -124,8 +139,8 @@ def build_documentary_shortlist(bindings_path,index_path,*,source_record_id,audi
     initial_audio_hash=_hash(audio_diagnostics_path) if audio_diagnostics_path is not None else None
     binding,cat_path=_origin(bindings_path,source_record_id)
     index=_index_for_query(index_path,prepared_index)
-    baseline,gate=_baseline(audio_diagnostics_path,index_path,binding)
     rule=_rule(binding);candidates=[]
+    baseline,gate=_baseline(audio_diagnostics_path,index_path,binding)
     rows=baseline.get('candidates',[]) if baseline else []
     for ordinal,program in enumerate(rule['predeclared_programs']):
         route={'kind':'gm_program','program_0based':program,'program_1based':program+1}

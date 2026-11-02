@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CBongo/game-music-extraction/schemas/instrument-imported-origin-bindings-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan",
+    "catalog",
+    "bindings",
+    "records_file"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "instrument-imported-origin-bindings/v1"
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "records_file": {
+      "const": "records.json"
+    }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lead_key",
+        "record_id",
+        "status",
+        "origin_family_id",
+        "binding_scope",
+        "catalog",
+        "origin",
+        "imported_claim",
+        "sample",
+        "artifact",
+        "physical_dsp_srcn",
+        "source_patch_command",
+        "song_local_slot",
+        "tuning"
+      ],
+      "properties": {
+        "lead_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record_id": {
+          "type": "string",
+          "pattern": "^snes:ff[46]-us:global-sample-[0-9a-f]{2}$"
+        },
+        "status": {
+          "const": "bound"
+        },
+        "origin_family_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding_scope": {
+          "const": "Version-pinned local ROM bytes; original hardware waveform identity remains unverified."
+        },
+        "catalog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "imported_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity",
+            "content_sha256",
+            "report_sha256",
+            "claim"
+          ],
+          "properties": {
+            "identity": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "report_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "claim": {
+              "$ref": "instrument-source-claims-v1.schema.json#/$defs/claim"
+            }
+          }
+        },
+        "sample": {
+          "$ref": "instrument-rom-sample-v1.schema.json"
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "sha256"
+          ],
+          "properties": {
+            "file": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]*/sample\\.brr$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "physical_dsp_srcn": {
+          "type": "null"
+        },
+        "source_patch_command": {
+          "type": "null"
+        },
+        "song_local_slot": {
+          "type": "null"
+        },
+        "tuning": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "game_unity_key",
+            "observed_pitch_offset",
+            "reason"
+          ],
+          "properties": {
+            "game_unity_key": {
+              "type": "null"
+            },
+            "observed_pitch_offset": {
+              "type": "null"
+            },
+            "reason": {
+              "const": "Documentary sampled keys do not calibrate game pitch."
+            }
+          }
+        }
+      }
+    },
+    "normalizedClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lead_key",
+        "game_title",
+        "platform_scope",
+        "edition",
+        "section",
+        "game_section",
+        "sheet_id",
+        "row",
+        "range",
+        "selection_range",
+        "raw_cells",
+        "selection_sha256",
+        "external_report_state",
+        "credits",
+        "source_key"
+      ],
+      "properties": {
+        "lead_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "game_title": {
+          "enum": [
+            "Final Fantasy IV",
+            "Final Fantasy VI"
+          ]
+        },
+        "platform_scope": {
+          "const": "SNES"
+        },
+        "edition": {
+          "const": "original"
+        },
+        "section": {
+          "const": "Section 1: SNES"
+        },
+        "game_section": {
+          "const": "Section 1: SNES"
+        },
+        "sheet_id": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "range": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selection_range": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_cells": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selection_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "external_report_state": {
+          "enum": [
+            "reported",
+            "qualified"
+          ]
+        },
+        "credits": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "external_report_state",
+        "processing_reuse_flags",
+        "claim",
+        "source"
+      ],
+      "properties": {
+        "authority": {
+          "const": "preferred_documentary"
+        },
+        "external_report_state": {
+          "enum": [
+            "reported",
+            "qualified"
+          ]
+        },
+        "processing_reuse_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "claim": {
+          "$ref": "#/$defs/normalizedClaim"
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "key",
+            "spreadsheet_id",
+            "credit",
+            "authority"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "spreadsheet_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "credit": {
+              "type": "string",
+              "minLength": 1
+            },
+            "authority": {
+              "const": "preferred_documentary"
+            }
+          }
+        }
+      }
+    }
+  }
+}

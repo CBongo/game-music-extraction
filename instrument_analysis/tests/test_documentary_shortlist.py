@@ -5,9 +5,33 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 from instrument_analysis.tests import test_origin_pilot as fixtures
-from instrument_analysis.documentary_shortlist import build_documentary_shortlist, _rule
+from instrument_analysis.documentary_shortlist import build_documentary_shortlist, _origin, _rule
 
 class DocumentaryShortlistTests(unittest.TestCase):
+    def test_declared_imported_subjects_ignore_source_preset_ordinals(self):
+        for subject, programs in [('Pan Flute',[75,73,72,74]),('Oboe',[68,69,70,71]),('Harp',[46])]:
+            binding={'origin':{'external_report_state':'reported','claim':{
+                'raw_cells':[subject,'$03','Source synth','Preset bank','999 unrelated preset']}}}
+            self.assertEqual(_rule(binding)['predeclared_programs'],programs)
+            # No acoustic ranking, preset number, or named model enters the rule.
+            binding['origin']['claim']['raw_cells'][4]='001 Another preset'
+            self.assertEqual(_rule(binding)['predeclared_programs'],programs)
+            for state in ('qualified','doubted','reported_transform'):
+                binding['origin']['external_report_state']=state
+                self.assertEqual(_rule(binding)['status'],'abstain')
+                self.assertEqual(_rule(binding)['predeclared_programs'],[])
+
+    def test_imported_origin_dispatch_preserves_validation_errors(self):
+        path=self.root/'generic-bindings.json'
+        path.write_text(json.dumps({'schema_version':'instrument-imported-origin-bindings/v1'}))
+        expected=({'record_id':'generic-source'},self.root/'imported-claims.json')
+        with patch('instrument_analysis.imported_bindings.validate_imported_binding',return_value=expected) as validate:
+            self.assertEqual(_origin(path,'generic-source'),expected)
+            validate.assert_called_once_with(path,'generic-source')
+        for message in ('imported claim changed','stale helper input'):
+            with patch('instrument_analysis.imported_bindings.validate_imported_binding',side_effect=ValueError(message)):
+                with self.assertRaisesRegex(ValueError,message):_origin(path,'generic-source')
+
     def setUp(self):
         self.fixture=fixtures.OriginPilotTests();self.fixture.setUp();self.addCleanup(self.fixture.doCleanups)
         self.root=self.fixture.root;self.fixture.build()

@@ -216,3 +216,5 @@ The live schema audit checked 22 artifacts and temporary automated judgment
 controls; those controls were discarded and do not count as human labels.
 The local entry point is `instrument-renders/documentary-mapping-20261101/index.html`;
 `schema-validation.json` records the schema checks. Existing maps were not changed.
+
+[Imported documentary byte bindings](instrument-imported-bindings.md) extend the binding input through explicit revision-pinned plans; the legacy pilot and the independent acoustic branch retain their existing boundaries.

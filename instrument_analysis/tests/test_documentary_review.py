@@ -68,7 +68,7 @@ class DocumentaryReviewTests(unittest.TestCase):
             "candidates": [{"route": self.refs[i]["route"], "reference_variants": [self.refs[i]], "documentary_priority": 1 if i == 0 else 2} for i in (0, 3, 4, 5)]}
         self.path = self.root / "shortlist.json"; write(self.path, self.shortlist)
 
-    def build(self):
+    def build(self, imported=False):
         @contextmanager
         def prepared(path):
             yield object()
@@ -80,7 +80,9 @@ class DocumentaryReviewTests(unittest.TestCase):
             value = {"package_id": "a" * 64}
             write(Path(output) / "manifest.json", value)
             return value
-        with patch("instrument_analysis.documentary_review._origin", return_value=(self.binding, self.catalog)), \
+        origin_target = ("instrument_analysis.imported_bindings.validate_imported_binding" if imported
+                         else "instrument_analysis.documentary_review._origin")
+        with patch(origin_target, return_value=(self.binding, self.catalog)), \
              patch("instrument_analysis.documentary_review._baseline", return_value=(self.baseline, self.gate)), \
              patch("instrument_analysis.documentary_review.prepared_reference_index", side_effect=prepared), \
              patch("instrument_analysis.documentary_review._index_for_query", return_value=self.index), \
@@ -88,6 +90,18 @@ class DocumentaryReviewTests(unittest.TestCase):
              patch("instrument_analysis.documentary_review.build_review_package", side_effect=review) as package:
             result = build_documentary_review(self.path, output_dir=self.root / "review-output")
             return result, compare.call_count, package.call_count
+
+    def test_imported_binding_review_revalidates_generic_origin(self):
+        write(self.bindings, {"schema_version": "instrument-imported-origin-bindings/v1", "bindings": [self.binding]})
+        self.shortlist["inputs"]["bindings"] = ref(self.bindings)
+        write(self.path, self.shortlist)
+        result, comparisons, packages = self.build(imported=True)
+        self.assertEqual((result["candidate_count"], comparisons, packages), (6, 6, 1))
+        report = json.loads((self.root / "review-output/report.json").read_text())
+        self.assertEqual(report["inputs"]["catalog"], ref(self.catalog))
+        self.assertEqual(report["origin"], self.binding["origin"])
+        self.assertTrue(report["no_fused_winner"])
+        self.assertEqual(report["human_label_count"], 0)
 
     def test_union_deduplicates_and_preserves_abstention_and_labels(self):
         other_phase = deepcopy(self.refs[0])
